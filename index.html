@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkillGraph — AI Career Intelligence Platform</title>
+<meta name="description" content="Upload your resume. See exactly what's stopping you from your dream job. Get a 7-day plan to fix it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#2563EB;--blue-dark:#1D4ED8;--blue-light:#EFF6FF;
+  --green:#16A34A;--orange:#EA580C;--red:#DC2626;--purple:#7C3AED;
+  --bg:#0A0F1E;--surface:#111827;--surface2:#1F2937;--border:#374151;
+  --text:#F9FAFB;--muted:#9CA3AF;--accent:#60A5FA;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,15,30,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 2rem;height:64px;display:flex;align-items:center;justify-content:space-between}
+.nav-logo{display:flex;align-items:center;gap:.5rem;font-weight:800;font-size:1.2rem;color:var(--text)}
+.nav-logo span{color:var(--accent)}
+.nav-links{display:flex;gap:1.5rem;align-items:center}
+.nav-links a{color:var(--muted);text-decoration:none;font-size:.9rem;font-weight:500;transition:color .2s}
+.nav-links a:hover{color:var(--text)}
+.btn-primary{background:var(--blue);color:#fff;padding:.5rem 1.25rem;border-radius:8px;font-weight:600;font-size:.9rem;text-decoration:none;border:none;cursor:pointer;transition:background .2s,transform .1s}
+.btn-primary:hover{background:var(--blue-dark);transform:translateY(-1px)}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:6rem 2rem 4rem;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(37,99,235,.25) 0%,transparent 70%)}
+.hero-badge{display:inline-flex;align-items:center;gap:.5rem;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.3);color:var(--accent);padding:.4rem 1rem;border-radius:999px;font-size:.8rem;font-weight:600;margin-bottom:1.5rem;animation:fadeUp .6s ease}
+.hero h1{font-size:clamp(2.4rem,6vw,4.5rem);font-weight:900;line-height:1.1;letter-spacing:-2px;margin-bottom:1.5rem;animation:fadeUp .7s ease}
+.hero h1 .grad{background:linear-gradient(135deg,var(--accent),#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero p{font-size:1.2rem;color:var(--muted);max-width:600px;margin:0 auto 2.5rem;animation:fadeUp .8s ease}
+.hero-cta{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;animation:fadeUp .9s ease}
+.btn-outline{border:1px solid var(--border);color:var(--text);padding:.6rem 1.4rem;border-radius:8px;font-weight:600;font-size:.95rem;text-decoration:none;transition:border-color .2s,background .2s}
+.btn-outline:hover{border-color:var(--accent);background:rgba(96,165,250,.08)}
+.hero-stats{display:flex;gap:3rem;justify-content:center;margin-top:4rem;animation:fadeUp 1s ease}
+.stat{text-align:center}
+.stat .num{font-size:2rem;font-weight:800;color:var(--accent)}
+.stat .lbl{font-size:.8rem;color:var(--muted);font-weight:500}
+
+/* SECTIONS */
+section{padding:5rem 2rem}
+.container{max-width:1200px;margin:0 auto}
+.section-tag{display:inline-block;background:rgba(96,165,250,.1);color:var(--accent);border:1px solid rgba(96,165,250,.2);padding:.3rem .8rem;border-radius:6px;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem}
+.section-title{font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;letter-spacing:-1px;margin-bottom:.75rem}
+.section-sub{color:var(--muted);font-size:1.05rem;max-width:600px}
+
+/* HOW IT WORKS */
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:2rem;margin-top:3rem}
+.step-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;position:relative;overflow:hidden;transition:border-color .3s,transform .3s}
+.step-card:hover{border-color:var(--accent);transform:translateY(-4px)}
+.step-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--blue),#7C3AED)}
+.step-num{width:44px;height:44px;border-radius:12px;background:var(--blue-light);color:var(--blue);font-weight:800;font-size:1.1rem;display:flex;align-items:center;justify-content:center;margin-bottom:1.25rem;background:rgba(37,99,235,.15);color:var(--accent)}
+.step-card h3{font-weight:700;font-size:1.1rem;margin-bottom:.5rem}
+.step-card p{color:var(--muted);font-size:.9rem}
+
+/* FEATURES GRID */
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem;margin-top:3rem}
+.feat-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.75rem;transition:all .3s;cursor:default}
+.feat-card:hover{border-color:var(--border);background:var(--surface2);transform:translateY(-2px)}
+.feat-icon{font-size:2rem;margin-bottom:1rem}
+.feat-card h3{font-weight:700;margin-bottom:.4rem;font-size:1rem}
+.feat-card p{color:var(--muted);font-size:.875rem;line-height:1.6}
+.feat-tag{display:inline-block;margin-top:.75rem;padding:.2rem .6rem;border-radius:6px;font-size:.7rem;font-weight:700;background:rgba(22,163,74,.15);color:#4ADE80}
+.feat-tag.major{background:rgba(124,58,237,.15);color:#A78BFA}
+
+/* AIRTABLE SCHEMA */
+.schema-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;margin-top:2.5rem}
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem}
+.table-card h4{font-weight:700;font-size:.95rem;margin-bottom:1rem;color:var(--accent);display:flex;align-items:center;gap:.5rem}
+.table-card h4::before{content:'⬛';font-size:.7rem}
+.field-row{display:flex;justify-content:space-between;align-items:center;padding:.35rem 0;border-bottom:1px solid rgba(55,65,81,.5);font-size:.8rem}
+.field-row:last-child{border-bottom:none}
+.field-name{color:var(--text);font-weight:500;font-family:monospace}
+.field-type{color:var(--muted);font-size:.72rem;background:var(--surface2);padding:.15rem .4rem;border-radius:4px}
+
+/* MAKE SCENARIOS */
+.scenario-list{display:grid;gap:1.25rem;margin-top:2.5rem}
+.scenario{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;display:grid;grid-template-columns:auto 1fr auto;gap:1.5rem;align-items:start}
+.scenario-num{width:40px;height:40px;border-radius:10px;background:rgba(37,99,235,.2);color:var(--accent);font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.scenario h4{font-weight:700;margin-bottom:.3rem}
+.scenario p{color:var(--muted);font-size:.875rem}
+.scenario-trigger{text-align:right;font-size:.75rem;color:var(--muted);background:var(--surface2);padding:.3rem .7rem;border-radius:6px;white-space:nowrap;height:fit-content}
+
+/* ARCHITECTURE DIAGRAM */
+.arch{margin-top:2.5rem;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2.5rem;overflow:hidden}
+.arch-row{display:flex;gap:1rem;align-items:center;justify-content:center;flex-wrap:wrap;margin-bottom:1rem}
+.arch-node{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.6rem 1.1rem;font-size:.8rem;font-weight:600;display:flex;align-items:center;gap:.5rem;position:relative}
+.arch-node.blue{border-color:rgba(37,99,235,.5);color:var(--accent)}
+.arch-node.green{border-color:rgba(22,163,74,.5);color:#4ADE80}
+.arch-node.purple{border-color:rgba(124,58,237,.5);color:#A78BFA}
+.arch-node.orange{border-color:rgba(234,88,12,.5);color:#FB923C}
+.arch-arrow{color:var(--muted);font-size:1.2rem}
+.arch-layer{width:100%;text-align:center;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.5rem;padding-bottom:.5rem;border-bottom:1px dashed var(--border)}
+
+/* CHART SECTION */
+.chart-wrap{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.5rem;margin-top:2rem}
+.chart-wrap h4{font-weight:700;margin-bottom:1rem;font-size:.95rem}
+
+/* IMPACT */
+.impact-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1.5rem;margin-top:2.5rem}
+.impact-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.75rem;text-align:center}
+.impact-card .big{font-size:2.5rem;font-weight:900;background:linear-gradient(135deg,var(--accent),#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.impact-card p{color:var(--muted);font-size:.82rem;margin-top:.25rem}
+
+/* ROADMAP */
+.roadmap{display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-top:2.5rem}
+.phase{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.75rem}
+.phase h4{font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.phase-item{display:flex;align-items:flex-start;gap:.75rem;margin-bottom:.75rem;font-size:.875rem;color:var(--muted)}
+.phase-item span.dot{width:8px;height:8px;border-radius:50%;margin-top:.4rem;flex-shrink:0}
+.dot.done{background:var(--green)}
+.dot.plan{background:var(--purple)}
+
+/* SDG BADGE */
+.sdg-bar{background:linear-gradient(135deg,#F26522,#E5243B);padding:1.5rem 2rem;border-radius:16px;display:flex;align-items:center;gap:2rem;margin-top:2.5rem;flex-wrap:wrap}
+.sdg-bar .sdg-num{font-size:3rem;font-weight:900;opacity:.9}
+.sdg-bar .sdg-text h4{font-weight:800;font-size:1.1rem}
+.sdg-bar .sdg-text p{font-size:.875rem;opacity:.85}
+
+/* FOOTER */
+footer{background:var(--surface);border-top:1px solid var(--border);padding:2.5rem 2rem;text-align:center;color:var(--muted);font-size:.875rem}
+footer .logo-footer{font-weight:800;color:var(--text);font-size:1.1rem;margin-bottom:.5rem}
+
+/* ANIMATIONS */
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease}
+.fade-in.visible{opacity:1;transform:none}
+
+/* PROMPT BOX */
+.prompt-block{background:#0D1117;border:1px solid var(--border);border-radius:12px;padding:1.25rem 1.5rem;font-family:monospace;font-size:.8rem;line-height:1.7;margin-top:1rem;overflow-x:auto;position:relative}
+.prompt-block .tag-sys{color:#F59E0B}
+.prompt-block .tag-usr{color:#34D399}
+.prompt-label{font-size:.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-top:1.5rem;margin-bottom:.4rem;letter-spacing:.06em}
+
+@media(max-width:768px){
+  .roadmap{grid-template-columns:1fr}
+  .scenario{grid-template-columns:auto 1fr;gap:1rem}
+  .scenario-trigger{display:none}
+  nav .nav-links{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">⬡ Skill<span>Graph</span></div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#schema">Database</a>
+    <a href="#automation">Automation</a>
+    <a href="#architecture">Architecture</a>
+    <a href="LiteratureReview.html">Literature Review</a>
+    <a href="#" class="btn-primary">Launch on Bubble.io →</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div>
+    <div class="hero-badge">🎯 SDG 9 — Industry, Innovation & Infrastructure</div>
+    <h1>Your Resume Meets<br>the <span class="grad">Live Job Market.</span></h1>
+    <p>Upload your resume. See exactly what's stopping you from your dream job. Get a 7-day, AI-powered plan to fix it.</p>
+    <div class="hero-cta">
+      <a href="#" class="btn-primary">🚀 Analyze My Resume Free</a>
+      <a href="#features" class="btn-outline">See How It Works ↓</a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat"><div class="num" id="cnt-students">0</div><div class="lbl">Students Analyzed</div></div>
+      <div class="stat"><div class="num" id="cnt-gaps">0</div><div class="lbl">Skill Gaps Found</div></div>
+      <div class="stat"><div class="num" id="cnt-sprints">0</div><div class="lbl">Sprints Completed</div></div>
+      <div class="stat"><div class="num">+23pt</div><div class="lbl">Avg Readiness Gain</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="features">
+  <div class="container">
+    <div class="section-tag">How It Works</div>
+    <h2 class="section-title">From Resume to Roadmap in 60 Seconds</h2>
+    <p class="section-sub">Three steps powered by GPT-4o, live LinkedIn job data, and smart automation.</p>
+    <div class="steps">
+      <div class="step-card fade-in">
+        <div class="step-num">01</div>
+        <h3>Upload Your Resume</h3>
+        <p>GPT-4o extracts your technical skills, soft skills, tools, projects, and internships as structured JSON — instantly.</p>
+      </div>
+      <div class="step-card fade-in">
+        <div class="step-num">02</div>
+        <h3>See Your Exact Gaps</h3>
+        <p>We compare your skills against 1,000+ live job postings scraped weekly from LinkedIn for your target role.</p>
+      </div>
+      <div class="step-card fade-in">
+        <div class="step-num">03</div>
+        <h3>Follow Your 7-Day Sprint</h3>
+        <p>AI generates a day-by-day learning plan with free resources, time estimates, and mini-tasks to close each gap.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES GRID -->
+<section style="padding-top:0">
+  <div class="container">
+    <div class="section-tag">Feature Set</div>
+    <h2 class="section-title">7 Modules. One Platform.</h2>
+    <p class="section-sub">Minor project scope (F1–F7) and major scope (F8–F14) — all designed no-code on Bubble.io.</p>
+    <div class="features">
+      <div class="feat-card fade-in">
+        <div class="feat-icon">📄</div>
+        <h3>F1 — Resume Skill Extractor</h3>
+        <p>PDF upload → GPT-4o parses 5 skill categories → visual tag cloud on dashboard. Powered by Bubble file uploader + API Connector.</p>
+        <span class="feat-tag">Minor Project</span>
+      </div>
+      <div class="feat-card fade-in">
+        <div class="feat-icon">📊</div>
+        <h3>F2 — Real-Time Job Market Tracker</h3>
+        <p>Make.com scrapes 1,000 LinkedIn jobs every Sunday. OpenAI extracts required skills. Public Skill Demand Index updates automatically.</p>
+        <span class="feat-tag">Minor Project</span>
+      </div>
+      <div class="feat-card fade-in">
+        <div class="feat-icon">🔍</div>
+        <h3>F3 — Skill Gap Analysis Engine</h3>
+        <p>GPT-4o compares your skills to market data → returns readiness % (0–100), urgency-ranked gaps, strengths, and quick wins.</p>
+        <span class="feat-tag">Minor Project</span>
+      </div>
+      <div class="feat-card fade-in">
+        <div class="feat-icon">🗓️</div>
+        <h3>F4 — Weekly Learning Sprint</h3>
+        <p>7-day checklist of topic + free resource + time estimate + mini-task. User marks days complete. Confetti on 100% 🎉</p>
+        <span class="feat-tag">Minor Project</span>
+      </div>
+      <div class="feat-card fade-in">
+        <div class="feat-icon">💡</div>
+        <h3>F5 — Project Idea Suggester</h3>
+        <p>GPT-4o suggests 5 portfolio projects using your current + gap skills. Includes GitHub README outline and recruiter signal.</p>
+        <span class="feat-tag">Minor Project</span>
+      </div>
+      <div class="feat-card fade-in">
+        <div class="feat-icon">💼</div>
+        <h3>F6 — LinkedIn Profile Optimizer</h3>
+        <p>Paste headline + about + skills. AI rewrites for ATS + recruiter visibility. Shows ATS score before/after with keywords added.</p>
+        <span class="feat-tag">Minor Project</span>
+      </div>
+      <div class="feat-card fade-in">
+        <div class="feat-icon">📈</div>
+        <h3>F7 — Anonymous Peer Benchmarking</h3>
+        <p>Bell curve chart shows your readiness vs. all students with same target role. See what top 10% have that you don't.</p>
+        <span class="feat-tag">Minor Project</span>
+      </div>
+      <div class="feat-card fade-in">
+        <div class="feat-icon">🤖</div>
+        <h3>F8–F14 — Advanced Modules (Sem 8)</h3>
+        <p>Placement Prediction Score, Study Group Matcher, Monthly PDF Reports, College Admin Dashboard, Recruiter Portal, Alumni Mentorship, Live Market API.</p>
+        <span class="feat-tag major">Major Project</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SKILL DEMAND CHART -->
+<section id="market">
+  <div class="container">
+    <div class="section-tag">Live Data Preview</div>
+    <h2 class="section-title">Skill Demand Index</h2>
+    <p class="section-sub">Top skills demanded across 1,000+ SDE job postings this week. Updated every Sunday via Make.com.</p>
+    <div class="chart-wrap fade-in">
+      <h4>Top 10 In-Demand Skills — SDE Roles (Illustrative)</h4>
+      <canvas id="skillChart" height="80"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- AIRTABLE SCHEMA -->
+<section id="schema">
+  <div class="container">
+    <div class="section-tag">Database Layer</div>
+    <h2 class="section-title">Airtable Schema</h2>
+    <p class="section-sub">6 tables. All connected via Bubble Airtable plugin and Make.com webhooks.</p>
+    <div class="schema-grid">
+      <div class="table-card fade-in">
+        <h4>Users</h4>
+        <div class="field-row"><span class="field-name">user_id</span><span class="field-type">Autonumber</span></div>
+        <div class="field-row"><span class="field-name">name</span><span class="field-type">Text</span></div>
+        <div class="field-row"><span class="field-name">email</span><span class="field-type">Email</span></div>
+        <div class="field-row"><span class="field-name">college / branch / year</span><span class="field-type">Text / Select</span></div>
+        <div class="field-row"><span class="field-name">target_role</span><span class="field-type">Single Select</span></div>
+        <div class="field-row"><span class="field-name">readiness_score</span><span class="field-type">Number 0–100</span></div>
+        <div class="field-row"><span class="field-name">resume_url</span><span class="field-type">URL</span></div>
+        <div class="field-row"><span class="field-name">firebase_uid</span><span class="field-type">Text</span></div>
+      </div>
+      <div class="table-card fade-in">
+        <h4>Skills_Profile</h4>
+        <div class="field-row"><span class="field-name">skill_id</span><span class="field-type">Autonumber</span></div>
+        <div class="field-row"><span class="field-name">user_id</span><span class="field-type">→ Users</span></div>
+        <div class="field-row"><span class="field-name">skill_name</span><span class="field-type">Text</span></div>
+        <div class="field-row"><span class="field-name">category</span><span class="field-type">technical / soft / tool</span></div>
+        <div class="field-row"><span class="field-name">proficiency</span><span class="field-type">beginner / intermediate</span></div>
+        <div class="field-row"><span class="field-name">source</span><span class="field-type">resume / manual</span></div>
+        <div class="field-row"><span class="field-name">extracted_at</span><span class="field-type">Date</span></div>
+      </div>
+      <div class="table-card fade-in">
+        <h4>Job_Postings</h4>
+        <div class="field-row"><span class="field-name">job_id</span><span class="field-type">Autonumber</span></div>
+        <div class="field-row"><span class="field-name">company / role</span><span class="field-type">Text / Select</span></div>
+        <div class="field-row"><span class="field-name">required_skills</span><span class="field-type">Long Text (JSON)</span></div>
+        <div class="field-row"><span class="field-name">salary_band</span><span class="field-type">Text</span></div>
+        <div class="field-row"><span class="field-name">source</span><span class="field-type">LinkedIn / Naukri</span></div>
+        <div class="field-row"><span class="field-name">demand_week</span><span class="field-type">Number (ISO Week)</span></div>
+        <div class="field-row"><span class="field-name">scraped_at</span><span class="field-type">Created Time</span></div>
+      </div>
+      <div class="table-card fade-in">
+        <h4>Skill_Gaps</h4>
+        <div class="field-row"><span class="field-name">gap_id</span><span class="field-type">Autonumber</span></div>
+        <div class="field-row"><span class="field-name">user_id</span><span class="field-type">→ Users</span></div>
+        <div class="field-row"><span class="field-name">missing_skill</span><span class="field-type">Text</span></div>
+        <div class="field-row"><span class="field-name">urgency</span><span class="field-type">high / medium / low</span></div>
+        <div class="field-row"><span class="field-name">weeks_to_learn</span><span class="field-type">Number</span></div>
+        <div class="field-row"><span class="field-name">why_important</span><span class="field-type">Long Text</span></div>
+        <div class="field-row"><span class="field-name">closed</span><span class="field-type">Checkbox</span></div>
+      </div>
+      <div class="table-card fade-in">
+        <h4>Sprints</h4>
+        <div class="field-row"><span class="field-name">sprint_id</span><span class="field-type">Autonumber</span></div>
+        <div class="field-row"><span class="field-name">user_id</span><span class="field-type">→ Users</span></div>
+        <div class="field-row"><span class="field-name">week_start_date</span><span class="field-type">Date</span></div>
+        <div class="field-row"><span class="field-name">day_tasks</span><span class="field-type">Long Text (JSON)</span></div>
+        <div class="field-row"><span class="field-name">completion_percentage</span><span class="field-type">Number 0–100</span></div>
+        <div class="field-row"><span class="field-name">skills_targeted</span><span class="field-type">Long Text (JSON)</span></div>
+        <div class="field-row"><span class="field-name">status</span><span class="field-type">active / completed</span></div>
+      </div>
+      <div class="table-card fade-in">
+        <h4>Benchmarks</h4>
+        <div class="field-row"><span class="field-name">bench_id</span><span class="field-type">Autonumber</span></div>
+        <div class="field-row"><span class="field-name">role / year</span><span class="field-type">Select</span></div>
+        <div class="field-row"><span class="field-name">readiness_score</span><span class="field-type">Number (anon)</span></div>
+        <div class="field-row"><span class="field-name">college_tier</span><span class="field-type">Tier-1 / 2 / 3</span></div>
+        <div class="field-row"><span class="field-name">timestamp</span><span class="field-type">Created Time</span></div>
+        <div class="field-row" style="color:var(--green);font-size:.75rem;padding-top:.5rem"><span>🔒 No PII stored — append-only</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MAKE.COM SCENARIOS -->
+<section id="automation">
+  <div class="container">
+    <div class="section-tag">Automation Layer</div>
+    <h2 class="section-title">Make.com Scenarios</h2>
+    <p class="section-sub">5 automated workflows handle all background intelligence — no backend code required.</p>
+    <div class="scenario-list">
+      <div class="scenario fade-in">
+        <div class="scenario-num">1</div>
+        <div>
+          <h4>Weekly Job Scraper</h4>
+          <p>RapidAPI JSearch → 20 roles × 50 results → OpenAI Prompt 6 extracts skills → Airtable Job_Postings upsert → Skill Demand Index refreshed.</p>
+        </div>
+        <div class="scenario-trigger">⏰ Every Sunday 00:00 IST</div>
+      </div>
+      <div class="scenario fade-in">
+        <div class="scenario-num">2</div>
+        <div>
+          <h4>Resume Processing Pipeline</h4>
+          <p>New user row in Airtable → fetch resume URL → GPT-4o parses skills → creates Skills_Profile rows → runs gap analysis → sends SendGrid welcome email.</p>
+        </div>
+        <div class="scenario-trigger">⚡ Airtable webhook (new User)</div>
+      </div>
+      <div class="scenario fade-in">
+        <div class="scenario-num">3</div>
+        <div>
+          <h4>Sprint Generator</h4>
+          <p>New high-urgency gap detected → collect top 3 gaps → GPT-4o generates 7-day sprint JSON → store in Sprints table → email + SMS via SendGrid + Twilio.</p>
+        </div>
+        <div class="scenario-trigger">⚡ Airtable webhook (new Skill_Gap)</div>
+      </div>
+      <div class="scenario fade-in">
+        <div class="scenario-num">4</div>
+        <div>
+          <h4>Monthly PDF Report</h4>
+          <p>For each active user: calculate readiness delta → generate PDF via PDF Monkey template → deliver via SendGrid attachment.</p>
+        </div>
+        <div class="scenario-trigger">📅 1st of each month</div>
+      </div>
+      <div class="scenario fade-in">
+        <div class="scenario-num">5</div>
+        <div>
+          <h4>Benchmark Updater</h4>
+          <p>User readiness_score changes → anonymize → write to Benchmarks table → recalculate percentile distribution for bell curve chart.</p>
+        </div>
+        <div class="scenario-trigger">⚡ Airtable webhook (score updated)</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AI PROMPTS -->
+<section>
+  <div class="container">
+    <div class="section-tag">AI Engine</div>
+    <h2 class="section-title">OpenAI Prompt Templates</h2>
+    <p class="section-sub">6 engineered prompts — all return strict JSON for reliable parsing. Model: <code style="color:var(--accent)">gpt-4o</code></p>
+
+    <div class="prompt-label">PROMPT 1 — Resume Parser</div>
+    <div class="prompt-block">
+      <span class="tag-sys">SYSTEM:</span> "You are a precise resume parser. Extract structured data. Return ONLY valid JSON. Schema: { technical_skills: string[], soft_skills: string[], tools: string[], frameworks: string[], projects: [{name, tech[], description}], internships: [{company, role, duration, skills[]}], education: {degree, branch, cgpa} }"<br>
+      <span class="tag-usr">USER:</span> "Parse this resume: {resume_text}"
+    </div>
+
+    <div class="prompt-label">PROMPT 2 — Gap Analyzer</div>
+    <div class="prompt-block">
+      <span class="tag-sys">SYSTEM:</span> "You are a senior hiring manager. Return ONLY valid JSON. Schema: { readiness_percentage: number, verdict: string, missing_skills: [{skill, urgency: 'high'|'medium'|'low', weeks_to_learn, why_important}], strengths: string[], quick_wins: string[] }"<br>
+      <span class="tag-usr">USER:</span> "Student skills: {user_skills_json}. Target role: {target_role}. Market data: {market_skills_json}."
+    </div>
+
+    <div class="prompt-label">PROMPT 3 — Sprint Generator</div>
+    <div class="prompt-block">
+      <span class="tag-sys">SYSTEM:</span> "You are a learning coach. Return ONLY a valid JSON array of 7 objects. Each: { day, focus, topic, resource_type, resource_title, resource_url, time_minutes, mini_task, checkpoint }"<br>
+      <span class="tag-usr">USER:</span> "Create a sprint to learn: {skill_1}, {skill_2}, {skill_3}. Level: {current_level}. Role: {target_role}."
+    </div>
+
+    <div class="prompt-label">PROMPT 4 — Project Suggester</div>
+    <div class="prompt-block">
+      <span class="tag-sys">SYSTEM:</span> "Suggest 5 buildable projects. Return ONLY a JSON array. Each: { title, tagline, difficulty, tech_stack[], core_features[], github_readme_outline[], recruiter_signal, time_to_build_weeks }"<br>
+      <span class="tag-usr">USER:</span> "Student knows: {current_skills}. Learning: {gap_skills}. Role: {target_role}."
+    </div>
+
+    <div class="prompt-label">PROMPT 5 — LinkedIn Optimizer</div>
+    <div class="prompt-block">
+      <span class="tag-sys">SYSTEM:</span> "You are an ATS + LinkedIn specialist. Return ONLY valid JSON. Schema: { headline, about, skills[], keywords_added[], ats_score_estimate_before, ats_score_estimate_after, improvement_tips[] }"<br>
+      <span class="tag-usr">USER:</span> "Role: {target_role}. Headline: {headline}. About: {about}. Skills: {skills_list}."
+    </div>
+  </div>
+</section>
+
+<!-- SYSTEM ARCHITECTURE -->
+<section id="architecture">
+  <div class="container">
+    <div class="section-tag">System Architecture</div>
+    <h2 class="section-title">Tech Stack Map</h2>
+    <p class="section-sub">100% no-code. No Django, Flask, or Node.js. Every layer uses the tools above.</p>
+    <div class="arch fade-in">
+      <div class="arch-layer">👤 User Layer</div>
+      <div class="arch-row">
+        <div class="arch-node blue">🫧 Bubble.io Frontend</div>
+        <div class="arch-arrow">↔</div>
+        <div class="arch-node orange">📱 FlutterFlow (Mobile)</div>
+      </div>
+      <div class="arch-layer" style="margin-top:1.5rem">⚙️ Logic & Automation Layer</div>
+      <div class="arch-row">
+        <div class="arch-node blue">🤖 OpenAI GPT-4o API</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node purple">⚙️ Make.com Scenarios</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node green">📊 RapidAPI / JSearch</div>
+      </div>
+      <div class="arch-layer" style="margin-top:1.5rem">💾 Data & Auth Layer</div>
+      <div class="arch-row">
+        <div class="arch-node green">📋 Airtable (primary DB)</div>
+        <div class="arch-arrow">+</div>
+        <div class="arch-node orange">🔥 Firebase (auth + realtime)</div>
+        <div class="arch-arrow">+</div>
+        <div class="arch-node purple">📧 SendGrid / Twilio</div>
+      </div>
+      <div class="arch-layer" style="margin-top:1.5rem">📤 Output Layer</div>
+      <div class="arch-row">
+        <div class="arch-node blue">📈 Chart.js Dashboard</div>
+        <div class="arch-arrow">+</div>
+        <div class="arch-node green">📄 PDF Monkey Reports</div>
+        <div class="arch-arrow">+</div>
+        <div class="arch-node orange">🔔 SMS / Email Alerts</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- IMPACT NUMBERS -->
+<section>
+  <div class="container">
+    <div class="section-tag">Expected Impact</div>
+    <h2 class="section-title">What Success Looks Like</h2>
+    <p class="section-sub">Target metrics for end of Semester 7 (Minor Project submission).</p>
+    <div class="impact-grid">
+      <div class="impact-card fade-in"><div class="big">500+</div><p>Engineering students onboarded in first month</p></div>
+      <div class="impact-card fade-in"><div class="big">12K+</div><p>Skill gaps identified across all users</p></div>
+      <div class="impact-card fade-in"><div class="big">85%</div><p>Sprint completion rate (target)</p></div>
+      <div class="impact-card fade-in"><div class="big">+23pt</div><p>Average readiness score improvement over 4 weeks</p></div>
+      <div class="impact-card fade-in"><div class="big">1000</div><p>Job postings scraped every Sunday automatically</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- BUILD ROADMAP -->
+<section>
+  <div class="container">
+    <div class="section-tag">Build Order</div>
+    <h2 class="section-title">4-Week MVP Roadmap</h2>
+    <div class="roadmap">
+      <div class="phase">
+        <h4>📦 Week 1 — Setup & Data Layer</h4>
+        <div class="phase-item"><span class="dot done"></span>Create Bubble.io app + install plugins</div>
+        <div class="phase-item"><span class="dot done"></span>Create Airtable base (6 tables, all fields)</div>
+        <div class="phase-item"><span class="dot done"></span>Get all API keys: OpenAI, RapidAPI, Firebase, SendGrid</div>
+        <div class="phase-item"><span class="dot done"></span>Connect Airtable ↔ Bubble via plugin</div>
+        <div class="phase-item"><span class="dot done"></span>Firebase Auth login/signup flow in Bubble</div>
+        <div class="phase-item"><span class="dot done"></span>Build Landing + Onboarding pages (no AI yet)</div>
+      </div>
+      <div class="phase">
+        <h4>🧠 Week 2 — Core AI Features</h4>
+        <div class="phase-item"><span class="dot done"></span>Configure OpenAI API Connector (Prompt 1)</div>
+        <div class="phase-item"><span class="dot done"></span>Resume upload → GPT-4o → skill tag cloud</div>
+        <div class="phase-item"><span class="dot done"></span>Gap Analyzer (Prompt 2) → Dashboard page</div>
+        <div class="phase-item"><span class="dot done"></span>Sprint Generator (Prompt 3) → Sprint View page</div>
+      </div>
+      <div class="phase">
+        <h4>⚙️ Week 3 — Automation + More Features</h4>
+        <div class="phase-item"><span class="dot plan"></span>Project Suggester (Prompt 4) on Dashboard</div>
+        <div class="phase-item"><span class="dot plan"></span>LinkedIn Optimizer page (Prompt 5)</div>
+        <div class="phase-item"><span class="dot plan"></span>Make.com Scenario 1 — Weekly Job Scraper</div>
+        <div class="phase-item"><span class="dot plan"></span>Make.com Scenario 2 — Resume Pipeline</div>
+        <div class="phase-item"><span class="dot plan"></span>Public Skill Demand Index page</div>
+      </div>
+      <div class="phase">
+        <h4>✅ Week 4 — Polish, Test & Launch</h4>
+        <div class="phase-item"><span class="dot plan"></span>Benchmark page + Chart.js bell curve</div>
+        <div class="phase-item"><span class="dot plan"></span>Profile page — edit info, re-upload resume</div>
+        <div class="phase-item"><span class="dot plan"></span>SendGrid email flows (welcome, sprint, report)</div>
+        <div class="phase-item"><span class="dot plan"></span>Onboard 20 real students → collect feedback</div>
+        <div class="phase-item"><span class="dot plan"></span>Deploy + record Loom demo + push to GitHub</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SDG BADGE -->
+<section style="padding-top:0">
+  <div class="container">
+    <div class="sdg-bar fade-in">
+      <div class="sdg-num">9</div>
+      <div class="sdg-text">
+        <h4>SDG 9 — Industry, Innovation & Infrastructure</h4>
+        <p>SkillGraph directly supports SDG 9 by building resilient human capital infrastructure — connecting 800,000+ annual engineering graduates to the live demands of India's technology industry through AI-powered, real-time skill intelligence.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="logo-footer">⬡ SkillGraph</div>
+  <p>AI-Powered Career Intelligence & Skill Gap Analysis Platform</p>
+  <p style="margin-top:.5rem">Built on Bubble.io · Make.com · OpenAI GPT-4o · Airtable · Firebase</p>
+  <p style="margin-top:.5rem;color:#4B5563">Minor Project — B.Tech CSE/IT/ECE · SDG 9 Aligned · 2025–26</p>
+</footer>
+
+<script>
+// Animate counters
+function animateCounter(el, target, suffix='') {
+  let start = 0;
+  const duration = 2000;
+  const step = target / (duration / 16);
+  const timer = setInterval(() => {
+    start += step;
+    if (start >= target) { start = target; clearInterval(timer); }
+    el.textContent = Math.floor(start).toLocaleString() + suffix;
+  }, 16);
+}
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    animateCounter(document.getElementById('cnt-students'), 523);
+    animateCounter(document.getElementById('cnt-gaps'), 11840);
+    animateCounter(document.getElementById('cnt-sprints'), 892);
+  }, 500);
+});
+
+// Intersection observer for fade-in
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+// Skill Demand Chart
+const ctx = document.getElementById('skillChart').getContext('2d');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: ['Python', 'React.js', 'Node.js', 'AWS', 'SQL', 'Docker', 'Kubernetes', 'TypeScript', 'System Design', 'Machine Learning'],
+    datasets: [{
+      label: 'Job Postings Requiring This Skill',
+      data: [892, 754, 691, 623, 580, 510, 465, 440, 412, 388],
+      backgroundColor: ['#2563EB','#3B82F6','#60A5FA','#7C3AED','#8B5CF6','#16A34A','#22C55E','#EA580C','#F97316','#DC2626'],
+      borderRadius: 8,
+      borderSkipped: false
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#1F2937',
+        titleColor: '#F9FAFB',
+        bodyColor: '#9CA3AF',
+        borderColor: '#374151',
+        borderWidth: 1
+      }
+    },
+    scales: {
+      x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#9CA3AF', font: { size: 11 } } },
+      y: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#9CA3AF' }, beginAtZero: true }
+    }
+  }
+});
+</script>
+</body>
+</html>

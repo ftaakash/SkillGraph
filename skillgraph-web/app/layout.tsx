@@ -1,0 +1,18 @@
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import './globals.css'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export const metadata: Metadata = {
+  title: 'SkillGraph — AI Career Intelligence Platform',
+  description: 'Upload your resume. See exactly what\'s stopping you from your dream job. Get a 7-day plan to fix it.',
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body className={inter.className}>{children}</body>
+    </html>
+  )
+}

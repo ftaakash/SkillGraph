@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String    @id @default(cuid())
+  name                String
+  email               String    @unique
+  passwordHash        String
+  college             String?
+  branch              String?
+  year                String?
+  targetRole          String?
+  readinessScore      Float?
+  readinessScorePrev  Float?
+  resumeUrl           String?
+  sprintsCompleted    Int       @default(0)
+  optimizerSessions   Int       @default(0)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  skills              SkillProfile[]
+  gaps                SkillGap[]
+  sprints             Sprint[]
+  optimizerSessions_  OptimizerSession[]
+}
+
+model SkillProfile {
+  id          String   @id @default(cuid())
+  userId      String
+  skillName   String
+  category    String   // technical | soft | tool | framework
+  proficiency String   @default("beginner") // beginner | intermediate | advanced
+  source      String   @default("resume")   // resume | manual
+  extractedAt DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model JobPosting {
+  id             String    @id @default(cuid())
+  company        String
+  role           String
+  location       String?
+  salaryBand     String?
+  requiredSkills Json      // string[]
+  rawDescription String    @db.Text
+  postedDate     DateTime?
+  scrapedAt      DateTime  @default(now())
+  source         String    @default("linkedin")
+  demandWeek     Int       // ISO week number (1-53)
+}
+
+model SkillGap {
+  id              String   @id @default(cuid())
+  userId          String
+  missingSkill    String
+  urgency         String   // high | medium | low
+  weeksToLearn    Int
+  whyImportant    String   @db.Text
+  demandScore     Float    @default(0)
+  resourceLinks   Json?    // string[]
+  closed          Boolean  @default(false)
+  sprintGenerated Boolean  @default(false)
+  identifiedAt    DateTime @default(now())
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Sprint {
+  id                   String    @id @default(cuid())
+  userId               String
+  weekStartDate        DateTime
+  dayTasks             Json      // DayTask[7]
+  completionPercentage Float     @default(0)
+  skillsTargeted       Json      // string[3]
+  status               String    @default("active") // active | completed | abandoned
+  generatedAt          DateTime  @default(now())
+  completedAt          DateTime?
+
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Benchmark {
+  id             String   @id @default(cuid())
+  role           String
+  year           String
+  readinessScore Float
+  collegeTier    String   // Tier-1 | Tier-2 | Tier-3
+  createdAt      DateTime @default(now())
+  // NO userId - fully anonymous
+}
+
+model OptimizerSession {
+  id             String   @id @default(cuid())
+  userId         String
+  targetRole     String
+  atsScoreBefore Float
+  atsScoreAfter  Float
+  createdAt      DateTime @default(now())
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

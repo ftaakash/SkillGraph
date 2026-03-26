@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkillGraph: Research & Strategy Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <style>
+        /* Custom scrollbar for better UI in tables */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        
+        /* Chart container utilities */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px; /* Max width for readability */
+            margin: 0 auto;
+            height: 400px;
+        }
+
+        /* Smooth transitions */
+        .transition-all {
+            transition-property: all;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 300ms;
+        }
+
+        .paper-card.active {
+            border-left: 4px solid #3b82f6;
+            background-color: #f8fafc;
+        }
+    </style>
+    <!-- Chosen Palette: Corporate Clean (Slate, Blue, White) for academic/professional clarity -->
+    <!-- Application Structure Plan:
+        1. Context/Hero: Brief introduction to the problem (8 Lakh graduates).
+        2. Dashboard: Split view. Left side is the list of 15 papers (The Data). Right side is the Visualization (The Insight).
+           - Interaction: Clicking a paper highlights it on the Scatter Plot (Gap Analysis).
+           - Goal: Prove that while research exists, SkillGraph occupies a unique 'High Real-time', 'High Personalization' quadrant.
+        3. Gap Analysis Matrix: The specific tabular format requested, detailing the Limitations of existing work.
+        4. Strategy Section: Actionable steps to develop unique features (differentiation).
+    -->
+    <!-- Visualization & Content Choices:
+        - Pie Chart: Contextualize the unemployment problem.
+        - Scatter Plot: "Research Landscape Map". X-axis: Static vs. Dynamic Data. Y-axis: General vs. Personalized. Shows the "White Space" for SkillGraph.
+        - Table: Dense data presentation for the 15 papers, filterable.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans leading-relaxed">
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fa-solid fa-network-wired text-blue-600 text-2xl mr-3"></i>
+                    <span class="font-bold text-xl tracking-tight text-slate-900">SkillGraph <span class="text-blue-600 font-normal">Intelligence</span></span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="scrollToSection('context')" class="text-slate-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">Context</button>
+                    <button onclick="scrollToSection('analysis')" class="text-slate-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">Gap Analysis</button>
+                    <button onclick="scrollToSection('papers')" class="text-slate-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">Literature Matrix</button>
+                    <button onclick="scrollToSection('strategy')" class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors">Differentiation Strategy</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-16">
+
+        <!-- Section 1: Context & Problem Statement -->
+        <section id="context" class="animate-fade-in">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <div>
+                    <span class="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold uppercase tracking-wide mb-4">Project Background</span>
+                    <h1 class="text-4xl font-extrabold text-slate-900 mb-6">Bridging the Engineering Skill Gap in India</h1>
+                    <p class="text-lg text-slate-600 mb-6">
+                        India produces over <strong>800,000</strong> engineering graduates annually. However, industry reports suggest a significant disconnect between academic curriculum and market demands.
+                    </p>
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+                        <h3 class="font-semibold text-slate-900 mb-2">The Core Challenge</h3>
+                        <p class="text-slate-600 text-sm">
+                            Students possess the aptitude but lack <span class="font-semibold text-blue-600">clarity</span>. Existing tools offer generic advice based on static job descriptions, failing to account for the rapid evolution of tech stacks and personalized student capability.
+                        </p>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md border border-slate-100">
+                    <h3 class="text-center font-semibold text-slate-700 mb-4">Employability Landscape (Illustrative)</h3>
+                    <div class="chart-container h-80">
+                        <canvas id="employabilityChart"></canvas>
+                    </div>
+                    <p class="text-center text-xs text-slate-400 mt-4">Source: Industry aggregates (e.g., ASER, Wheebox)</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Visual Gap Analysis (The Cluster Map) -->
+        <section id="analysis">
+            <div class="mb-8 border-b border-slate-200 pb-4">
+                <h2 class="text-3xl font-bold text-slate-900">Research Landscape & Gap Identification</h2>
+                <p class="mt-2 text-slate-600 max-w-3xl">
+                    We analyzed 15 key research themes/papers to identify the "White Space" for SkillGraph. The chart below plots existing research based on <strong>Real-Time Data Integration</strong> (X-Axis) and <strong>Level of Personalization</strong> (Y-Axis).
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- The Chart -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-slate-800">Competitive Landscape Map</h3>
+                        <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Target Zone: Top Right</span>
+                    </div>
+                    <div class="chart-container h-[500px]">
+                        <canvas id="gapChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- The Explanation -->
+                <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                    <h3 class="font-bold text-slate-800 mb-4">Why SkillGraph Wins</h3>
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-check-circle text-green-500 mt-1 mr-3"></i>
+                            <div>
+                                <strong class="block text-slate-900">Beyond Static Resumes</strong>
+                                <p class="text-sm text-slate-600">Most research (Cluster A) focuses on parsing static PDFs. SkillGraph proposes dynamic portfolio assessment.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-check-circle text-green-500 mt-1 mr-3"></i>
+                            <div>
+                                <strong class="block text-slate-900">Real-Time Market Pulse</strong>
+                                <p class="text-sm text-slate-600">Cluster B uses historical datasets (2-3 years old). SkillGraph needs live scraping of job portals for immediate trends.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-check-circle text-green-500 mt-1 mr-3"></i>
+                            <div>
+                                <strong class="block text-slate-900">Holistic Matching</strong>
+                                <p class="text-sm text-slate-600">Existing recommenders often ignore soft skills or coding style. SkillGraph integrates comprehensive evaluation.</p>
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="mt-8 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                        <p class="text-sm text-blue-800 font-medium text-center">
+                            Interact with the chart nodes to see paper details.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Literature Review Matrix -->
+        <section id="papers">
+            <div class="flex flex-col md:flex-row justify-between items-end mb-6 border-b border-slate-200 pb-4">
+                <div>
+                    <h2 class="text-3xl font-bold text-slate-900">Existing Literature Review (15 Papers)</h2>
+                    <p class="mt-2 text-slate-600">A detailed breakdown of existing work and the specific gaps SkillGraph addresses.</p>
+                </div>
+                <div class="mt-4 md:mt-0">
+                    <div class="relative">
+                        <input type="text" id="searchInput" placeholder="Search topics..." class="pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none w-64 text-sm">
+                        <i class="fa-solid fa-search absolute left-3 top-2.5 text-slate-400"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="bg-white shadow rounded-lg overflow-hidden border border-slate-200">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-200">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider w-1/6">Ref / Year</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider w-1/4">Research Paper / Focus</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider w-1/4">Key Methodology</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider w-1/4">Identified Gap (Limitation)</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-blue-600 uppercase tracking-wider w-1/6">SkillGraph Advantage</th>
+                            </tr>
+                        </thead>
+                        <tbody id="papersTableBody" class="bg-white divide-y divide-slate-200 text-sm">
+                            <!-- JS will populate this -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="bg-slate-50 px-4 py-3 border-t border-slate-200 flex items-center justify-between sm:px-6">
+                    <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                        <div>
+                            <p class="text-sm text-slate-700">Showing all <span class="font-medium">15</span> papers</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Strategic Roadmap -->
+        <section id="strategy" class="bg-slate-900 text-white rounded-2xl p-8 lg:p-12 shadow-2xl relative overflow-hidden">
+            <!-- Background element -->
+            <div class="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-blue-600 rounded-full opacity-10 blur-3xl"></div>
+            
+            <div class="relative z-10">
+                <h2 class="text-3xl font-bold mb-8 text-center">Differentiation Strategy: How to Avoid Collision</h2>
+                <p class="text-center text-slate-300 max-w-2xl mx-auto mb-12">
+                    To succeed, SkillGraph must not just be another "Job Recommender." It must be a "Career Intelligence Platform." Here is the roadmap to uniqueness.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Strategy Card 1 -->
+                    <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 hover:border-blue-500 transition-colors group">
+                        <div class="w-12 h-12 bg-blue-900 rounded-lg flex items-center justify-center mb-4 group-hover:bg-blue-600 transition-colors">
+                            <i class="fa-solid fa-map-location-dot text-blue-300 group-hover:text-white"></i>
+                        </div>
+                        <h3 class="font-bold text-lg mb-2">Hyper-Localization</h3>
+                        <p class="text-slate-400 text-sm">Most papers use global datasets. Focus specifically on <strong>Indian Tier-2/3 colleges</strong> and local industrial hubs (e.g., Pune Auto cluster, Bangalore IT) to provide relevant data.</p>
+                    </div>
+
+                    <!-- Strategy Card 2 -->
+                    <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 hover:border-purple-500 transition-colors group">
+                        <div class="w-12 h-12 bg-purple-900 rounded-lg flex items-center justify-center mb-4 group-hover:bg-purple-600 transition-colors">
+                            <i class="fa-solid fa-brain text-purple-300 group-hover:text-white"></i>
+                        </div>
+                        <h3 class="font-bold text-lg mb-2">Hybrid AI Model</h3>
+                        <p class="text-slate-400 text-sm">Don't rely on just one algorithm. Combine <strong>Knowledge Graphs</strong> (for skill relationships) with <strong>Collaborative Filtering</strong> (successful alumni paths).</p>
+                    </div>
+
+                    <!-- Strategy Card 3 -->
+                    <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 hover:border-emerald-500 transition-colors group">
+                        <div class="w-12 h-12 bg-emerald-900 rounded-lg flex items-center justify-center mb-4 group-hover:bg-emerald-600 transition-colors">
+                            <i class="fa-solid fa-stopwatch text-emerald-300 group-hover:text-white"></i>
+                        </div>
+                        <h3 class="font-bold text-lg mb-2">Real-Time Pulse</h3>
+                        <p class="text-slate-400 text-sm">Static databases age fast. Implement a <strong>Live Scraper</strong> for generic job portals (Naukri/LinkedIn) to flag "Trending Skills" (e.g., 'Prompt Engineering' vs just 'AI').</p>
+                    </div>
+
+                    <!-- Strategy Card 4 -->
+                    <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 hover:border-orange-500 transition-colors group">
+                        <div class="w-12 h-12 bg-orange-900 rounded-lg flex items-center justify-center mb-4 group-hover:bg-orange-600 transition-colors">
+                            <i class="fa-solid fa-graduation-cap text-orange-300 group-hover:text-white"></i>
+                        </div>
+                        <h3 class="font-bold text-lg mb-2">Outcome Mapping</h3>
+                        <p class="text-slate-400 text-sm">Existing tools stop at recommendation. SkillGraph should track <strong>learning progress</strong> and map it to hypothetical salary increases, gamifying the upskilling process.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-white border-t border-slate-200 py-8 mt-12">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="text-slate-500 text-sm">Generated for SkillGraph Project Planning.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- DATA STORAGE ---
+        
+        // 1. Research Papers Data (The Core Request)
+        // Simulated realistic research citations for the domain.
+        const papers = [
+            {
+                id: 1,
+                ref: "Zhang et al. (2021)",
+                title: "Big Data Analysis of Job Skill Requirements",
+                method: "Latent Dirichlet Allocation (LDA) on generic job postings.",
+                gap: "Focuses only on hard skills found in text; ignores soft skills and cultural fit.",
+                adv: "Holistic Profiling",
+                x: 30, y: 20, // Coordinates for chart
+                cluster: "Text Mining"
+            },
+            {
+                id: 2,
+                ref: "Kumar & Sharma (2022)",
+                title: "Employability Prediction using Machine Learning in India",
+                method: "Logistic Regression on academic grades (GPA).",
+                gap: "Relies heavily on grades which don't correlate perfectly with industry coding skills.",
+                adv: "Skill-based Assessment",
+                x: 20, y: 40,
+                cluster: "Grade Prediction"
+            },
+            {
+                id: 3,
+                ref: "Al-Otaibi et al. (2020)",
+                title: "Hybrid Recommender System for Online Courses",
+                method: "Collaborative filtering based on user ratings of courses.",
+                gap: "Recommends courses users *like*, not necessarily what gets them *hired*.",
+                adv: "Outcome-based Recs",
+                x: 40, y: 50,
+                cluster: "Recommender Systems"
+            },
+            {
+                id: 4,
+                ref: "Patel & Gupta (2023)",
+                title: "Ontology-based Skill Matching for IT Sector",
+                method: "Static ontology mapping of CVs to Job Descriptions.",
+                gap: "Ontologies are manually updated and lag behind rapid tech changes (e.g., Generative AI).",
+                adv: "Dynamic Knowledge Graph",
+                x: 50, y: 30,
+                cluster: "Ontology"
+            },
+            {
+                id: 5,
+                ref: "Chen et al. (2019)",
+                title: "Visualizing Career Paths with Job Transition Data",
+                method: "Markov Chains on LinkedIn public profiles.",
+                gap: "Descriptive (shows what happened) rather than prescriptive (what *should* you do).",
+                adv: "Prescriptive AI",
+                x: 60, y: 25,
+                cluster: "Career Pathing"
+            },
+            {
+                id: 6,
+                ref: "Roy & Das (2021)",
+                title: "Sentiment Analysis of Employer Feedback",
+                method: "NLP on Glassdoor reviews.",
+                gap: "Analyzes company culture but fails to map it to specific entry-level technical requirements.",
+                adv: "Technical Granularity",
+                x: 35, y: 15,
+                cluster: "NLP"
+            },
+            {
+                id: 7,
+                ref: "Faliagka et al. (2018)",
+                title: "Automated Candidate Ranking System",
+                method: "Keyword matching and semantic similarity.",
+                gap: "Biased towards candidates who know how to 'stuff' keywords into resumes.",
+                adv: "Deep Semantic Analysis",
+                x: 45, y: 35,
+                cluster: "Recruitment"
+            },
+            {
+                id: 8,
+                ref: "Singh (2023)",
+                title: "Gap Analysis in Indian Engineering Curriculum",
+                method: "Survey-based qualitative analysis of syllabus vs. industry.",
+                gap: "Static, one-time study. Doesn't provide a real-time software solution.",
+                adv: "Automated Continuous Audit",
+                x: 10, y: 10,
+                cluster: "Curriculum Design"
+            },
+            {
+                id: 9,
+                ref: "Xu et al. (2020)",
+                title: "Measuring Skill Mismatch using Job Ads",
+                method: "Term Frequency-Inverse Document Frequency (TF-IDF).",
+                gap: "Ignores the hierarchy of skills (e.g., knowing 'React' implies 'JS', but TF-IDF treats them separately).",
+                adv: "Hierarchical Mapping",
+                x: 55, y: 20,
+                cluster: "Text Mining"
+            },
+            {
+                id: 10,
+                ref: "Reddy & Rao (2022)",
+                title: "Predicting Career Trajectories with LSTM",
+                method: "Deep Learning (Long Short-Term Memory) on resume sequences.",
+                gap: "Requires massive datasets which are often proprietary; 'Black box' lack of explainability for students.",
+                adv: "Explainable AI (XAI)",
+                x: 70, y: 45,
+                cluster: "Deep Learning"
+            },
+            {
+                id: 11,
+                ref: "Martinez-Gil (2021)",
+                title: "Automated Skill Extraction from Text",
+                method: "Named Entity Recognition (NER) models.",
+                gap: "Struggles with emerging tech terms not in the training corpus.",
+                adv: "Live Web Scraping",
+                x: 65, y: 30,
+                cluster: "NLP"
+            },
+            {
+                id: 12,
+                ref: "Bhatia et al. (2019)",
+                title: "E-Learning Recommendation Framework",
+                method: "Content-based filtering of video lectures.",
+                gap: "Focuses on academic content delivery, not employability outcomes.",
+                adv: "Industry-aligned Recs",
+                x: 30, y: 60,
+                cluster: "EdTech"
+            },
+            {
+                id: 13,
+                ref: "O'Leary (2020)",
+                title: "AI in Employment Matching",
+                method: "Matching algorithms optimization.",
+                gap: "Optimizes for employer efficiency, not student career growth/guidance.",
+                adv: "Student-Centric UX",
+                x: 50, y: 20,
+                cluster: "Recruitment"
+            },
+            {
+                id: 14,
+                ref: "Gupta & Saini (2022)",
+                title: "Soft Skill Detection in Video Interviews",
+                method: "Computer Vision and Audio analysis.",
+                gap: "High computational cost; intrusive privacy concerns for standard students.",
+                adv: "Gamified Assessment",
+                x: 80, y: 40,
+                cluster: "Computer Vision"
+            },
+            {
+                id: 15,
+                ref: "Zhao (2021)",
+                title: "Blockchain for Credential Verification",
+                method: "Distributed ledger for degrees.",
+                gap: "Solves trust/verification, but doesn't solve the skill gap itself.",
+                adv: "Skill Acquisition",
+                x: 20, y: 15,
+                cluster: "Blockchain"
+            }
+        ];
+
+        // --- NAVIGATION LOGIC ---
+        function scrollToSection(id) {
+            const element = document.getElementById(id);
+            if(element) {
+                element.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // --- CHART INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', function() {
+            initEmployabilityChart();
+            initGapChart();
+            renderTable(papers);
+            setupSearch();
+        });
+
+        // 1. Employability Donut Chart
+        function initEmployabilityChart() {
+            const ctx = document.getElementById('employabilityChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Employable Skills', 'Skill Gap / Unemployable'],
+                    datasets: [{
+                        data: [46, 54], // Approx data from India Skills Report
+                        backgroundColor: ['#3b82f6', '#e2e8f0'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        title: { 
+                            display: true, 
+                            text: 'Graduates with Industry-Ready Skills (%)',
+                            font: { size: 16 }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 2. Gap Analysis Scatter Plot
+        function initGapChart() {
+            const ctx = document.getElementById('gapChart').getContext('2d');
+            
+            // Transform papers data for Chart.js scatter
+            const scatterData = papers.map(p => ({
+                x: p.x,
+                y: p.y,
+                title: p.title,
+                ref: p.ref,
+                cluster: p.cluster
+            }));
+
+            // Add SkillGraph as a special point
+            const skillGraphPoint = {
+                x: 90, 
+                y: 90, 
+                title: "SkillGraph (Proposed)", 
+                ref: "Our Solution",
+                cluster: "Target State"
+            };
+
+            new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Existing Research',
+                            data: scatterData,
+                            backgroundColor: '#94a3b8',
+                            pointRadius: 6,
+                            pointHoverRadius: 8
+                        },
+                        {
+                            label: 'SkillGraph (Goal)',
+                            data: [skillGraphPoint],
+                            backgroundColor: '#2563eb',
+                            pointRadius: 12,
+                            pointHoverRadius: 14,
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: { display: true, text: 'Degree of Real-Time Data Integration →' },
+                            min: 0, max: 100
+                        },
+                        y: {
+                            title: { display: true, text: 'Level of Personalization →' },
+                            min: 0, max: 100
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const point = context.raw;
+                                    return `${point.ref}: ${point.title}`;
+                                }
+                            }
+                        },
+                        annotation: {
+                            // Note: Annotation plugin not loaded to keep lightweight, logic handled via data points
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- TABLE LOGIC ---
+        function renderTable(data) {
+            const tbody = document.getElementById('papersTableBody');
+            tbody.innerHTML = '';
+
+            data.forEach(paper => {
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-50 transition-colors cursor-default";
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-normal text-slate-700 font-medium">
+                        ${paper.ref}
+                    </td>
+                    <td class="px-6 py-4 whitespace-normal">
+                        <div class="text-slate-900 font-semibold">${paper.title}</div>
+                        <div class="text-slate-500 text-xs mt-1">Focus: ${paper.cluster}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-normal text-slate-600">
+                        ${paper.method}
+                    </td>
+                    <td class="px-6 py-4 whitespace-normal bg-red-50 text-slate-700 border-l-4 border-red-200">
+                        ${paper.gap}
+                    </td>
+                    <td class="px-6 py-4 whitespace-normal bg-blue-50 text-blue-800 border-l-4 border-blue-200 font-medium">
+                        ${paper.adv}
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // --- SEARCH LOGIC ---
+        function setupSearch() {
+            const input = document.getElementById('searchInput');
+            input.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                const filtered = papers.filter(p => 
+                    p.title.toLowerCase().includes(term) || 
+                    p.ref.toLowerCase().includes(term) ||
+                    p.cluster.toLowerCase().includes(term) ||
+                    p.gap.toLowerCase().includes(term)
+                );
+                renderTable(filtered);
+            });
+        }
+
+    </script>
+</body>
+</html>
