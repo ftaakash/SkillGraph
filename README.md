@@ -17,14 +17,14 @@
 **Location:** `skillgraph-web/`
 
 ### Tech Stack (All Code — No No-Code Tools)
-| Was | Now |
-|---|---|
-| Bubble.io | Next.js 14 (App Router + TypeScript) |
-| Airtable | PostgreSQL + Prisma 5 ORM |
-| Firebase Auth | NextAuth.js v5 (JWT sessions) |
-| Make.com | node-cron + background workers |
-| PDF Monkey | `unpdf` (canvas-free PDF extractor) |
-| File Uploader | Cloudinary via upload_stream |
+
+|---|
+| Next.js 14 (App Router + TypeScript) |
+| PostgreSQL + Prisma 5 ORM |
+| NextAuth.js v5 (JWT sessions) |
+| node-cron + background workers |
+| `unpdf` (canvas-free PDF extractor) |
+| Cloudinary via upload_stream |
 
 ---
 
