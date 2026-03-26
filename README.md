@@ -16,9 +16,8 @@
 
 **Location:** `skillgraph-web/`
 
-### Tech Stack (All Code — No No-Code Tools)
+### Tech Stack 
 
-|---|
 | Next.js 14 (App Router + TypeScript) |
 | PostgreSQL + Prisma 5 ORM |
 | NextAuth.js v5 (JWT sessions) |
