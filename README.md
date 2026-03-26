@@ -5,7 +5,7 @@
 ```
 ✓ Compiled successfully (TypeScript)
 ✓ All 14 API routes registered
-✓ All 8 frontend pages generated
+✓ 8 frontend pages built
 ✓ Proxy middleware active
 ✓ Production build: PASSING
 ```
@@ -19,10 +19,15 @@
 ### Tech Stack 
 
 | Next.js 14 (App Router + TypeScript) |
+
 | PostgreSQL + Prisma 5 ORM |
+
 | NextAuth.js v5 (JWT sessions) |
+
 | node-cron + background workers |
+
 | `unpdf` (canvas-free PDF extractor) |
+
 | Cloudinary via upload_stream |
 
 ---
