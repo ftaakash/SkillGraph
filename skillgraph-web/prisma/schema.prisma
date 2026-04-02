@@ -7,11 +7,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  STUDENT
+  FACULTY
+  RECRUITER
+}
+
 model User {
   id                  String    @id @default(cuid())
   name                String
   email               String    @unique
   passwordHash        String
+  role                UserRole  @default(STUDENT)
   college             String?
   branch              String?
   year                String?
@@ -21,6 +28,20 @@ model User {
   resumeUrl           String?
   sprintsCompleted    Int       @default(0)
   optimizerSessions   Int       @default(0)
+  
+  // Faculty fields
+  collegeId         String?
+  College           CollegeInstitution? @relation(fields: [collegeId], references: [id])
+
+  // Recruiter fields
+  companyId         String?
+  Company           Company?    @relation(fields: [companyId], references: [id])
+  isVerified        Boolean     @default(false)
+
+  // Student specific v2
+  cgpa              Float?
+  isProfileVisible  Boolean     @default(false)
+
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -28,6 +49,12 @@ model User {
   gaps                SkillGap[]
   sprints             Sprint[]
   optimizerSessions_  OptimizerSession[]
+
+  OpenClawConfig       OpenClawConfig?
+  OpenClawApplications OpenClawApplication[]
+  ResumeVersions       ResumeVersion[]
+  Applications         JobApplication[]
+  TalentViews          RecruiterTalentView[] @relation("TalentViews")
 }
 
 model SkillProfile {
@@ -105,4 +132,153 @@ model OptimizerSession {
   createdAt      DateTime @default(now())
 
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// -------------------------------------------------------------
+// V2 EXPANSION MODELS
+// -------------------------------------------------------------
+
+model CollegeInstitution {
+  id             String   @id @default(cuid())
+  name           String
+  city           String
+  state          String
+  tier           String
+  naacGrade      String?
+  tpContactEmail String
+  facultyUsers   User[]
+}
+
+model Company {
+  id                 String   @id @default(cuid())
+  name               String
+  website            String?
+  tier               String
+  verificationStatus String   @default("pending")
+  logoUrl            String?
+  hrEmail            String
+  recruiters         User[]
+}
+
+model FacultyJobPosting {
+  id               String   @id @default(cuid())
+  collegeId        String?
+  companyId        String?
+  title            String
+  company          String
+  description      String   @db.Text
+  ctcMin           Float?
+  ctcMax           Float?
+  minCgpa          Float?
+  eligibleBranches Json?    // string[]
+  deadline         DateTime
+  driveDate        DateTime?
+  applicationCount Int      @default(0)
+  createdAt        DateTime @default(now())
+}
+
+model JobApplication {
+  id              String   @id @default(cuid())
+  userId          String
+  jobPostingId    String
+  resumeVersionId String?
+  coverLetter     String?  @db.Text
+  status          String   @default("Applied") // Applied | Shortlisted | Rejected | Placed
+  appliedAt       DateTime @default(now())
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ResumeVersion {
+  id              String   @id @default(cuid())
+  userId          String
+  cloudinaryUrl   String?
+  atsScore        Float?
+  targetJd        String?  @db.Text
+  generatedBy     String   @default("Manual") // AI | Manual
+  createdAt       DateTime @default(now())
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model OpenClawConfig {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  targetRoles          Json     // string[]
+  preferredCities      Json     // string[]
+  minCtcLpa            Float
+  dailyLimit           Int      @default(10)
+  blacklistedCompanies Json     // string[]
+  isActive             Boolean  @default(true)
+
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model OpenClawListing {
+  id              String   @id @default(cuid())
+  platform        String
+  company         String
+  role            String
+  location        String?
+  ctcBand         String?
+  jdText          String   @db.Text
+  sourceUrl       String
+  scrapedAt       DateTime @default(now())
+}
+
+model OpenClawApplication {
+  id              String   @id @default(cuid())
+  userId          String
+  listingId       String
+  matchScore      Float?
+  resumeVersionId String?
+  status          String   @default("Applied")
+  screenshotUrl   String?
+  tailoringNotes  String?  @db.Text
+  appliedAt       DateTime @default(now())
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RecruiterTalentView {
+  id              String    @id @default(cuid())
+  recruiterId     String
+  studentId       String
+  revealedAt      DateTime?
+  shortlisted     Boolean   @default(false)
+  viewedAt        DateTime  @default(now())
+  notes           String?
+
+  student         User      @relation("TalentViews", fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model IndiaMarketData {
+  id              String   @id @default(cuid())
+  skill           String?
+  role            String?
+  city            String?
+  demandCount     Int?
+  avgCtcLpa       Float?
+  companyTier     String?
+  weekOf          DateTime
+}
+
+model PlacementRecord {
+  id              String   @id @default(cuid())
+  collegeId       String
+  studentId       String
+  company         String
+  role            String
+  ctcLpa          Float?
+  offerDate       DateTime?
+  batch           String?
+  isVerified      Boolean  @default(false)
+}
+
+model ResumeSection {
+  id              String   @id @default(cuid())
+  resumeVersionId String
+  type            String   // Summary | Experience | Skills | Projects | Education
+  content         Json
+  atsContribution Float?
 }

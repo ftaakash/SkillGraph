@@ -8,6 +8,7 @@ const schema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(6),
+  role: z.enum(['STUDENT']).optional().default('STUDENT'),
   college: z.string().optional(),
   branch: z.string().optional(),
   year: z.string().optional(),
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
     const parsed = schema.safeParse(body)
     if (!parsed.success) return badRequest(parsed.error.message)
 
-    const { name, email, password, college, branch, year, targetRole } = parsed.data
+    const { name, email, password, role, college, branch, year, targetRole } = parsed.data
 
     const existing = await prisma.user.findUnique({ where: { email } })
     if (existing) return badRequest('Email already registered')
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     const passwordHash = await bcrypt.hash(password, 12)
 
     const user = await prisma.user.create({
-      data: { name, email, passwordHash, college, branch, year, targetRole },
+      data: { name, email, passwordHash, role, college, branch, year, targetRole },
       select: { id: true, name: true, email: true, targetRole: true },
     })
 

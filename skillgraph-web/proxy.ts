@@ -6,26 +6,39 @@ import type { NextRequest } from 'next/server'
 export default async function proxy(req: NextRequest) {
   const session = await auth()
   const isLoggedIn = !!session?.user
+  const role = session?.user?.role
 
-  const protectedPaths = ['/dashboard', '/sprint', '/onboard', '/benchmark', '/linkedin', '/profile']
-  const isProtected = protectedPaths.some(p => req.nextUrl.pathname.startsWith(p))
+  const { pathname } = req.nextUrl;
 
-  if (isProtected && !isLoggedIn) {
+  const isPublic = pathname === '/' || ['/login', '/register', '/logout', '/api/auth'].some(p => pathname.startsWith(p));
+  
+  if (!isLoggedIn) {
+    if (isPublic) return NextResponse.next();
     const loginUrl = new URL('/login', req.url)
-    loginUrl.searchParams.set('callbackUrl', req.nextUrl.pathname)
+    loginUrl.searchParams.set('callbackUrl', pathname)
     return NextResponse.redirect(loginUrl)
+  }
+
+  // Guard faculty routes
+  if (pathname.startsWith('/faculty') && role !== 'FACULTY') {
+    return NextResponse.redirect(new URL('/dashboard', req.url));
+  }
+
+  // Guard recruiter routes
+  if (pathname.startsWith('/recruiter') && role !== 'RECRUITER') {
+    return NextResponse.redirect(new URL('/dashboard', req.url));
+  }
+
+  // Guard student routes from other roles
+  const studentRoutes = ['/sprint', '/market', '/openclaw', '/resume-builder', '/jobs', '/linkedin', '/benchmark'];
+  if (studentRoutes.some(route => pathname.startsWith(route)) && role !== 'STUDENT') {
+    const fallback = role ? `/${role.toLowerCase()}/dashboard` : '/dashboard';
+    return NextResponse.redirect(new URL(fallback, req.url));
   }
 
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: [
-    '/dashboard/:path*',
-    '/sprint/:path*',
-    '/onboard/:path*',
-    '/benchmark/:path*',
-    '/linkedin/:path*',
-    '/profile/:path*',
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 }

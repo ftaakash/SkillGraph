@@ -23,23 +23,38 @@ const config: NextAuthConfig = {
         const valid = await bcrypt.compare(password, user.passwordHash)
         if (!valid) return null
 
-        return { id: user.id, name: user.name, email: user.email }
+        return { 
+          id: user.id, 
+          name: user.name, 
+          email: user.email,
+          role: user.role,
+          collegeId: user.collegeId,
+          companyId: user.companyId
+        }
       },
     }),
   ],
   callbacks: {
     jwt({ token, user }) {
-      if (user?.id) token.id = user.id
+      if (user) {
+        token.id = user.id
+        token.role = user.role
+        token.collegeId = user.collegeId
+        token.companyId = user.companyId
+      }
       return token
     },
     session({ session, token }) {
-      if (token?.id && session.user) {
-        (session.user as typeof session.user & { id: string }).id = token.id as string
+      if (token) {
+        session.user.id = token.id as string
+        session.user.role = token.role as 'STUDENT' | 'FACULTY' | 'RECRUITER'
+        session.user.collegeId = (token.collegeId as string) || null
+        session.user.companyId = (token.companyId as string) || null
       }
       return session
     },
   },
-  pages: { signIn: '/login' },
+  pages: { signIn: '/login', signOut: '/logout' },
   session: { strategy: 'jwt' },
 }
 

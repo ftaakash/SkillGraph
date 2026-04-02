@@ -1,0 +1,1033 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); }
+  .root { padding: 1rem 0 3rem; }
+
+  .phase-nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .pnav-btn { background: none; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 7px 14px; font-size: 12px; font-weight: 500; color: var(--color-text-secondary); cursor: pointer; font-family: var(--font-sans); transition: all 0.15s; }
+  .pnav-btn:hover { border-color: var(--color-border-secondary); color: var(--color-text-primary); }
+  .pnav-btn.active { background: var(--color-background-secondary); border-color: var(--color-border-primary); color: var(--color-text-primary); }
+
+  .panel { display: none; }
+  .panel.visible { display: block; }
+
+  .section-label { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); letter-spacing: 0.4px; text-transform: uppercase; margin-bottom: 12px; }
+
+  .module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+  .module-card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 14px 16px; cursor: pointer; transition: border-color 0.15s; }
+  .module-card:hover { border-color: var(--color-border-secondary); }
+  .module-card.selected { border-color: var(--color-border-info); }
+  .mc-tag { display: inline-block; font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: var(--border-radius-md); border: 0.5px solid; margin-bottom: 8px; }
+  .mc-name { font-size: 14px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 4px; }
+  .mc-desc { font-size: 12px; color: var(--color-text-secondary); line-height: 1.55; }
+  .mc-path { font-family: var(--font-mono); font-size: 11px; color: var(--color-text-tertiary); margin-top: 8px; }
+
+  .detail-pane { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 20px; margin-bottom: 1.5rem; }
+  .detail-pane h3 { font-size: 16px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 4px; }
+  .detail-pane .sub { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 16px; }
+
+  .spec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .spec-block { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 12px; }
+  .spec-block-title { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); letter-spacing: 0.3px; margin-bottom: 8px; }
+  .spec-item { font-size: 12px; color: var(--color-text-secondary); padding: 3px 0; border-bottom: 0.5px solid var(--color-border-tertiary); line-height: 1.5; display: flex; gap: 8px; }
+  .spec-item:last-child { border-bottom: none; }
+  .spec-item-key { color: var(--color-text-primary); font-weight: 500; min-width: 80px; flex-shrink: 0; }
+
+  .code-block { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 12px; font-family: var(--font-mono); font-size: 11px; color: var(--color-text-secondary); line-height: 1.7; margin-top: 10px; white-space: pre; overflow-x: auto; }
+
+  .role-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+  .role-card { border-radius: var(--border-radius-lg); padding: 16px; border: 0.5px solid; }
+
+  .flow-step { display: flex; gap: 12px; padding: 12px 0; border-bottom: 0.5px solid var(--color-border-tertiary); align-items: flex-start; }
+  .flow-step:last-child { border-bottom: none; }
+  .flow-num { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; flex-shrink: 0; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-secondary); color: var(--color-text-secondary); }
+  .flow-content-title { font-size: 13px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 3px; }
+  .flow-content-desc { font-size: 12px; color: var(--color-text-secondary); line-height: 1.55; }
+
+  .schema-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  .schema-table th { text-align: left; padding: 7px 10px; background: var(--color-background-secondary); font-weight: 500; font-size: 11px; color: var(--color-text-secondary); border-bottom: 0.5px solid var(--color-border-tertiary); }
+  .schema-table td { padding: 7px 10px; border-bottom: 0.5px solid var(--color-border-tertiary); color: var(--color-text-secondary); vertical-align: top; line-height: 1.5; }
+  .schema-table tr:last-child td { border-bottom: none; }
+  .schema-table .field-name { font-family: var(--font-mono); font-size: 11px; color: var(--color-text-primary); }
+  .schema-table .field-type { color: var(--color-text-info); font-family: var(--font-mono); font-size: 11px; }
+
+  .prompt-btn { background: none; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 8px 14px; font-size: 12px; color: var(--color-text-secondary); cursor: pointer; font-family: var(--font-sans); margin-top: 12px; margin-right: 6px; transition: all 0.15s; }
+  .prompt-btn:hover { background: var(--color-background-secondary); color: var(--color-text-primary); }
+
+  .warn-box { background: var(--color-background-warning); border: 0.5px solid var(--color-border-warning); border-radius: var(--border-radius-md); padding: 10px 12px; font-size: 12px; color: var(--color-text-warning); line-height: 1.6; margin-bottom: 12px; }
+  .info-box { background: var(--color-background-info); border: 0.5px solid var(--color-border-info); border-radius: var(--border-radius-md); padding: 10px 12px; font-size: 12px; color: var(--color-text-info); line-height: 1.6; margin-bottom: 12px; }
+  .success-box { background: var(--color-background-success); border: 0.5px solid var(--color-border-success); border-radius: var(--border-radius-md); padding: 10px 12px; font-size: 12px; color: var(--color-text-success); line-height: 1.6; margin-bottom: 12px; }
+
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 500; margin: 2px; }
+  .pill-blue { background: var(--color-background-info); color: var(--color-text-info); border: 0.5px solid var(--color-border-info); }
+  .pill-green { background: var(--color-background-success); color: var(--color-text-success); border: 0.5px solid var(--color-border-success); }
+  .pill-amber { background: var(--color-background-warning); color: var(--color-text-warning); border: 0.5px solid var(--color-border-warning); }
+
+  .timeline-row { display: flex; gap: 0; margin-bottom: 1.5rem; }
+  .timeline-phase { flex: 1; padding: 14px 12px; border: 0.5px solid var(--color-border-tertiary); border-right: none; font-size: 12px; }
+  .timeline-phase:first-child { border-radius: var(--border-radius-lg) 0 0 var(--border-radius-lg); }
+  .timeline-phase:last-child { border-right: 0.5px solid var(--color-border-tertiary); border-radius: 0 var(--border-radius-lg) var(--border-radius-lg) 0; }
+  .timeline-phase .tp-label { font-size: 10px; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 6px; letter-spacing: 0.3px; }
+  .timeline-phase .tp-title { font-size: 13px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 8px; }
+  .timeline-phase .tp-item { color: var(--color-text-secondary); padding: 2px 0; font-size: 11px; }
+
+  select { font-family: var(--font-sans); font-size: 12px; }
+</style>
+
+<div class="root">
+
+<div class="phase-nav" id="main-nav">
+  <button class="pnav-btn active" onclick="showPanel('overview')">Overview</button>
+  <button class="pnav-btn" onclick="showPanel('roles')">3-Role System</button>
+  <button class="pnav-btn" onclick="showPanel('modules')">New Modules</button>
+  <button class="pnav-btn" onclick="showPanel('openclaw')">OpenClaw AI</button>
+  <button class="pnav-btn" onclick="showPanel('schema')">Schema Changes</button>
+  <button class="pnav-btn" onclick="showPanel('routes')">File Structure</button>
+  <button class="pnav-btn" onclick="showPanel('timeline')">Build Timeline</button>
+  <button class="pnav-btn" onclick="showPanel('prompts')">AI Prompts</button>
+</div>
+
+<!-- ══════════════ OVERVIEW ══════════════ -->
+<div class="panel visible" id="panel-overview">
+  <div class="info-box">SkillGraph v2 expands from a student-only tool into a full institutional platform — connecting students, faculty placement cells, and corporate recruiters in one unified system, with OpenClaw powering automated job discovery and application for the Indian market.</div>
+
+  <div class="section-label">What's being built</div>
+  <div class="module-grid">
+    <div class="module-card">
+      <div class="mc-tag" style="background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info)">Major Expansion</div>
+      <div class="mc-name">Recruiter Portal</div>
+      <div class="mc-desc">Corporate HR teams discover anonymized talent profiles filtered by role, skills, readiness score, and college tier. Mutual-interest reveal system protects student privacy until both sides opt in.</div>
+      <div class="mc-path">/app/(recruiter)/talent</div>
+    </div>
+    <div class="module-card">
+      <div class="mc-tag" style="background:var(--color-background-success);color:var(--color-text-success);border-color:var(--color-border-success)">Institutional OS</div>
+      <div class="mc-name">Faculty Placement Cell OS</div>
+      <div class="mc-desc">Full placement management dashboard for T&P cells — post internal job openings, track student applications, view cohort skill analytics, generate placement reports for NAAC/NBA accreditation.</div>
+      <div class="mc-path">/app/(faculty)/placement</div>
+    </div>
+    <div class="module-card">
+      <div class="mc-tag" style="background:var(--color-background-warning);color:var(--color-text-warning);border-color:var(--color-border-warning)">AI-Native</div>
+      <div class="mc-name">OpenClaw Integration</div>
+      <div class="mc-desc">AI agent that autonomously scans Naukri, LinkedIn, Internshala, Wellfound, and Unstop for jobs matching the student's profile, auto-fills application forms, and tailors resume per JD using GPT-4o.</div>
+      <div class="mc-path">/app/(app)/openclaw</div>
+    </div>
+    <div class="module-card">
+      <div class="mc-tag" style="background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info)">Resume Engine</div>
+      <div class="mc-name">ATS Resume Creator</div>
+      <div class="mc-desc">Full resume builder that generates from scratch or enhances uploaded resume to maximize ATS score for a specific JD. Section-by-section AI suggestions, live ATS preview, one-click export.</div>
+      <div class="mc-path">/app/(app)/resume-builder</div>
+    </div>
+    <div class="module-card">
+      <div class="mc-tag" style="background:var(--color-background-success);color:var(--color-text-success);border-color:var(--color-border-success)">India-First</div>
+      <div class="mc-name">Indian Job Market Intelligence</div>
+      <div class="mc-desc">Dedicated data layer seeded with Naukri, LinkedIn India, Glassdoor India, and AmbitionBox. Tracks city-wise demand, package bands, top hiring companies, and Indian tech stack trends weekly.</div>
+      <div class="mc-path">/api/market/india</div>
+    </div>
+    <div class="module-card">
+      <div class="mc-tag" style="background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info)">Student</div>
+      <div class="mc-name">Campus Job Board</div>
+      <div class="mc-desc">Students see and apply to jobs posted by their own college placement cell, plus verified external postings from connected recruiters. Application tracking with status updates from faculty.</div>
+      <div class="mc-path">/app/(app)/jobs</div>
+    </div>
+  </div>
+
+  <div class="section-label">Architecture principle</div>
+  <div class="detail-pane">
+    <h3>Monolith preserved — role-based routing added</h3>
+    <div class="sub">No microservices split. Three separate App Router route groups handle each role's UI while sharing the same Prisma schema, auth layer, and API handlers.</div>
+    <div class="spec-grid">
+      <div class="spec-block">
+        <div class="spec-block-title">Existing (keep unchanged)</div>
+        <div class="spec-item"><span class="spec-item-key">Framework</span>Next.js 16+ App Router</div>
+        <div class="spec-item"><span class="spec-item-key">Styling</span>Tailwind CSS v4 + globals.css</div>
+        <div class="spec-item"><span class="spec-item-key">UI Kit</span>Radix UI + Shadcn components</div>
+        <div class="spec-item"><span class="spec-item-key">Auth</span>NextAuth v5 beta — extend roles</div>
+        <div class="spec-item"><span class="spec-item-key">ORM</span>Prisma v5 — extend schema</div>
+        <div class="spec-item"><span class="spec-item-key">AI</span>GPT-4o — new prompt chains added</div>
+      </div>
+      <div class="spec-block">
+        <div class="spec-block-title">New additions (v2)</div>
+        <div class="spec-item"><span class="spec-item-key">Route groups</span>(student) (faculty) (recruiter)</div>
+        <div class="spec-item"><span class="spec-item-key">Automation</span>Playwright / Puppeteer for OpenClaw</div>
+        <div class="spec-item"><span class="spec-item-key">Queue</span>Upstash Redis + Bull for job agent</div>
+        <div class="spec-item"><span class="spec-item-key">Storage</span>Cloudinary + Vercel Blob for resumes</div>
+        <div class="spec-item"><span class="spec-item-key">PDF</span>react-pdf for resume export</div>
+        <div class="spec-item"><span class="spec-item-key">India data</span>Naukri API + AmbitionBox scraper</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ ROLES ══════════════ -->
+<div class="panel" id="panel-roles">
+  <div class="section-label">3-tier user system</div>
+  <div class="role-grid">
+    <div class="role-card" style="background:var(--color-background-info);border-color:var(--color-border-info)">
+      <div style="font-size:14px;font-weight:500;color:var(--color-text-info);margin-bottom:8px">Student</div>
+      <div style="font-size:12px;color:var(--color-text-info);line-height:1.7">
+        Resume upload + skill extraction<br>
+        Gap analysis + sprint generation<br>
+        OpenClaw auto-apply agent<br>
+        ATS resume builder<br>
+        Campus job board (apply)<br>
+        Benchmark + LinkedIn optimizer<br>
+        Recruiter profile visibility (opt-in)<br>
+        Application tracker dashboard
+      </div>
+      <div style="font-size:11px;color:var(--color-text-info);margin-top:10px;opacity:0.7">Role: STUDENT in Prisma User model</div>
+    </div>
+    <div class="role-card" style="background:var(--color-background-success);border-color:var(--color-border-success)">
+      <div style="font-size:14px;font-weight:500;color:var(--color-text-success);margin-bottom:8px">Faculty (T&P Cell)</div>
+      <div style="font-size:12px;color:var(--color-text-success);line-height:1.7">
+        Post job openings for campus students<br>
+        Manage student applications + status<br>
+        Cohort skill analytics dashboard<br>
+        Readiness score tracking (class-wide)<br>
+        Placement record export (CSV/PDF)<br>
+        Drive + OA scheduling tools<br>
+        Company contact management<br>
+        NAAC/NBA accreditation reports
+      </div>
+      <div style="font-size:11px;color:var(--color-text-success);margin-top:10px;opacity:0.7">Role: FACULTY — collegeId linked, manages multiple cohorts</div>
+    </div>
+    <div class="role-card" style="background:var(--color-background-warning);border-color:var(--color-border-warning)">
+      <div style="font-size:14px;font-weight:500;color:var(--color-text-warning);margin-bottom:8px">Recruiter</div>
+      <div style="font-size:12px;color:var(--color-text-warning);line-height:1.7">
+        Talent discovery (anonymized profiles)<br>
+        Skill-based + role-based filtering<br>
+        Readiness score visibility<br>
+        Mutual-interest reveal system<br>
+        Post job openings (public + campus)<br>
+        Shortlist + pipeline management<br>
+        Interview scheduling integration<br>
+        Verified company badge system
+      </div>
+      <div style="font-size:11px;color:var(--color-text-warning);margin-top:10px;opacity:0.7">Role: RECRUITER — companyId linked, verified only</div>
+    </div>
+  </div>
+
+  <div class="section-label">Auth changes — NextAuth v5</div>
+  <div class="detail-pane">
+    <h3>Role-based session + middleware routing</h3>
+    <div class="sub">Add <code>role</code> and <code>collegeId</code> / <code>companyId</code> to the JWT session. Next.js middleware reads the role and routes to the correct layout group automatically.</div>
+    <div class="code-block">// middleware.ts — role-aware routing
+export function middleware(request: NextRequest) {
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+
+  if (!token) return NextResponse.redirect('/login');
+
+  const { pathname } = request.nextUrl;
+  const role = token.role as 'STUDENT' | 'FACULTY' | 'RECRUITER';
+
+  // Guard faculty routes
+  if (pathname.startsWith('/faculty') && role !== 'FACULTY')
+    return NextResponse.redirect('/dashboard');
+
+  // Guard recruiter routes
+  if (pathname.startsWith('/recruiter') && role !== 'RECRUITER')
+    return NextResponse.redirect('/dashboard');
+
+  // Guard student routes from other roles
+  if (pathname.startsWith('/sprint') && role !== 'STUDENT')
+    return NextResponse.redirect(`/${role.toLowerCase()}/dashboard`);
+
+  return NextResponse.next();
+}</div>
+    <div class="code-block">// auth.ts — extend session with role
+callbacks: {
+  async jwt({ token, user }) {
+    if (user) {
+      token.role      = user.role;      // 'STUDENT' | 'FACULTY' | 'RECRUITER'
+      token.collegeId = user.collegeId; // Faculty: linked college
+      token.companyId = user.companyId; // Recruiter: verified company
+    }
+    return token;
+  },
+  async session({ session, token }) {
+    session.user.role      = token.role;
+    session.user.collegeId = token.collegeId;
+    session.user.companyId = token.companyId;
+    return session;
+  }
+}</div>
+  </div>
+
+  <div class="section-label">AppSidebar.tsx — role-conditional nav items</div>
+  <div class="code-block">const studentNav = [
+  { title: 'Dashboard',       url: '/dashboard',       icon: LayoutDashboard },
+  { title: 'My Sprint',       url: '/sprint',          icon: Zap },
+  { title: 'Skill Gap',       url: '/market',          icon: Target },
+  { title: 'OpenClaw Agent',  url: '/openclaw',        icon: Bot },       // NEW
+  { title: 'Resume Builder',  url: '/resume-builder',  icon: FileText },  // NEW
+  { title: 'Campus Jobs',     url: '/jobs',            icon: Briefcase }, // NEW
+  { title: 'LinkedIn AI',     url: '/linkedin',        icon: Linkedin },
+  { title: 'Benchmark',       url: '/benchmark',       icon: BarChart2 },
+];
+
+const facultyNav = [
+  { title: 'Placement Cell',  url: '/faculty/dashboard',   icon: Building2 },
+  { title: 'Job Postings',    url: '/faculty/jobs',         icon: Briefcase },
+  { title: 'Applications',    url: '/faculty/applications', icon: Users },
+  { title: 'Cohort Analytics',url: '/faculty/analytics',   icon: BarChart3 },
+  { title: 'Reports',         url: '/faculty/reports',      icon: FileOutput },
+  { title: 'Companies',       url: '/faculty/companies',    icon: Building },
+];
+
+const recruiterNav = [
+  { title: 'Talent Discovery', url: '/recruiter/talent',    icon: Search },
+  { title: 'My Shortlist',     url: '/recruiter/shortlist', icon: Star },
+  { title: 'Post a Job',       url: '/recruiter/jobs/new',  icon: PlusCircle },
+  { title: 'Pipeline',         url: '/recruiter/pipeline',  icon: GitBranch },
+  { title: 'Analytics',        url: '/recruiter/analytics', icon: TrendingUp },
+];</div>
+</div>
+
+<!-- ══════════════ MODULES ══════════════ -->
+<div class="panel" id="panel-modules">
+  <div class="section-label">Select a module to see its full spec</div>
+  <select id="module-select" onchange="showModule(this.value)" style="margin-bottom:14px;padding:7px 12px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary);width:100%">
+    <option value="">— pick a module —</option>
+    <option value="recruiter">Recruiter Portal — /recruiter/talent</option>
+    <option value="faculty">Faculty Placement Cell OS — /faculty/dashboard</option>
+    <option value="resume">ATS Resume Creator — /resume-builder</option>
+    <option value="jobs">Campus Job Board — /jobs</option>
+    <option value="india">Indian Market Intelligence — /market/india</option>
+    <option value="pipeline">Recruiter Pipeline Manager — /recruiter/pipeline</option>
+  </select>
+
+  <div id="module-detail" style="display:none" class="detail-pane">
+    <h3 id="md-name"></h3>
+    <div class="sub" id="md-sub"></div>
+    <div id="md-body"></div>
+  </div>
+</div>
+
+<!-- ══════════════ OPENCLAW ══════════════ -->
+<div class="panel" id="panel-openclaw">
+  <div class="info-box">OpenClaw is an autonomous AI job-hunting agent built into SkillGraph. It reads the student's resume + skill profile, searches Indian job platforms, scores job matches, and auto-applies — all without the student having to do anything beyond initial setup.</div>
+
+  <div class="section-label">How OpenClaw works — step by step</div>
+  <div class="detail-pane" style="margin-bottom:12px">
+    <h3>Agent Architecture</h3>
+    <div class="sub">A Bull queue job runs per student. Each job cycles through 5 platforms, scores matches via GPT-4o, tailors the resume, fills forms via Playwright, and reports back to the dashboard.</div>
+    <div class="flow-step"><div class="flow-num">1</div><div><div class="flow-content-title">Student configures the agent</div><div class="flow-content-desc">Student sets: target roles (multiple), preferred cities (Bangalore / Hyderabad / Remote), experience level, minimum CTC band (₹LPA), blacklisted companies, and a "apply limit" (e.g. max 20 auto-applications per day). Stored in <code>OpenClawConfig</code> model.</div></div></div>
+    <div class="flow-step"><div class="flow-num">2</div><div><div class="flow-content-title">Background worker triggers on schedule</div><div class="flow-content-desc">Upstash QStash fires a daily cron at 7:00 AM IST. For each active OpenClaw config, a Bull job is queued: <code>processOpenClawAgent(userId)</code>. The worker runs in a Next.js API route handler with a 5-minute execution budget.</div></div></div>
+    <div class="flow-step"><div class="flow-num">3</div><div><div class="flow-content-title">Platform scraping — 5 Indian sources</div><div class="flow-content-desc">Playwright headless browser scrapes: Naukri.com (primary), LinkedIn India, Internshala (for internships), Wellfound (startups), and Unstop (hackathons + roles). Each listing is stored in <code>OpenClawListing</code> with full JD text, company, CTC, location, and platform.</div></div></div>
+    <div class="flow-step"><div class="flow-num">4</div><div><div class="flow-content-title">GPT-4o match scoring</div><div class="flow-content-desc">For each listing, GPT-4o receives: student skill profile JSON + JD text. Returns a structured match object: <code>matchScore (0–100)</code>, <code>missingSkills[]</code>, <code>matchingSkills[]</code>, <code>applyRecommendation: boolean</code>, <code>tailoringNotes: string</code>. Only jobs with matchScore &gt; student's threshold (default 65) proceed to application.</div></div></div>
+    <div class="flow-step"><div class="flow-num">5</div><div><div class="flow-content-title">Resume tailoring per JD</div><div class="flow-content-desc">GPT-4o rewrites the student's resume summary, skills section, and project descriptions to align with the specific JD's language and keywords — while keeping all facts true. Generates a tailored PDF via react-pdf and stores it in Cloudinary for this application.</div></div></div>
+    <div class="flow-step"><div class="flow-num">6</div><div><div class="flow-content-title">Automated form fill + submission</div><div class="flow-content-desc">Playwright navigates to the apply page. It fills: name, email, phone, LinkedIn URL, portfolio URL, current CTC, expected CTC, notice period, cover letter (GPT-4o generated). Uploads the tailored resume PDF. Submits the form. Captures confirmation screenshot.</div></div></div>
+    <div class="flow-step"><div class="flow-num">7</div><div><div class="flow-content-title">Application logged to dashboard</div><div class="flow-content-desc">Result written to <code>OpenClawApplication</code>: platform, company, role, applied_at, match_score, resume_version_url, status (Applied / Failed / Skipped). Student sees a live feed on <code>/openclaw</code> page with all applications, match scores, and tailoring notes.</div></div></div>
+  </div>
+
+  <div class="section-label">Indian job market data layer</div>
+  <div class="detail-pane">
+    <h3>India-specific intelligence — what gets seeded and refreshed</h3>
+    <div class="sub">A dedicated weekly cron populates India-specific market data beyond what the existing JSearch scraper provides.</div>
+    <div class="spec-grid">
+      <div class="spec-block">
+        <div class="spec-block-title">Data sources scraped weekly</div>
+        <div class="spec-item"><span class="spec-item-key">Naukri</span>Top 500 active roles per city per role type</div>
+        <div class="spec-item"><span class="spec-item-key">AmbitionBox</span>Company ratings, salary bands, interview reviews</div>
+        <div class="spec-item"><span class="spec-item-key">Glassdoor India</span>Offer letter data, package ranges for freshers</div>
+        <div class="spec-item"><span class="spec-item-key">Unstop</span>Hackathons and fresher-specific drives</div>
+        <div class="spec-item"><span class="spec-item-key">LinkedIn India</span>Skills in demand + growth roles</div>
+      </div>
+      <div class="spec-block">
+        <div class="spec-block-title">India-specific intelligence served</div>
+        <div class="spec-item"><span class="spec-item-key">City demand</span>Bangalore vs Hyderabad vs Pune vs Chennai</div>
+        <div class="spec-item"><span class="spec-item-key">CTC bands</span>Fresher packages by company tier (₹LPA)</div>
+        <div class="spec-item"><span class="spec-item-key">Company tiers</span>FAANG India, Unicorn, MNC, Service, Startup</div>
+        <div class="spec-item"><span class="spec-item-key">Interview types</span>DSA-heavy vs system design vs case study</div>
+        <div class="spec-item"><span class="spec-item-key">Notice periods</span>Immediate vs 30 vs 60 day by sector</div>
+      </div>
+    </div>
+    <div class="code-block">// GPT-4o system prompt — India market advisor
+const INDIA_MARKET_PROMPT = `You are an expert Indian tech job market advisor.
+You have deep knowledge of the Indian software industry including:
+- Company tiers: FAANG India (Google, Microsoft, Amazon, Meta, Apple India),
+  top MNCs (Deloitte, Accenture, TCS, Infosys, Wipro, Cognizant),
+  Unicorns (Flipkart, Swiggy, Zomato, CRED, Meesho, Razorpay, PhonePe),
+  and funded startups.
+- Fresher package norms: Service companies ₹3.5-6 LPA, MNCs ₹6-12 LPA,
+  Product companies ₹15-45 LPA, FAANG India ₹25-100 LPA.
+- Indian interview patterns: TCS iON, Infosys InfyTQ, Wipro WILP,
+  AMCAT, CoCubes, Hackerrank-based OAs, campus drives.
+- CGPA cutoffs by company (7.0 for TCS, 6.5 for Infosys, no cutoff for startups).
+- Relevant certifications: AWS Solutions Architect, Google Cloud ACE,
+  Microsoft AZ-900, Oracle Java Certification.
+When answering questions, always localize to the Indian context.
+Mention specific Indian platforms (Naukri, Internshala, Unstop, Hirist, iimjobs).`</div>
+  </div>
+
+  <div class="section-label">OpenClaw dashboard UI spec</div>
+  <div class="detail-pane">
+    <h3>/openclaw page components</h3>
+    <div class="sub">Built as a client component using the existing DashboardLayout + PageTransition wrappers.</div>
+    <div class="spec-grid">
+      <div class="spec-block">
+        <div class="spec-block-title">Top stat bar</div>
+        <div class="spec-item">Applications sent today (count)</div>
+        <div class="spec-item">Total applied this week</div>
+        <div class="spec-item">Avg match score across applications</div>
+        <div class="spec-item">Interviews received (self-reported)</div>
+      </div>
+      <div class="spec-block">
+        <div class="spec-block-title">Agent config panel</div>
+        <div class="spec-item">Target roles multi-select</div>
+        <div class="spec-item">City preference checkboxes</div>
+        <div class="spec-item">Min CTC slider (₹ LPA)</div>
+        <div class="spec-item">Daily apply limit (5 / 10 / 20 / unlimited)</div>
+        <div class="spec-item">Blacklist companies textarea</div>
+        <div class="spec-item">Agent toggle (ON / PAUSED)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ SCHEMA ══════════════ -->
+<div class="panel" id="panel-schema">
+  <div class="section-label">Prisma schema additions — new models for v2</div>
+  <div class="warn-box">Run <code>npx prisma db push</code> after each schema addition in development. Use <code>npx prisma migrate dev --name v2_roles</code> for production-safe migrations.</div>
+
+  <div class="detail-pane" style="margin-bottom:12px">
+    <h3>User model — updated</h3>
+    <div class="sub">Add role enum, college/company relationships, and opt-in flags.</div>
+    <div class="code-block">// schema.prisma — updated User model
+enum UserRole {
+  STUDENT
+  FACULTY
+  RECRUITER
+}
+
+model User {
+  id                String      @id @default(cuid())
+  email             String      @unique
+  name              String
+  passwordHash      String
+  role              UserRole    @default(STUDENT)
+
+  // Student fields
+  college           String?
+  branch            String?
+  year              Int?
+  targetRole        String?
+  readinessScore    Float       @default(0)
+  cgpa              Float?
+  isProfileVisible  Boolean     @default(false)  // opt-in for recruiter discovery
+
+  // Faculty fields
+  collegeId         String?
+  College           CollegeInstitution? @relation(fields:[collegeId], references:[id])
+
+  // Recruiter fields
+  companyId         String?
+  Company           Company?    @relation(fields:[companyId], references:[id])
+  isVerified        Boolean     @default(false)  // recruiter verification
+
+  // Relations
+  SkillProfile      SkillProfile[]
+  SkillGap          SkillGap[]
+  Sprint            Sprint[]
+  OpenClawConfig    OpenClawConfig?
+  OpenClawApplications OpenClawApplication[]
+  ResumeVersions    ResumeVersion[]
+  Applications      JobApplication[]
+
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}</div>
+  </div>
+
+  <div class="detail-pane" style="margin-bottom:12px">
+    <h3>New models — v2 additions</h3>
+    <table class="schema-table">
+      <thead><tr><th>Model</th><th>Key fields</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td class="field-name">CollegeInstitution</td><td><span class="field-type">id, name, city, state, tier, naacGrade, tpContactEmail</span></td><td>Institutional entity linking faculty accounts to a college</td></tr>
+        <tr><td class="field-name">Company</td><td><span class="field-type">id, name, website, tier, verificationStatus, logoUrl, hrEmail</span></td><td>Recruiter's company — verified before talent access granted</td></tr>
+        <tr><td class="field-name">FacultyJobPosting</td><td><span class="field-type">id, collegeId, title, company, description, ctc, eligibility, deadline, driveDate, applicationCount</span></td><td>Jobs posted by faculty placement cell for their students</td></tr>
+        <tr><td class="field-name">JobApplication</td><td><span class="field-type">id, userId, jobPostingId, resumeVersionId, coverLetter, status (Applied/Shortlisted/Rejected/Placed), appliedAt</span></td><td>Student application to a faculty-posted or recruiter-posted job</td></tr>
+        <tr><td class="field-name">ResumeVersion</td><td><span class="field-type">id, userId, cloudinaryUrl, atsScore, targetJd, generatedBy (AI/Manual), createdAt</span></td><td>Versioned resume storage — each tailored resume saved separately</td></tr>
+        <tr><td class="field-name">OpenClawConfig</td><td><span class="field-type">id, userId, targetRoles[], preferredCities[], minCtcLpa, dailyLimit, blacklistedCompanies[], isActive</span></td><td>Student's OpenClaw agent configuration</td></tr>
+        <tr><td class="field-name">OpenClawListing</td><td><span class="field-type">id, platform, company, role, location, ctcBand, jdText, sourceUrl, scrapedAt</span></td><td>Raw job listings scraped by the OpenClaw agent from Indian platforms</td></tr>
+        <tr><td class="field-name">OpenClawApplication</td><td><span class="field-type">id, userId, listingId, matchScore, resumeVersionId, appliedAt, status, screenshotUrl, tailoringNotes</span></td><td>Record of each auto-application made by OpenClaw</td></tr>
+        <tr><td class="field-name">RecruiterTalentView</td><td><span class="field-type">id, recruiterId, studentId (anonymized until reveal), revealedAt, shortlisted</span></td><td>Tracks which anonymized profiles a recruiter has viewed or shortlisted</td></tr>
+        <tr><td class="field-name">IndiaMarketData</td><td><span class="field-type">id, skill, role, city, demandCount, avgCtcLpa, companyTier, weekOf</span></td><td>India-specific weekly market intelligence (separate from JobPosting)</td></tr>
+        <tr><td class="field-name">PlacementRecord</td><td><span class="field-type">id, collegeId, studentId, company, role, ctcLpa, offerDate, batch, isVerified</span></td><td>Final placement records for NAAC/NBA reporting by faculty</td></tr>
+        <tr><td class="field-name">ResumeSection</td><td><span class="field-type">id, resumeVersionId, type (Summary/Experience/Skills/Projects/Education), content (JSON), atsContribution</span></td><td>Section-level data for the resume builder UI</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════ ROUTES ══════════════ -->
+<div class="panel" id="panel-routes">
+  <div class="section-label">Complete file structure — v2 additions only</div>
+  <div class="code-block">skillgraph-web/
+├── app/
+│   ├── (app)/                          # Existing student routes (unchanged)
+│   │   ├── openclaw/
+│   │   │   └── page.tsx                # NEW — OpenClaw agent dashboard
+│   │   ├── resume-builder/
+│   │   │   ├── page.tsx                # NEW — ATS resume creator
+│   │   │   └── [id]/page.tsx           # Edit specific resume version
+│   │   └── jobs/
+│   │       ├── page.tsx                # NEW — Campus job board (student view)
+│   │       └── [jobId]/page.tsx        # Job detail + apply
+│   │
+│   ├── (faculty)/                      # NEW — Faculty route group
+│   │   ├── layout.tsx                  # FacultyLayout (different sidebar)
+│   │   ├── faculty/
+│   │   │   ├── dashboard/page.tsx      # Placement cell overview
+│   │   │   ├── jobs/
+│   │   │   │   ├── page.tsx            # All posted jobs
+│   │   │   │   └── new/page.tsx        # Post new job
+│   │   │   ├── applications/page.tsx   # All student applications
+│   │   │   ├── analytics/page.tsx      # Cohort skill + placement analytics
+│   │   │   ├── reports/page.tsx        # NAAC/NBA export reports
+│   │   │   └── companies/page.tsx      # Registered recruiter companies
+│   │
+│   ├── (recruiter)/                    # NEW — Recruiter route group
+│   │   ├── layout.tsx                  # RecruiterLayout
+│   │   ├── recruiter/
+│   │   │   ├── dashboard/page.tsx      # Recruiter overview
+│   │   │   ├── talent/page.tsx         # Anonymized talent discovery
+│   │   │   ├── shortlist/page.tsx      # Saved profiles
+│   │   │   ├── pipeline/page.tsx       # Application pipeline kanban
+│   │   │   ├── jobs/
+│   │   │   │   ├── page.tsx            # Posted jobs
+│   │   │   │   └── new/page.tsx        # Post job
+│   │   │   └── analytics/page.tsx      # Hire analytics
+│   │
+│   └── api/
+│       ├── openclaw/
+│       │   ├── config/route.ts         # GET/PUT OpenClaw config
+│       │   ├── agent/route.ts          # POST trigger manual run
+│       │   ├── listings/route.ts       # GET scraped listings
+│       │   └── applications/route.ts   # GET application history
+│       ├── resume/
+│       │   ├── build/route.ts          # POST generate resume from scratch
+│       │   ├── enhance/route.ts        # POST enhance uploaded resume for JD
+│       │   ├── export/route.ts         # GET export resume as PDF
+│       │   └── versions/route.ts       # GET all resume versions
+│       ├── faculty/
+│       │   ├── jobs/route.ts           # CRUD faculty job postings
+│       │   ├── applications/route.ts   # GET/PATCH student applications
+│       │   ├── analytics/route.ts      # GET cohort analytics
+│       │   └── reports/route.ts        # GET placement reports
+│       ├── recruiter/
+│       │   ├── talent/route.ts         # GET anonymized talent search
+│       │   ├── reveal/route.ts         # POST mutual-interest reveal
+│       │   ├── shortlist/route.ts      # CRUD shortlist
+│       │   └── verify/route.ts         # POST company verification
+│       ├── jobs/
+│       │   ├── route.ts                # GET all campus jobs for student
+│       │   └── apply/route.ts          # POST apply to job
+│       └── market/
+│           └── india/route.ts          # GET India-specific market data
+│
+├── components/
+│   ├── openclaw/
+│   │   ├── AgentConfigPanel.tsx        # Config form
+│   │   ├── ApplicationFeed.tsx         # Live applications list
+│   │   └── MatchScoreCard.tsx          # Per-job match display
+│   ├── resume-builder/
+│   │   ├── SectionEditor.tsx           # Per-section AI editor
+│   │   ├── AtsScorePreview.tsx         # Live ATS score bar
+│   │   └── ResumePreview.tsx           # PDF preview pane
+│   ├── faculty/
+│   │   ├── JobPostForm.tsx             # Create/edit job posting
+│   │   ├── ApplicationTable.tsx        # Student application management
+│   │   └── CohortChart.tsx             # Recharts skill distribution
+│   └── recruiter/
+│       ├── TalentCard.tsx              # Anonymized profile card
+│       ├── SkillFilter.tsx             # Multi-skill filter sidebar
+│       └── PipelineKanban.tsx          # Drag-drop pipeline
+│
+└── lib/
+    ├── openclaw/
+    │   ├── agent.ts                    # Main agent orchestration
+    │   ├── scraper.ts                  # Playwright scraping logic
+    │   ├── matcher.ts                  # GPT-4o match scoring
+    │   └── applicator.ts              # Form auto-fill logic
+    └── resume/
+        ├── builder.ts                  # GPT-4o resume generation
+        ├── enhancer.ts                 # JD-tailored enhancement
+        └── exporter.ts                 # react-pdf generation</div>
+</div>
+
+<!-- ══════════════ TIMELINE ══════════════ -->
+<div class="panel" id="panel-timeline">
+  <div class="section-label">Build timeline — Semester 7 to Sem 8 deployment</div>
+  <div class="timeline-row">
+    <div class="timeline-phase" style="background:var(--color-background-info)">
+      <div class="tp-label" style="color:var(--color-text-info)">Sprint 2 — Weeks 1–3</div>
+      <div class="tp-title" style="color:var(--color-text-info)">Schema + Auth foundation</div>
+      <div class="tp-item" style="color:var(--color-text-info)">→ Add role enum to Prisma</div>
+      <div class="tp-item" style="color:var(--color-text-info)">→ JWT role in NextAuth session</div>
+      <div class="tp-item" style="color:var(--color-text-info)">→ Middleware role routing</div>
+      <div class="tp-item" style="color:var(--color-text-info)">→ Faculty + Recruiter register flows</div>
+      <div class="tp-item" style="color:var(--color-text-info)">→ Company verification model</div>
+    </div>
+    <div class="timeline-phase" style="background:var(--color-background-success)">
+      <div class="tp-label" style="color:var(--color-text-success)">Sprint 3 — Weeks 4–6</div>
+      <div class="tp-title" style="color:var(--color-text-success)">Faculty Placement OS</div>
+      <div class="tp-item" style="color:var(--color-text-success)">→ Job posting CRUD</div>
+      <div class="tp-item" style="color:var(--color-text-success)">→ Student application flow</div>
+      <div class="tp-item" style="color:var(--color-text-success)">→ Application status pipeline</div>
+      <div class="tp-item" style="color:var(--color-text-success)">→ Cohort analytics dashboard</div>
+      <div class="tp-item" style="color:var(--color-text-success)">→ CSV/PDF placement report export</div>
+    </div>
+    <div class="timeline-phase" style="background:var(--color-background-warning)">
+      <div class="tp-label" style="color:var(--color-text-warning)">Sprint 4 — Weeks 7–9</div>
+      <div class="tp-title" style="color:var(--color-text-warning)">Recruiter Portal</div>
+      <div class="tp-item" style="color:var(--color-text-warning)">→ Anonymized talent API</div>
+      <div class="tp-item" style="color:var(--color-text-warning)">→ Talent discovery UI</div>
+      <div class="tp-item" style="color:var(--color-text-warning)">→ Mutual-reveal system</div>
+      <div class="tp-item" style="color:var(--color-text-warning)">→ Recruiter job posting</div>
+      <div class="tp-item" style="color:var(--color-text-warning)">→ Pipeline kanban</div>
+    </div>
+    <div class="timeline-phase" style="background:var(--color-background-secondary)">
+      <div class="tp-label" style="color:var(--color-text-secondary)">Sprint 5 — Weeks 10–12</div>
+      <div class="tp-title" style="color:var(--color-text-primary)">OpenClaw + Resume Builder</div>
+      <div class="tp-item" style="color:var(--color-text-secondary)">→ Playwright scraper setup</div>
+      <div class="tp-item" style="color:var(--color-text-secondary)">→ Match scoring with GPT-4o</div>
+      <div class="tp-item" style="color:var(--color-text-secondary)">→ Auto-apply pipeline</div>
+      <div class="tp-item" style="color:var(--color-text-secondary)">→ ATS resume builder</div>
+      <div class="tp-item" style="color:var(--color-text-secondary)">→ India market data layer</div>
+    </div>
+  </div>
+
+  <div class="section-label">First thing to build right now</div>
+  <div class="detail-pane">
+    <h3>Immediate next steps — in this exact order</h3>
+    <div class="flow-step"><div class="flow-num" style="background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info)">1</div><div><div class="flow-content-title">Update schema.prisma — add UserRole enum + new models</div><div class="flow-content-desc">Add <code>UserRole</code> enum, <code>CollegeInstitution</code>, <code>Company</code>, <code>OpenClawConfig</code>, <code>ResumeVersion</code>, <code>FacultyJobPosting</code>, <code>JobApplication</code>. Run <code>prisma db push</code>. No existing data affected.</div></div></div>
+    <div class="flow-step"><div class="flow-num" style="background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info)">2</div><div><div class="flow-content-title">Extend NextAuth session — add role + collegeId + companyId to JWT</div><div class="flow-content-desc">Modify <code>auth.ts</code> callbacks. Extend <code>types/next-auth.d.ts</code> to include role in the Session type so TypeScript doesn't complain.</div></div></div>
+    <div class="flow-step"><div class="flow-num" style="background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info)">3</div><div><div class="flow-content-title">Update middleware.ts — role-aware route protection</div><div class="flow-content-desc">Guards for /faculty/*, /recruiter/* routes. Ensure existing student routes still work. Test with three separate browser sessions.</div></div></div>
+    <div class="flow-step"><div class="flow-num" style="background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info)">4</div><div><div class="flow-content-title">Create (faculty) and (recruiter) route groups with stub layouts</div><div class="flow-content-desc">Create <code>app/(faculty)/layout.tsx</code> and <code>app/(recruiter)/layout.tsx</code> using the existing <code>DashboardLayout</code> component but with role-specific nav items passed as props.</div></div></div>
+    <div class="flow-step"><div class="flow-num" style="background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info)">5</div><div><div class="flow-content-title">Update AppSidebar.tsx for conditional nav</div><div class="flow-content-desc">Read role from session. Conditionally render studentNav / facultyNav / recruiterNav. All three nav configs are defined in the same file.</div></div></div>
+  </div>
+</div>
+
+<!-- ══════════════ PROMPTS ══════════════ -->
+<div class="panel" id="panel-prompts">
+  <div class="section-label">Copy-ready AI prompts for each new module</div>
+
+  <div class="detail-pane" style="margin-bottom:12px">
+    <h3>Prompt 1 — OpenClaw Match Scorer</h3>
+    <div class="sub">POST /api/openclaw/match — called per listing, returns structured match JSON</div>
+    <div class="code-block">const OPENCLAW_MATCH_PROMPT = `You are a senior technical recruiter assessing job-candidate fit for the Indian tech market.
+
+You will receive a student's skill profile and a job description.
+
+Return ONLY a valid JSON object. No markdown, no explanation, no backticks.
+
+Schema:
+{
+  "matchScore": number (0-100),
+  "matchingSkills": string[],
+  "missingSkills": string[],
+  "applyRecommendation": boolean,
+  "confidenceLevel": "high" | "medium" | "low",
+  "tailoringNotes": string (1-2 sentences on what to emphasize in resume/cover letter),
+  "indiaContext": {
+    "companyTier": "FAANG" | "Unicorn" | "MNC" | "Service" | "Startup" | "Unknown",
+    "interviewStyle": "DSA-heavy" | "System Design" | "Balanced" | "Consulting",
+    "ctcRealism": boolean
+  }
+}
+
+Apply only when matchScore >= 65 AND confidenceLevel is "high" or "medium".`
+
+// Usage
+const matchResponse = await openai.chat.completions.create({
+  model: "gpt-4o",
+  temperature: 0,
+  messages: [
+    { role: "system", content: OPENCLAW_MATCH_PROMPT },
+    { role: "user",   content: \`Student profile: \${JSON.stringify(studentProfile)}\n\nJob description:\n\${jdText}\` }
+  ]
+})</div>
+  </div>
+
+  <div class="detail-pane" style="margin-bottom:12px">
+    <h3>Prompt 2 — ATS Resume Builder</h3>
+    <div class="sub">POST /api/resume/build — generates full resume JSON from student profile + target JD</div>
+    <div class="code-block">const RESUME_BUILD_PROMPT = `You are an expert ATS resume writer for the Indian tech job market.
+
+Create a complete, ATS-optimized resume for the student to maximize their score against the provided JD.
+
+Rules:
+- Use exact keywords from the JD (verbatim where truthful)
+- Quantify all achievements (%, ₹, users, milliseconds)
+- Keep summary to 3 sentences: role aspiration, top 3 skills, measurable achievement
+- Use action verbs: "Engineered", "Optimized", "Reduced", "Deployed", "Automated"
+- Skills section: match JD skill names exactly, not synonyms
+- Projects: lead with impact, then tech stack, then your role
+- Never fabricate experience — work only with the provided facts
+
+Return ONLY a valid JSON object with this schema:
+{
+  "summary": string,
+  "skills": { "technical": string[], "tools": string[], "soft": string[] },
+  "experience": [{ "company": string, "role": string, "duration": string, "bullets": string[] }],
+  "projects": [{ "name": string, "techStack": string[], "impact": string, "bullets": string[] }],
+  "education": { "degree": string, "college": string, "cgpa": string, "year": string },
+  "certifications": string[],
+  "atsScore": number (estimate 0-100 based on JD keyword coverage),
+  "keywordsUsed": string[],
+  "keywordsMissed": string[]
+}`</div>
+  </div>
+
+  <div class="detail-pane" style="margin-bottom:12px">
+    <h3>Prompt 3 — Recruiter Talent Summarizer (anonymized)</h3>
+    <div class="sub">Used to generate a sanitized, anonymized talent summary for recruiter-facing profiles</div>
+    <div class="code-block">const RECRUITER_SUMMARY_PROMPT = `You are creating an anonymized candidate summary for a recruiter.
+
+CRITICAL: Do NOT include any personally identifiable information (name, email, phone, college name, city).
+Use generic references: "a tier-2 engineering college in South India", "currently in 3rd year".
+
+Generate a compelling candidate summary that highlights:
+- Industry readiness score and what it means
+- Top 5 verified skills with proficiency
+- Strongest project (de-identified)
+- Gap skills being actively closed
+- Recommended roles this candidate fits
+
+Return ONLY valid JSON:
+{
+  "readinessScore": number,
+  "readinessLabel": "Ready" | "Near-Ready" | "In-Progress",
+  "topSkills": string[],
+  "strongestProject": { "description": string, "techStack": string[], "impact": string },
+  "activelyLearning": string[],
+  "recommendedRoles": string[],
+  "collegeTier": "Tier-1" | "Tier-2" | "Tier-3",
+  "targetAvailability": string,
+  "summary": string (3-4 sentences, completely anonymized)
+}`</div>
+  </div>
+
+  <div class="detail-pane">
+    <h3>Prompt 4 — Indian Market AI Advisor</h3>
+    <div class="sub">POST /api/ai/india-advisor — student can ask any question about Indian job market</div>
+    <div class="code-block">const INDIA_ADVISOR_PROMPT = `You are SkillGraph's Indian tech career advisor.
+
+Context you have:
+- Student profile: {STUDENT_PROFILE_JSON}
+- Their current readiness score: {READINESS_SCORE}%
+- Their target role: {TARGET_ROLE}
+- Their college tier: {COLLEGE_TIER}
+- India market data (current week): {INDIA_MARKET_SNAPSHOT}
+
+Answer the student's question with India-specific, actionable advice. Always:
+1. Reference specific Indian companies hiring for their role right now
+2. Give realistic CTC expectations in ₹ LPA based on their profile
+3. Mention specific Indian platforms (Naukri, Unstop, Internshala, iimjobs, Hirist)
+4. Reference Indian-specific certifications and competitions (TCS iON, Infosys InfyTQ, Smart India Hackathon, Google Summer of Code)
+5. Tailor advice for their college tier (different strategy for IIT vs NIT vs state engineering college)
+6. Be direct and honest about package expectations — no sugar-coating
+
+Format: conversational prose, 150-250 words, end with 2-3 concrete next actions.`</div>
+  </div>
+
+  <button class="prompt-btn" onclick="sendPrompt('Generate the complete schema.prisma additions for SkillGraph v2 — all new models in Prisma 5 syntax')">Generate full schema.prisma ↗</button>
+  <button class="prompt-btn" onclick="sendPrompt('Write the complete middleware.ts file for SkillGraph v2 with role-based routing for STUDENT, FACULTY, and RECRUITER')">Generate middleware.ts ↗</button>
+  <button class="prompt-btn" onclick="sendPrompt('Build the Faculty Placement Cell dashboard page for SkillGraph — app/(faculty)/faculty/dashboard/page.tsx using DashboardLayout and PageTransition with Shadcn components and Tailwind v4')">Build faculty dashboard ↗</button>
+  <button class="prompt-btn" onclick="sendPrompt('Build the OpenClaw agent page for SkillGraph — app/(app)/openclaw/page.tsx with the agent config panel, application feed, and match score cards using the existing dark industrial aesthetic')">Build OpenClaw page ↗</button>
+</div>
+
+</div>
+
+<script>
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('visible'));
+  document.querySelectorAll('.pnav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('visible');
+  event.target.classList.add('active');
+}
+
+const moduleData = {
+  recruiter: {
+    name: 'Recruiter Portal — Talent Discovery',
+    sub: 'Corporate HR discovers anonymized student profiles. Privacy-first: no name/college revealed until both sides opt in.',
+    body: `<div class="spec-grid">
+      <div class="spec-block">
+        <div class="spec-block-title">Filters available to recruiter</div>
+        <div class="spec-item"><span class="spec-item-key">Role</span>Target role (SDE, Data, ML, DevOps...)</div>
+        <div class="spec-item"><span class="spec-item-key">Readiness</span>Minimum readiness score slider</div>
+        <div class="spec-item"><span class="spec-item-key">Skills</span>Must-have skills multi-select</div>
+        <div class="spec-item"><span class="spec-item-key">Year</span>Graduation year</div>
+        <div class="spec-item"><span class="spec-item-key">CGPA</span>Minimum CGPA filter</div>
+        <div class="spec-item"><span class="spec-item-key">College tier</span>Tier-1 / Tier-2 / All</div>
+      </div>
+      <div class="spec-block">
+        <div class="spec-block-title">Talent card shows (anonymized)</div>
+        <div class="spec-item"><span class="spec-item-key">ID</span>SG-XXXXX (no name)</div>
+        <div class="spec-item"><span class="spec-item-key">Score</span>Readiness % + label</div>
+        <div class="spec-item"><span class="spec-item-key">Skills</span>Top 6 verified skills</div>
+        <div class="spec-item"><span class="spec-item-key">Project</span>De-identified best project</div>
+        <div class="spec-item"><span class="spec-item-key">Learning</span>Actively closing gaps</div>
+        <div class="spec-item"><span class="spec-item-key">Available</span>Month/year + location pref</div>
+      </div>
+    </div>
+    <div class="code-block" style="margin-top:12px">// GET /api/recruiter/talent — anonymized query
+export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (session.user.role !== 'RECRUITER') return new Response('403', { status: 403 });
+  if (!session.user.isVerified) return new Response('Pending verification', { status: 403 });
+
+  const { role, minScore, skills, year } = parseQuery(req.nextUrl.searchParams);
+
+  const candidates = await prisma.user.findMany({
+    where: {
+      role: 'STUDENT',
+      isProfileVisible: true,          // student opted in
+      targetRole: { contains: role, mode: 'insensitive' },
+      readinessScore: { gte: minScore },
+      year: year || undefined,
+      SkillProfile: { some: { skillName: { in: skills } } }
+    },
+    select: {
+      id: true,                          // anonymized via SG-ID hash
+      readinessScore: true,
+      targetRole: true,
+      year: true,
+      college: false,                    // NEVER returned
+      email: false,                      // NEVER returned
+      name: false,                       // NEVER returned
+      SkillProfile: { select: { skillName: true, proficiency: true } },
+    }
+  });
+
+  return Response.json(anonymize(candidates)); // strips all PII, maps id → SG-XXXXX
+}</div>`
+  },
+  faculty: {
+    name: 'Faculty Placement Cell OS',
+    sub: 'Full placement management dashboard. Post jobs, manage applications, track cohort skill growth, generate NAAC reports.',
+    body: `<div class="spec-grid" style="margin-bottom:12px">
+      <div class="spec-block">
+        <div class="spec-block-title">Dashboard widgets</div>
+        <div class="spec-item">Total registered students (college-filtered)</div>
+        <div class="spec-item">Average cohort readiness score</div>
+        <div class="spec-item">Applications submitted this week</div>
+        <div class="spec-item">Companies registered on platform</div>
+        <div class="spec-item">Placements confirmed this year</div>
+        <div class="spec-item">Top 5 skill gaps across cohort</div>
+      </div>
+      <div class="spec-block">
+        <div class="spec-block-title">Job posting fields</div>
+        <div class="spec-item">Company name + logo</div>
+        <div class="spec-item">Role title + description (rich text)</div>
+        <div class="spec-item">CTC band (min-max ₹ LPA)</div>
+        <div class="spec-item">Eligibility: min CGPA, branches, year</div>
+        <div class="spec-item">Application deadline</div>
+        <div class="spec-item">Drive date + venue/online link</div>
+        <div class="spec-item">OA / interview process description</div>
+        <div class="spec-item">Visibility: all students / specific branches</div>
+      </div>
+    </div>
+    <div class="spec-block" style="margin-bottom:12px;padding:12px;background:var(--color-background-secondary);border-radius:var(--border-radius-md)">
+      <div class="spec-block-title">Application pipeline (faculty view per job)</div>
+      <div class="spec-item"><span class="spec-item-key">Applied</span>Count + student list (name, branch, CGPA, readiness score)</div>
+      <div class="spec-item"><span class="spec-item-key">Shortlisted</span>Faculty manually moves candidates</div>
+      <div class="spec-item"><span class="spec-item-key">OA Sent</span>Mark OA dispatched + track completion</div>
+      <div class="spec-item"><span class="spec-item-key">Interview</span>Schedule + track interview date</div>
+      <div class="spec-item"><span class="spec-item-key">Offered</span>Confirm offer with CTC</div>
+      <div class="spec-item"><span class="spec-item-key">Placed</span>Final confirmation → PlacementRecord</div>
+    </div>
+    <div class="code-block">// POST /api/faculty/jobs — create job posting
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (session.user.role !== 'FACULTY') return new Response('403', { status: 403 });
+
+  const body = await req.json();
+  const job = await prisma.facultyJobPosting.create({
+    data: {
+      collegeId:   session.user.collegeId!,
+      title:       body.title,
+      company:     body.company,
+      description: body.description,
+      ctcMin:      body.ctcMin,
+      ctcMax:      body.ctcMax,
+      minCgpa:     body.minCgpa,
+      eligibleBranches: body.branches,
+      deadline:    new Date(body.deadline),
+      driveDate:   body.driveDate ? new Date(body.driveDate) : null,
+    }
+  });
+  // Auto-notify eligible students via email (SendGrid)
+  await notifyEligibleStudents(job, session.user.collegeId!);
+  return Response.json(job);
+}</div>`
+  },
+  resume: {
+    name: 'ATS Resume Creator — /resume-builder',
+    sub: 'Build or enhance a resume to maximize ATS score for a specific JD. Section-by-section AI editing with live score preview.',
+    body: `<div class="spec-grid" style="margin-bottom:12px">
+      <div class="spec-block">
+        <div class="spec-block-title">Two entry modes</div>
+        <div class="spec-item"><span class="spec-item-key">Build fresh</span>AI generates from skill profile</div>
+        <div class="spec-item"><span class="spec-item-key">Enhance existing</span>Upload PDF → AI improves</div>
+      </div>
+      <div class="spec-block">
+        <div class="spec-block-title">Sections editable</div>
+        <div class="spec-item">Professional summary (AI + manual)</div>
+        <div class="spec-item">Skills (auto-pulled from SkillProfile)</div>
+        <div class="spec-item">Projects (pulled from extracted resume)</div>
+        <div class="spec-item">Experience (internships from profile)</div>
+        <div class="spec-item">Education (auto-filled)</div>
+        <div class="spec-item">Certifications + achievements</div>
+      </div>
+    </div>
+    <div class="spec-block" style="padding:12px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);margin-bottom:12px">
+      <div class="spec-block-title">ATS Score breakdown</div>
+      <div class="spec-item"><span class="spec-item-key">Keyword match</span>JD keywords found in resume (0–40 pts)</div>
+      <div class="spec-item"><span class="spec-item-key">Format score</span>ATS-parseable structure (0–20 pts)</div>
+      <div class="spec-item"><span class="spec-item-key">Quantification</span>% of bullets with numbers (0–20 pts)</div>
+      <div class="spec-item"><span class="spec-item-key">Action verbs</span>Strong verb usage (0–10 pts)</div>
+      <div class="spec-item"><span class="spec-item-key">Section completeness</span>All required sections present (0–10 pts)</div>
+    </div>
+    <div class="code-block">// Two-pane layout — editor left, preview right
+// app/(app)/resume-builder/page.tsx
+
+"use client"
+import { useState } from 'react'
+import { DashboardLayout }  from '@/components/DashboardLayout'
+import { PageTransition }   from '@/components/PageTransition'
+import { SectionEditor }    from '@/components/resume-builder/SectionEditor'
+import { AtsScorePreview }  from '@/components/resume-builder/AtsScorePreview'
+import { ResumePreview }    from '@/components/resume-builder/ResumePreview'
+
+export default function ResumeBuilderPage() {
+  const [resumeData, setResumeData] = useState(null)
+  const [targetJd,   setTargetJd]   = useState('')
+  const [atsScore,   setAtsScore]   = useState(0)
+
+  return (
+    &lt;DashboardLayout title="Resume Builder"&gt;
+      &lt;PageTransition&gt;
+        &lt;div className="grid grid-cols-2 gap-6 h-full"&gt;
+          &lt;div&gt; {/* Left: Editor */}
+            &lt;textarea placeholder="Paste target JD here..." onChange={e => setTargetJd(e.target.value)}/&gt;
+            &lt;SectionEditor resumeData={resumeData} targetJd={targetJd} onChange={setResumeData}/&gt;
+          &lt;/div&gt;
+          &lt;div&gt; {/* Right: Preview + ATS Score */}
+            &lt;AtsScorePreview score={atsScore} /&gt;
+            &lt;ResumePreview data={resumeData} /&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/PageTransition&gt;
+    &lt;/DashboardLayout&gt;
+  )
+}</div>`
+  },
+  jobs: {
+    name: 'Campus Job Board — /jobs (student view)',
+    sub: 'Students see all active job postings from their college placement cell plus recruiter-posted verified openings.',
+    body: `<div class="spec-grid" style="margin-bottom:12px">
+      <div class="spec-block">
+        <div class="spec-block-title">Job card shows</div>
+        <div class="spec-item">Company name + logo + tier badge</div>
+        <div class="spec-item">Role title + CTC band (₹ LPA)</div>
+        <div class="spec-item">Deadline with countdown</div>
+        <div class="spec-item">AI match score (vs student profile)</div>
+        <div class="spec-item">Eligibility: CGPA / branch check (green/red)</div>
+        <div class="spec-item">Drive date if scheduled</div>
+      </div>
+      <div class="spec-block">
+        <div class="spec-block-title">Application flow</div>
+        <div class="spec-item">1. View full JD with requirements</div>
+        <div class="spec-item">2. Select resume version (from builder)</div>
+        <div class="spec-item">3. Optional: write cover letter (AI assist)</div>
+        <div class="spec-item">4. Submit → status: Applied</div>
+        <div class="spec-item">5. Faculty updates status → student notified</div>
+        <div class="spec-item">6. Application tracker on dashboard</div>
+      </div>
+    </div>
+    <div class="info-box">Match score is computed automatically by GPT-4o comparing the student's SkillProfile against the job's required skills. Students see "92% match" or "43% match — missing: System Design, Java" at a glance.</div>`
+  },
+  india: {
+    name: 'Indian Market Intelligence — /market/india',
+    sub: 'Dedicated India-first data layer seeded with Naukri, AmbitionBox, Glassdoor India, and Unstop data.',
+    body: `<div class="spec-grid" style="margin-bottom:12px">
+      <div class="spec-block">
+        <div class="spec-block-title">Data points tracked</div>
+        <div class="spec-item">Top skills by city (Bangalore, Hyderabad, Pune, Chennai, Mumbai, NCR)</div>
+        <div class="spec-item">Fresher package bands by company tier</div>
+        <div class="spec-item">Top hiring companies this week per role</div>
+        <div class="spec-item">OA patterns (HackerRank, Mettl, CoCubes, Amcat)</div>
+        <div class="spec-item">Interview style by company (DSA vs SD vs case)</div>
+        <div class="spec-item">Active hackathons on Unstop/Devfolio</div>
+      </div>
+      <div class="spec-block">
+        <div class="spec-block-title">Scraper cron — Sunday 00:00 IST</div>
+        <div class="spec-item">Naukri: 500 roles × top 5 cities</div>
+        <div class="spec-item">AmbitionBox: company ratings + packages</div>
+        <div class="spec-item">Unstop: active competitions + drives</div>
+        <div class="spec-item">LinkedIn India: trending skills</div>
+        <div class="spec-item">Glassdoor India: fresher offer data</div>
+      </div>
+    </div>
+    <div class="code-block">// IndiaMarketData seeding in weekly cron
+// lib/india-market/seeder.ts
+
+const INDIA_CITIES = ['Bangalore', 'Hyderabad', 'Pune', 'Chennai', 'Mumbai', 'NCR', 'Remote'];
+const INDIA_ROLES  = ['SDE', 'Data Analyst', 'ML Engineer', 'DevOps', 'Full Stack', 'Android', 'iOS'];
+const COMPANY_TIERS = { FAANG: ['Google', 'Microsoft', 'Amazon', 'Meta', 'Apple'], Unicorn: ['Flipkart', 'Swiggy', 'Zomato', 'CRED', 'Meesho', 'Razorpay', 'PhonePe', 'Ola'], MNC: ['Deloitte', 'Accenture', 'IBM', 'Capgemini'], Service: ['TCS', 'Infosys', 'Wipro', 'Cognizant', 'HCL'] };
+
+// Naukri scraper via Playwright
+async function scrapeNaukri(role: string, city: string) {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  await page.goto(\`https://www.naukri.com/\${role.toLowerCase().replace(' ','-')}-jobs-in-\${city.toLowerCase()}\`);
+  // Extract listings, required skills, salary ranges
+  const listings = await page.$$eval('.jobTuple', els => els.map(el => ({
+    title:    el.querySelector('.title')?.textContent,
+    company:  el.querySelector('.companyName')?.textContent,
+    skills:   el.querySelector('.tags')?.textContent?.split('|') ?? [],
+    salary:   el.querySelector('.salary')?.textContent,
+    location: el.querySelector('.location')?.textContent,
+  })));
+  await browser.close();
+  return listings;
+}</div>`
+  },
+  pipeline: {
+    name: 'Recruiter Pipeline Manager — /recruiter/pipeline',
+    sub: 'Kanban-style candidate pipeline from Discovery → Shortlisted → Interview Scheduled → Offered → Hired.',
+    body: `<div class="spec-grid" style="margin-bottom:12px">
+      <div class="spec-block">
+        <div class="spec-block-title">Pipeline stages</div>
+        <div class="spec-item"><span class="spec-item-key">Discovered</span>Viewed talent cards</div>
+        <div class="spec-item"><span class="spec-item-key">Interested</span>Expressed interest (reveal pending)</div>
+        <div class="spec-item"><span class="spec-item-key">Revealed</span>Student accepted reveal</div>
+        <div class="spec-item"><span class="spec-item-key">Interview</span>Interview scheduled</div>
+        <div class="spec-item"><span class="spec-item-key">Offered</span>Offer letter sent</div>
+        <div class="spec-item"><span class="spec-item-key">Hired</span>Accepted — PlacementRecord created</div>
+      </div>
+      <div class="spec-block">
+        <div class="spec-block-title">Implementation notes</div>
+        <div class="spec-item">Use @dnd-kit/core for drag-drop kanban</div>
+        <div class="spec-item">Each card: anonymized ID + readiness + skills</div>
+        <div class="spec-item">Post-reveal: name + email + LinkedIn visible</div>
+        <div class="spec-item">Stage change triggers email notification</div>
+        <div class="spec-item">Recruiter can add private notes per candidate</div>
+        <div class="spec-item">Export pipeline as CSV for internal HR</div>
+      </div>
+    </div>`
+  }
+};
+
+function showModule(key) {
+  const d = moduleData[key];
+  if (!d) { document.getElementById('module-detail').style.display='none'; return; }
+  document.getElementById('md-name').textContent = d.name;
+  document.getElementById('md-sub').textContent = d.sub;
+  document.getElementById('md-body').innerHTML = d.body;
+  document.getElementById('module-detail').style.display = 'block';
+}
+</script>
