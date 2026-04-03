@@ -68,70 +68,60 @@ SkillGraph is built on a highly polished "deep dark" industrial AI aesthetic (`#
 
 ---
 
-## File Structure
+## 📂 File Structure
 
-```
+```text
 skillgraph-web/
 ├── app/
-│   ├── page.tsx                         ← Landing (/) with live counters + chart
-│   ├── login/page.tsx                   ← Login with NextAuth signIn
-│   ├── register/page.tsx                ← Register + auto-login
-│   ├── onboard/page.tsx                 ← 4-step PDF upload + AI processing
-│   ├── dashboard/page.tsx               ← 3-col: skills / gaps / sprint
-│   ├── sprint/page.tsx                  ← 7-day checklist + confetti
-│   ├── benchmark/page.tsx               ← Bell curve + percentile stats
-│   ├── linkedin/page.tsx                ← AI profile optimizer (before/after)
-│   ├── market/page.tsx                  ← Public skill demand index
-│   ├── profile/page.tsx                 ← Edit info + re-upload resume
-│   └── api/
-│       ├── auth/register/route.ts       ← POST /api/auth/register
-│       ├── auth/[...nextauth]/route.ts  ← NextAuth catch-all
-│       ├── resume/upload/route.ts       ← POST /api/resume/upload
-│       ├── gaps/route.ts               ← POST (analyze) + GET (list)
-│       ├── gaps/[id]/route.ts          ← PATCH (close gap)
-│       ├── sprints/route.ts            ← POST (generate) + GET (active)
-│       ├── sprints/[id]/route.ts       ← PATCH (update progress)
-│       ├── skills/route.ts             ← GET (user's skills)
-│       ├── market/skills/route.ts      ← GET (this week's top skills)
-│       ├── ai/projects/route.ts        ← POST (project suggestions)
-│       ├── ai/linkedin/route.ts        ← POST (LinkedIn optimizer)
-│       ├── benchmarks/route.ts         ← GET + POST
-│       ├── stats/route.ts             ← GET (public impact counters)
-│       └── users/me/route.ts           ← GET + PATCH (profile)
+│   ├── (app)/
+│   │   ├── dashboard/page.tsx           ← Student analytics dashboard
+│   │   ├── openclaw/page.tsx            ← AI Resume screening interface
+│   │   └── resume-builder/page.tsx      ← ATS-friendly resume creator
+│   ├── (faculty)/
+│   │   └── faculty/dashboard/page.tsx   ← Placement Cell OS
+│   ├── (recruiter)/
+│   │   └── recruiter/dashboard/page.tsx ← Recruiter Applicant Feed
+│   ├── api/
+│   │   ├── auth/[...nextauth]/route.ts  ← NextAuth v5 session controller
+│   │   ├── openclaw/trigger/route.ts    ← OpenClaw AI logic
+│   │   └── resume-builder/score/route.ts← Native evaluation handlers
+│   ├── login/page.tsx                   ← Dynamic semantic portal login
+│   ├── register/                        ← Multi-role registration forms
+│   └── onboard/page.tsx                 ← 4-step AI Curriculum Ingestion
+├── components/
+│   ├── ui/                              ← radix-ui & tailwind semantic UI
+│   ├── AppSidebar.tsx                   ← Main functional unified portal
+│   └── NetworkBackground.tsx            ← Framer Motion aesthetic backdrop
 ├── lib/
-│   ├── prisma.ts                        ← Singleton Prisma client
-│   ├── openai.ts                        ← callGPT() + all 6 prompts
-│   └── api.ts                           ← getUserId(), response helpers
-├── auth.ts                              ← NextAuth v5 config + handlers
-├── proxy.ts                             ← Route protection (Next.js 16)
-├── prisma/schema.prisma                 ← 6 DB models
-├── workers/
-│   ├── index.ts                         ← Sprint generator + monthly report cron
-│   └── jobScraper.ts                    ← Weekly LinkedIn job scraper
-└── .env.local                           ← API keys template (fill in)
+│   ├── openclaw/agent.ts                ← Intelligent Core Recruiter logic
+│   └── prisma.ts                        ← Singleton ORM database client
+├── prisma/schema.prisma                 ← Prisma PostgreSQL schema definitions
+├── workers/index.ts                     ← Background processors (Redis/Bull)
+└── package.json                         ← Core dependencies (Next.js 16)
 ```
 
 ---
 
-## How to Run
+## 🚀 How to Run locally
 
-### 1. Fill in `.env.local`
-Open `skillgraph-web/.env.local` and fill in all 8 API keys.
+### 1. Configure the Environment
+Clone the repository and inject your configurations inside `skillgraph-web/.env.local`.
 
-### 2. Push the database schema
+### 2. Synchronize the Database Platform
+Initialize PostgreSQL variables and align the Prisma schema definitions locally:
 ```bash
 cd skillgraph-web
 npx prisma db push
 ```
 
-### 3. Start the dev server
+### 3. Initiate the Dev Server
 ```bash
 cd skillgraph-web
 npm run dev
 ```
-Visit `http://localhost:3000`
+Navigate to `http://localhost:3000` to experience the deep-dark portal UI.
 
-### 4. Start the background workers (separate terminal)
+### 4. Background Data Sync (Workers)
 ```bash
 cd skillgraph-web
 npx ts-node workers/index.ts
