@@ -119,7 +119,7 @@ npx prisma db push
 cd skillgraph-web
 npm run dev
 ```
-Navigate to `http://localhost:3000` to experience the deep-dark portal UI.
+Navigate to `http://localhost:3000` 
 
 ### 4. Background Data Sync (Workers)
 ```bash
