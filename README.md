@@ -66,18 +66,6 @@ SkillGraph is built on a highly polished "deep dark" industrial AI aesthetic (`#
 - Real-time data visualization of the most sought-after tech stack components across the global industry.
 - Integrated Bell-curve statistical engine determining percentile ranks for competitive benchmarking.
 
-
-
-````carousel
-![Landing Page Redesign](./assets/landing_page_1774545612770.png)
-<!-- slide -->
-![Sleek Authentication Flow](./assets/login_page_1774545629820.png)
-<!-- slide -->
-![AI Project Architect Module](./assets/project_ideas_page_1774545714085.png)
-<!-- slide -->
-![Identity Management / Profile Settings](./assets/profile_settings_panel_1774546600483.png)
-````
-
 ---
 
 ## File Structure
