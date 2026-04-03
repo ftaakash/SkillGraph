@@ -12,6 +12,16 @@
 
 ---
 
+## Latest Updates (v2)
+
+* **Multi-Role Platform Expansion**: Implemented immersive portals for Faculty (Placement Cell OS) and Recruiters, complete with dedicated API endpoints for recruiter job posting.
+* **OpenClaw AI & Resume Builder**: Integrated OpenClaw AI for comprehensive resume parsing, automated sprint generation, and a fully-featured Resume Builder module.
+* **Hyper-Localized AI Advisor**: Refined the Indian Market AI Advisor's system prompt to provide tailored, actionable career guidance and highly accurate market intelligence.
+* **Backend Robustness & Auth**: Resolved critical backend authorization bugs, strictly enforcing role-based college/company linkages in registration routing, and patched skill market data indexing.
+* **UI/UX Modernization**: Achieved a comprehensive visual modernization of the Next.js App Router portal with seamless identity management and profile settings, maintaining a rigorous "deep dark" industrial theme.
+
+---
+
 ## What Was Built
 
 **Location:** `skillgraph-web/`
