@@ -42,9 +42,29 @@
 
 ---
 
-## Visual Presentation (UI/UX Transformation)
+## ✨ Platform Features & UI/UX Experience
 
-We executed a comprehensive UI/UX overhaul across the entire Next.js portal, completely replacing the initial generic Tailwind boilerplate with a highly-polished, "deep dark" industrial AI aesthetic (`#0A0D14` canvas, `#141824` components). 
+SkillGraph is built on a highly polished "deep dark" industrial AI aesthetic (`#0A0D14` canvas, `#141824` components), ensuring an immersive, professional environment across all portals. The sophisticated frontend utilizes vanilla Tailwind micro-interactions including smooth gradient meshes, tooltip transitions, and SVG glow filters.
+
+### 🚀 Core Modules & Capabilities
+
+**1. Multi-Role Portals**
+- **Student Dashboard**: Real-time tracking of skills, benchmark percentiles, and 7-day AI-driven career sprints.
+- **Faculty Placement Cell OS**: Deep analytics dashboard giving academic administrators visibility into student progress and institutional placement success formats.
+- **Recruiter Portal**: Seamless API-driven pipeline for specialized job posting and applicant feed exploration.
+
+**2. OpenClaw AI & Resume Builder**
+- **Application Feed**: Intelligent parsing that instantly matches a recruiter's specific demands with verified candidate skills.
+- **Resume Builder & Parsing Engine**: Canvas-free edge processing using `unpdf` to extract experience details accurately.
+
+**3. Hyper-Localized AI Advisor**
+- **Indian Market Intelligence**: Powered by specialized system prompts mathematically structured for tier 1/2/3 Indian corporate hiring algorithms.
+- **Project Architect**: Generates customized, demonstrable project roadmaps aimed at neutralizing critical skill gaps.
+- **LinkedIn Optimizer**: Side-by-side actionable tweaks leveraging OpenAI to immediately boost a candidate's public market visibility.
+
+**4. Skill Market & Benchmarking Index**
+- Real-time data visualization of the most sought-after tech stack components across the global industry.
+- Integrated Bell-curve statistical engine determining percentile ranks for competitive benchmarking.
 
 **Verification Recording:**
 ![Final UI Verification](./assets/skillgraph_final_ui_check_1774545596049.webp)
@@ -58,12 +78,6 @@ We executed a comprehensive UI/UX overhaul across the entire Next.js portal, com
 <!-- slide -->
 ![Identity Management / Profile Settings](./assets/profile_settings_panel_1774546600483.png)
 ````
-
-### Design Upgrades Implemented:
-* **Global Sidebar**: Extracted generic top-navigation into a persistent left-hand sidebar for all authenticated core features (`/dashboard`, `/projects`, `/benchmark`, `/linkedin`, `/sprint`, `/market`).
-* **Micro-Interactions**: Applied smooth gradients, SVG glowing filters, and tooltip transitions natively utilizing vanilla Tailwind.
-* **Component Uniformity**: Ensured identical structural constraints (`bg-[#141824]`, tracking-widest uppercase tags) across every single React page.
-* **Branding Integrity**: Maintained the core `SkillGraph` namespace across all marketing and functional interfaces.
 
 ---
 
