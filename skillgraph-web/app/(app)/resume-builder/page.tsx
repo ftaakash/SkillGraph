@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { FileText, Save, RefreshCw, Upload } from "lucide-react";
+import { FileText, Save, RefreshCw, Upload, Download, Wand2 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import PageTransition from "@/components/PageTransition";
 import SectionEditor from "@/components/resume-builder/SectionEditor";
@@ -31,6 +31,66 @@ export default function ResumeBuilderPage() {
   const [scoring, setScoring] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const generateFromProfile = useCallback(async () => {
+    if (!targetJd.trim()) {
+      alert('Please paste a target Job Description first.');
+      return;
+    }
+    setGenerating(true);
+    try {
+      const res = await fetch('/api/resume-builder/build', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetJd }),
+      });
+      const data = await res.json();
+      if (data.resume) {
+        const r = data.resume;
+        setSections({
+          summary: r.summary || '',
+          skills: [...(r.skills?.technical || []), ...(r.skills?.tools || [])].join(', '),
+          experience: (r.experience || []).map((e: { role: string; company: string; duration: string; bullets: string[] }) =>
+            [e.role, e.company, e.duration, ...(e.bullets || [])].join('\n')
+          ).join('\n\n'),
+          projects: (r.projects || []).map((p: { name: string; techStack: string[]; impact: string; bullets: string[] }) =>
+            [p.name, (p.techStack || []).join(', '), p.impact, ...(p.bullets || [])].join('\n')
+          ).join('\n\n'),
+          education: r.education
+            ? [r.education.degree, r.education.college, r.education.cgpa, r.education.year].join('\n')
+            : '',
+          certifications: (r.certifications || []).join('\n'),
+        });
+      }
+    } catch {
+      // ignore
+    }
+    setGenerating(false);
+  }, [targetJd]);
+
+  const exportPdf = useCallback(async () => {
+    setExporting(true);
+    try {
+      const res = await fetch('/api/resume-builder/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sections }),
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'skillgraph_resume.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // ignore
+    }
+    setExporting(false);
+  }, [sections]);
 
   const computeScore = useCallback(async () => {
     setScoring(true);
@@ -89,11 +149,20 @@ export default function ResumeBuilderPage() {
             <SectionEditor sections={sections} onChange={setSections} />
 
             {/* Action Buttons */}
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
+              <Button
+                onClick={generateFromProfile}
+                disabled={generating}
+                variant="outline"
+                className="border-primary/30 hover:bg-primary/10"
+              >
+                {generating ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 size={14} className="mr-2" />}
+                {generating ? 'Generating...' : 'Generate from Profile'}
+              </Button>
               <Button
                 onClick={computeScore}
                 disabled={scoring}
-                className="flex-1 gradient-primary text-primary-foreground font-semibold glow-primary"
+                className="gradient-primary text-primary-foreground font-semibold glow-primary"
               >
                 {scoring ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <FileText size={14} className="mr-2" />}
                 Analyze ATS Score
@@ -104,7 +173,15 @@ export default function ResumeBuilderPage() {
                 variant="outline"
                 className="border-primary/30 hover:bg-primary/10"
               >
-                {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : saved ? "✓ Saved" : <><Save size={14} className="mr-1.5" /> Save</>}
+                {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : saved ? "✓ Saved" : <><Save size={14} className="mr-1.5" />Save</>}
+              </Button>
+              <Button
+                onClick={exportPdf}
+                disabled={exporting}
+                variant="outline"
+                className="border-green-500/30 text-green-400 hover:bg-green-500/10"
+              >
+                {exporting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <><Download size={14} className="mr-1.5" />Export PDF</>}
               </Button>
             </div>
           </div>

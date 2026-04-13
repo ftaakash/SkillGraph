@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDropzone } from 'react-dropzone';
-import { Brain, Target, Zap, TrendingUp, Clock, CheckCircle2 } from "lucide-react";
+import { Brain, Target, Zap, TrendingUp, Clock, CheckCircle2, Briefcase } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import StatCard from "@/components/StatCard";
 import { Progress } from "@/components/ui/progress";
@@ -11,16 +11,33 @@ import PageTransition from "@/components/PageTransition";
 import { Button } from "@/components/ui/button";
 
 interface User { name: string; targetRole: string; readinessScore: number }
+interface MyApplication {
+  id: string;
+  status: string;
+  appliedAt: string;
+  jobPosting: { id: string; title: string; company: string; ctcMin: number | null; ctcMax: number | null; deadline: string | null } | null;
+}
 interface Gap { id: string; missingSkill: string; urgency: string; weeksToLearn: number; whyImportant: string; closed: boolean }
 interface Sprint { id: string; dayTasks: DayTask[]; completionPercentage: number; skillsTargeted: string[] }
 interface DayTask { day: number; focus: string; topic: string; time_minutes: number }
 interface Skill { id: string; skillName: string; category: string; proficiency: string }
+
+const statusColors: Record<string, string> = {
+  Applied: 'bg-blue-500/10 text-blue-400',
+  Shortlisted: 'bg-amber-500/10 text-amber-400',
+  OA: 'bg-purple-500/10 text-purple-400',
+  Interview: 'bg-primary/10 text-primary',
+  Offered: 'bg-emerald-500/10 text-emerald-400',
+  Placed: 'bg-green-500/10 text-green-400',
+  Rejected: 'bg-destructive/10 text-destructive',
+};
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [gaps, setGaps] = useState<Gap[]>([]);
   const [sprint, setSprint] = useState<Sprint | null>(null);
   const [skills, setSkills] = useState<Skill[]>([]);
+  const [myApplications, setMyApplications] = useState<MyApplication[]>([]);
   const [loading, setLoading] = useState(true);
 
   const router = useRouter();
@@ -65,11 +82,13 @@ export default function DashboardPage() {
       fetch('/api/gaps').then(r => r.json()),
       fetch('/api/sprints').then(r => r.json()),
       fetch('/api/skills').then(r => r.json()),
-    ]).then(([u, g, s, sk]) => {
+      fetch('/api/jobs/applications').then(r => r.json()).catch(() => ({ applications: [] })),
+    ]).then(([u, g, s, sk, appData]) => {
       setUser(u.user);
       setGaps(g.gaps ?? []);
       setSprint(s.sprint);
       setSkills(sk.skills ?? []);
+      setMyApplications(appData.applications ?? []);
       setLoading(false);
     });
   }, []);
@@ -143,7 +162,8 @@ export default function DashboardPage() {
              )}
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-6">
+          <>
+          <div className="grid grid-cols-3 gap-6 mb-6">
             {/* Skills */}
             <div className="bg-card border border-border rounded-lg p-6">
               <h2 className="font-heading text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -225,6 +245,33 @@ export default function DashboardPage() {
               )}
             </div>
           </div>
+
+          {/* Application Tracker */}
+          <div className="bg-card border border-border rounded-lg p-6">
+            <h2 className="font-heading text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Briefcase size={18} className="text-primary" /> My Applications
+            </h2>
+            {myApplications.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                No applications yet. Browse the <button onClick={() => router.push('/jobs')} className="text-primary hover:underline">Campus Job Board</button>.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {myApplications.slice(0, 6).map((a) => (
+                  <div key={a.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-border hover:border-primary/30 transition-colors">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{a.jobPosting?.title ?? 'Job'}</p>
+                      <p className="text-xs text-muted-foreground">{a.jobPosting?.company} · Applied {new Date(a.appliedAt).toLocaleDateString()}</p>
+                    </div>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColors[a.status] ?? 'bg-muted text-muted-foreground'}`}>
+                      {a.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          </>
         )}
       </DashboardLayout>
     </PageTransition>
