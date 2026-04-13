@@ -41,6 +41,28 @@ export async function POST(req: NextRequest) {
           },
         })
 
+    // Notify the student (fire-and-forget)
+    setImmediate(async () => {
+      try {
+        const recruiterUser = await prisma.user.findUnique({
+          where: { id: session.user.id as string },
+          select: { Company: { select: { name: true } } },
+        })
+        const companyName = recruiterUser?.Company?.name ?? 'A verified company'
+        await prisma.notification.create({
+          data: {
+            userId: studentId,
+            type: 'shortlisted',
+            title: 'A Recruiter Is Interested In You',
+            body: `${companyName} has shortlisted your profile. Make sure your profile is up to date!`,
+            link: '/profile',
+          },
+        })
+      } catch (e) {
+        console.error('[notify shortlisted]', e)
+      }
+    })
+
     return ok({ view, message: 'Candidate shortlisted. Full reveal pending student acceptance.' })
   } catch (err) {
     console.error('[recruiter/reveal POST]', err)

@@ -57,6 +57,30 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    // Fire-and-forget: notify eligible students at this college
+    setImmediate(async () => {
+      try {
+        const students = await prisma.user.findMany({
+          where: { collegeId, role: 'STUDENT' },
+          select: { id: true },
+        })
+        if (students.length > 0) {
+          await prisma.notification.createMany({
+            data: students.map(s => ({
+              userId: s.id,
+              type: 'job_posted',
+              title: `New Job: ${title} at ${company}`,
+              body: `Your placement cell posted a new opportunity. Deadline: ${new Date(deadline).toLocaleDateString('en-IN')}.`,
+              link: `/jobs/${job.id}`,
+            })),
+            skipDuplicates: true,
+          })
+        }
+      } catch (e) {
+        console.error('[notify job_posted]', e)
+      }
+    })
+
     return NextResponse.json({ job }, { status: 201 })
   } catch (error) {
     console.error('Create faculty job posting error:', error)
