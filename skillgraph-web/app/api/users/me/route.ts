@@ -11,6 +11,8 @@ const updateSchema = z.object({
   year: z.string().optional(),
   targetRole: z.string().optional(),
   password: z.string().min(6).optional(),
+  isProfileVisible: z.boolean().optional(),
+  cgpa: z.number().min(0).max(10).optional(),
 })
 
 export async function GET(req: NextRequest) {
@@ -24,6 +26,7 @@ export async function GET(req: NextRequest) {
         id: true, name: true, email: true, college: true, branch: true,
         year: true, targetRole: true, readinessScore: true, resumeUrl: true,
         sprintsCompleted: true, optimizerSessions: true, createdAt: true,
+        isProfileVisible: true, cgpa: true,
       },
     })
 
@@ -55,7 +58,7 @@ export async function PATCH(req: NextRequest) {
       data: updateData,
       select: {
         id: true, name: true, email: true, college: true, branch: true,
-        year: true, targetRole: true, readinessScore: true,
+        year: true, targetRole: true, readinessScore: true, isProfileVisible: true, cgpa: true,
       },
     })
 

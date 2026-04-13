@@ -16,7 +16,7 @@ export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   
   // Settings Form
-  const [form, setForm] = useState({ name: '', college: '', branch: '', year: '', targetRole: '' });
+  const [form, setForm] = useState({ name: '', college: '', branch: '', year: '', targetRole: '', cgpa: '' });
   const [password, setPassword] = useState('');
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
@@ -36,7 +36,7 @@ export default function ProfilePage() {
     fetch('/api/users/me').then(r => r.json()).then(d => {
       setUser(d.user);
       setIsVisible(d.user?.isProfileVisible ?? false);
-      setForm({ name: d.user?.name ?? '', college: d.user?.college ?? '', branch: d.user?.branch ?? '', year: d.user?.year ?? '', targetRole: d.user?.targetRole ?? '' });
+      setForm({ name: d.user?.name ?? '', college: d.user?.college ?? '', branch: d.user?.branch ?? '', year: d.user?.year ?? '', targetRole: d.user?.targetRole ?? '', cgpa: d.user?.cgpa?.toString() ?? '' });
     });
   }, []);
 
@@ -59,7 +59,9 @@ export default function ProfilePage() {
   const handleSaveSettings = async () => {
     setSavingSettings(true); setSettingsSaved(false); setSettingsError('');
     
-    const payload: any = { ...form };
+    const payload: Record<string, unknown> = { ...form };
+    if (form.cgpa) payload.cgpa = parseFloat(form.cgpa);
+    else delete payload.cgpa;
     if (password) {
       if (password.length < 6) {
         setSettingsError('Password must be at least 6 characters.');
@@ -160,15 +162,22 @@ export default function ProfilePage() {
                    </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="text-sm text-foreground font-medium mb-1.5 block">Cohort / Year</label>
-                    <select value={form.year} onChange={(e) => setForm(f => ({ ...f, year: e.target.value }))} className="w-full bg-background border border-border rounded-lg px-4 py-2 text-sm text-foreground focus:border-primary outline-none transition-colors">
-                      {['1st', '2nd', '3rd', '4th', 'Graduated'].map(y => <option key={y}>{y}</option>)}
-                    </select>
-                  </div>
+                     <label className="text-sm text-foreground font-medium mb-1.5 block">Cohort / Year</label>
+                     <select value={form.year} onChange={(e) => setForm(f => ({ ...f, year: e.target.value }))} className="w-full bg-background border border-border rounded-lg px-4 py-2 text-sm text-foreground focus:border-primary outline-none transition-colors">
+                       {['1st', '2nd', '3rd', '4th', 'Graduated'].map(y => <option key={y}>{y}</option>)}
+                     </select>
+                   </div>
+                   <div>
+                     <label className="text-sm text-foreground font-medium mb-1.5 block">CGPA</label>
+                     <Input type="number" min="0" max="10" step="0.01" value={form.cgpa} onChange={(e) => setForm(f => ({ ...f, cgpa: e.target.value }))} className="bg-background border-border text-foreground focus:border-primary transition-colors" placeholder="e.g. 8.4" />
+                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
                   <div>
-                    <label className="text-sm text-foreground font-medium mb-1.5 block">Target Specialization</label>
+                     <label className="text-sm text-foreground font-medium mb-1.5 block">Target Specialization</label>
                     <select value={form.targetRole} onChange={(e) => setForm(f => ({ ...f, targetRole: e.target.value }))} className="w-full bg-background border border-border rounded-lg px-4 py-2 text-sm text-foreground focus:border-primary outline-none transition-colors">
                       {roles.map(r => <option key={r}>{r}</option>)}
                     </select>
