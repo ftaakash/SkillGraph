@@ -69,9 +69,33 @@ export default function RecruiterTalentPage() {
   return (
     <PageTransition>
       <DashboardLayout title="Talent Discovery">
-        <div className="mb-6">
+        <div className="mb-4">
           <SkillFilter search={search} onSearchChange={setSearch} branches={branches} selectedBranch={branch} onBranchChange={setBranch} />
         </div>
+
+        {/* Active Filter Chips */}
+        {(search || branch) && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {search && (
+              <span className="inline-flex items-center gap-1.5 text-xs bg-primary/10 border border-primary/20 text-primary px-2.5 py-1 rounded-full font-medium">
+                Search: &ldquo;{search}&rdquo;
+                <button onClick={() => setSearch("")} className="hover:text-primary/60 transition-colors leading-none">×</button>
+              </span>
+            )}
+            {branch && (
+              <span className="inline-flex items-center gap-1.5 text-xs bg-primary/10 border border-primary/20 text-primary px-2.5 py-1 rounded-full font-medium">
+                Branch: {branch}
+                <button onClick={() => setBranch("")} className="hover:text-primary/60 transition-colors leading-none">×</button>
+              </span>
+            )}
+            <button
+              onClick={() => { setSearch(""); setBranch(""); }}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex h-64 items-center justify-center">

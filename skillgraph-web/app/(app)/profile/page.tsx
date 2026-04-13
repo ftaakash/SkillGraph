@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
-import { User as UserIcon, Mail, Briefcase, Upload, Shield, RefreshCw, CheckCircle2 } from "lucide-react";
+import { User as UserIcon, Mail, Briefcase, Upload, Shield, RefreshCw, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import PageTransition from "@/components/PageTransition";
 import { useDropzone } from 'react-dropzone';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-interface User { name: string; email: string; college: string; branch: string; year: string; targetRole: string; readinessScore: number; resumeUrl: string; sprintsCompleted: number; optimizerSessions: number }
+interface User { name: string; email: string; college: string; branch: string; year: string; targetRole: string; readinessScore: number; resumeUrl: string; sprintsCompleted: number; optimizerSessions: number; isProfileVisible: boolean }
 
 const roles = ['Industrial AI Engineer', 'Data Analyst', 'ML Engineer', 'DevOps Engineer', 'Full Stack Dev', 'Cloud Architect', 'Cybersecurity Analyst', 'Product Manager'];
 
@@ -28,12 +28,33 @@ export default function ProfilePage() {
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState('');
 
+  // Recruiter Opt-in
+  const [isVisible, setIsVisible] = useState(false);
+  const [togglingVisibility, setTogglingVisibility] = useState(false);
+
   useEffect(() => {
     fetch('/api/users/me').then(r => r.json()).then(d => {
       setUser(d.user);
+      setIsVisible(d.user?.isProfileVisible ?? false);
       setForm({ name: d.user?.name ?? '', college: d.user?.college ?? '', branch: d.user?.branch ?? '', year: d.user?.year ?? '', targetRole: d.user?.targetRole ?? '' });
     });
   }, []);
+
+  const toggleVisibility = async () => {
+    setTogglingVisibility(true);
+    const next = !isVisible;
+    setIsVisible(next);
+    try {
+      await fetch('/api/users/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isProfileVisible: next }),
+      });
+    } catch {
+      setIsVisible(!next); // revert on failure
+    }
+    setTogglingVisibility(false);
+  };
 
   const handleSaveSettings = async () => {
     setSavingSettings(true); setSettingsSaved(false); setSettingsError('');
@@ -220,6 +241,32 @@ export default function ProfilePage() {
                 className="w-full mt-4 text-sm font-semibold border-border hover:bg-muted transition-colors text-foreground">
                 {uploading ? <div className="flex items-center gap-2"><RefreshCw className="w-4 h-4 animate-spin"/> Processing...</div> : 'Re-initialize Network'}
               </Button>
+            </div>
+
+            {/* Recruiter Opt-In Toggle */}
+            <div className="bg-card border border-border rounded-lg p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-heading text-base font-semibold text-foreground flex items-center gap-2">
+                    {isVisible ? <Eye size={16} className="text-green-400" /> : <EyeOff size={16} className="text-muted-foreground" />}
+                    Visible to Recruiters
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {isVisible ? 'Your anonymized profile is discoverable by verified recruiters.' : 'You are hidden from recruiter talent searches.'}
+                  </p>
+                </div>
+                <button
+                  onClick={toggleVisibility}
+                  disabled={togglingVisibility}
+                  className={`relative w-12 h-6 rounded-full transition-colors duration-200 focus:outline-none ${
+                    isVisible ? 'bg-green-500' : 'bg-muted-foreground/30'
+                  }`}
+                >
+                  <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
+                    isVisible ? 'translate-x-6' : 'translate-x-0'
+                  }`} />
+                </button>
+              </div>
             </div>
           </div>
 
