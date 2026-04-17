@@ -62,12 +62,12 @@ const AppSidebar = () => {
   const navItems = role === "FACULTY" ? facultyNav : role === "RECRUITER" ? recruiterNav : studentNav;
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col z-50 pinstripe-pattern">
-      <div className="p-6 border-b border-sidebar-border bg-sidebar/80">
+    <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar/95 backdrop-blur-xl border-r border-sidebar-border flex flex-col z-50 pinstripe-pattern">
+      <div className="p-6 border-b border-sidebar-border bg-sidebar/60 backdrop-blur-md">
         <SkillGraphLogo />
       </div>
 
-      <nav className="flex-1 p-4 space-y-1 bg-sidebar/60 overflow-y-auto">
+      <nav className="flex-1 p-4 space-y-1 bg-transparent overflow-y-auto">
         {navItems.map((item) => {
           const active = pathname === item.path || pathname.startsWith(`${item.path}/`);
           return (

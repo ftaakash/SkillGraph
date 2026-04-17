@@ -20,9 +20,19 @@ export async function GET() {
   })
   const listingMap = new Map(listings.map(l => [l.id, l]))
 
+  // Fetch EvaluationResults for each application
+  const appIds = applications.map(a => a.id)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const evals = await (prisma as any).evaluationResult.findMany({
+    where: { applicationId: { in: appIds } },
+  })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const evalMap = new Map(evals.map((e: any) => [e.applicationId, e]))
+
   const enriched = applications.map(app => ({
     ...app,
-    listing: listingMap.get(app.listingId) ?? null,
+    Listing: listingMap.get(app.listingId) ?? null,
+    EvaluationResult: evalMap.get(app.id) ?? null,
   }))
 
   // Summary stats

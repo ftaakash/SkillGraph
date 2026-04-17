@@ -28,7 +28,7 @@ model User {
   resumeUrl           String?
   sprintsCompleted    Int       @default(0)
   optimizerSessions   Int       @default(0)
-  
+
   // Faculty fields
   collegeId         String?
   College           CollegeInstitution? @relation(fields: [collegeId], references: [id])
@@ -56,6 +56,8 @@ model User {
   Applications         JobApplication[]
   TalentViews          RecruiterTalentView[] @relation("TalentViews")
   Notifications        Notification[]
+  InterviewStories     InterviewStory[]
+  NegotiationScripts   NegotiationScript[]
 }
 
 model SkillProfile {
@@ -292,6 +294,51 @@ model Notification {
   body      String   @db.Text
   link      String?
   isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// -------------------------------------------------------------
+// CAREER-OPS SPRINT 9 MODELS
+// -------------------------------------------------------------
+
+model EvaluationResult {
+  id                  String   @id @default(cuid())
+  applicationId       String   @unique
+  totalScore          Float
+  grade               String   // A | B | C | D | F
+  dimensions          Json     // Record<string, {score, maxScore, reasoning}>
+  recommendation      String   // AutoApply | ReviewAndApply | Skip
+  keyStrengths        Json     // string[]
+  keyWeaknesses       Json     // string[]
+  negotiationLeverage String   @db.Text
+  createdAt           DateTime @default(now())
+}
+
+model InterviewStory {
+  id             String   @id @default(cuid())
+  userId         String
+  theme          String   // Leadership | Tech | Conflict | Collaboration | Failure | Growth
+  company        String?
+  role           String?
+  starSituation  String   @db.Text
+  starTask       String   @db.Text
+  starAction     String   @db.Text
+  starResult     String   @db.Text
+  starReflection String   @db.Text
+  createdAt      DateTime @default(now())
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model NegotiationScript {
+  id        String   @id @default(cuid())
+  userId    String
+  listingId String
+  script1   Json     // Geographic Discount — { openingLine, mainArgument, closingLine }
+  script2   Json     // Competing Offer Leverage
+  script3   Json     // Skill Premium
   createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)

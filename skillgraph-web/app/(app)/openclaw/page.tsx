@@ -7,6 +7,8 @@ import PageTransition from "@/components/PageTransition";
 import AgentStatusCard from "@/components/openclaw/AgentStatusCard";
 import ApplicationFeed from "@/components/openclaw/ApplicationFeed";
 import AgentChatConsole from "@/components/openclaw/AgentChatConsole";
+import PipelineDashboard from "@/components/openclaw/PipelineDashboard";
+import StoryBankPanel from "@/components/openclaw/StoryBankPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -225,13 +227,21 @@ export default function OpenClawPage() {
             </div>
           </div>
 
-          {/* Activity Feed & Chat — Right */}
+          {/* Activity Feed, Chat, Pipeline & Stories — Right */}
           <div className="lg:col-span-3 h-[700px] flex flex-col">
-            <Tabs defaultValue="feed" className="w-full h-full flex flex-col">
-              <TabsList className="grid w-full grid-cols-2 bg-zinc-900 border border-zinc-800 rounded-lg p-1 h-12 shrink-0 mb-4">
-                <TabsTrigger value="feed" className="rounded-md h-full data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-400 font-medium">Auto-Applications</TabsTrigger>
-                <TabsTrigger value="advisor" className="rounded-md h-full data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 font-medium">Market Advisor</TabsTrigger>
+            <Tabs defaultValue="pipeline" className="w-full h-full flex flex-col">
+              <TabsList className="grid w-full grid-cols-4 bg-zinc-900 border border-zinc-800 rounded-lg p-1 h-12 shrink-0 mb-4">
+                <TabsTrigger value="pipeline" className="rounded-md h-full data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 font-medium text-xs">⚡ Pipeline</TabsTrigger>
+                <TabsTrigger value="stories" className="rounded-md h-full data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-400 font-medium text-xs">📖 Stories</TabsTrigger>
+                <TabsTrigger value="feed" className="rounded-md h-full data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-400 font-medium text-xs">Applications</TabsTrigger>
+                <TabsTrigger value="advisor" className="rounded-md h-full data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 font-medium text-xs">Advisor</TabsTrigger>
               </TabsList>
+              <TabsContent value="pipeline" className="flex-1 mt-0 outline-none overflow-hidden">
+                <PipelineDashboard />
+              </TabsContent>
+              <TabsContent value="stories" className="flex-1 mt-0 outline-none overflow-hidden">
+                <StoryBankPanel />
+              </TabsContent>
               <TabsContent value="feed" className="flex-1 mt-0 outline-none">
                 <ApplicationFeed applications={applications} />
               </TabsContent>

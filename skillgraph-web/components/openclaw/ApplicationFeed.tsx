@@ -76,9 +76,42 @@ export default function ApplicationFeed({ applications }: ApplicationFeedProps) 
                   {app.listing?.jdText && (
                     <p className="text-[11px] text-muted-foreground/80 mt-1.5 leading-relaxed">&quot;{app.listing.jdText}&quot;</p>
                   )}
-                  {app.tailoringNotes && (
-                    <div className="text-[10px] bg-primary/10 text-primary px-2 py-1 rounded inline-block mt-2 font-medium">Auto-tailored: {app.tailoringNotes}</div>
-                  )}
+                  {(() => {
+                    if (!app.tailoringNotes) return null;
+                    let parsed: any = null;
+                    try { parsed = JSON.parse(app.tailoringNotes); } catch { return null; }
+                    
+                    if (!parsed?.grade) return (
+                      <div className="text-[10px] bg-primary/10 text-primary px-2 py-1 rounded inline-block mt-2 font-medium">Auto-tailored: {app.tailoringNotes}</div>
+                    );
+
+                    const GRADE_COLORS: Record<string, string> = {
+                      A: 'bg-green-500/20 text-green-500',
+                      B: 'bg-cyan-500/20 text-cyan-500',
+                      C: 'bg-yellow-500/20 text-yellow-500',
+                      D: 'bg-orange-500/20 text-orange-500',
+                      F: 'bg-red-500/20 text-red-500',
+                    }
+
+                    return (
+                      <div className="mt-2.5 p-2.5 rounded-lg bg-zinc-950/50 border border-border/50 space-y-1.5">
+                        <div className="flex gap-2 items-center">
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider ${GRADE_COLORS[parsed.grade] ?? 'bg-primary/10 text-primary'}`}>
+                            Grade {parsed.grade}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">
+                            {parsed.recommendation}
+                          </span>
+                        </div>
+                        {parsed.keyStrengths?.[0] && (
+                          <p className="text-[10px] text-green-400 font-medium">✓ {parsed.keyStrengths[0]}</p>
+                        )}
+                        {parsed.keyWeaknesses?.[0] && (
+                          <p className="text-[10px] text-red-400 font-medium">✗ {parsed.keyWeaknesses[0]}</p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="text-right shrink-0">
                   {app.matchScore != null && (
