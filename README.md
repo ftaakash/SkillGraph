@@ -1,114 +1,73 @@
-# SkillGraph — Code-Based Build Walkthrough
+# SkillGraph: Autonomous Career Orchestration Platform
 
-## Build Status ✅
+<p align="center">
+  <img src="skillgraph-web/public/proofs/proof_1776706434651.jpg" width="600" alt="SkillGraph AI In Action" style="border-radius: 20px; border: 1px solid rgba(0,255,255,0.2)"/>
+</p>
 
-```
-✓ Compiled successfully (TypeScript)
-✓ All 14 API routes registered
-✓ 8 frontend pages built
-✓ Proxy middleware active
-✓ Production build: PASSING
-```
+## Project Status ⚡
+![Deployment](https://img.shields.io/badge/Status-Production--Ready-00FFCC?style=for-the-badge)
+![Tech Stack](https://img.shields.io/badge/Stack-Next.js%2016%20|%20Prisma%20|%20Playwright-000000?style=for-the-badge)
+![Auth](https://img.shields.io/badge/Auth-NextAuth%20v5-blue?style=for-the-badge)
 
----
-
-## Latest Updates (v2)
-
-* **Multi-Role Platform Expansion**: Implemented immersive portals for Faculty (Placement Cell OS) and Recruiters, complete with dedicated API endpoints for recruiter job posting.
-* **OpenClaw AI & Resume Builder**: Integrated OpenClaw AI for comprehensive resume parsing, automated sprint generation, and a fully-featured Resume Builder module.
-* **Hyper-Localized AI Advisor**: Refined the Indian Market AI Advisor's system prompt to provide tailored, actionable career guidance and highly accurate market intelligence.
-* **Backend Robustness & Auth**: Resolved critical backend authorization bugs, strictly enforcing role-based college/company linkages in registration routing, and patched skill market data indexing.
-* **UI/UX Modernization**: Achieved a comprehensive visual modernization of the Next.js App Router portal with seamless identity management and profile settings, maintaining a rigorous "deep dark" industrial theme.
+SkillGraph is an end-to-end AI career mentor and autonomous application agent. It transforms the job search from a manual grind into a persistent, authenticated technical mission through robotic process automation and high-fidelity project-based learning.
 
 ---
 
-## What Was Built
+## 🚀 Production-Grade Features (v2.5)
 
-**Location:** `skillgraph-web/`
+### 1. Multi-Platform CareerOps (OpenClaw)
+The platform now supports **Authenticated Autonomous Applications**. 
+- **Platform-Aware Auth**: Link separate persistent sessions for **LinkedIn, Glassdoor, Indeed, and Naukri**. The bot uses your real identity to apply directly.
+- **Real-Time Status Synchronization**: A dedicated `Syncer` service periodically revisits applications to track status changes (Shortlisted, Viewed, Rejected) live on your dashboard.
+- **Automated Interaction Proofs**: Every application generates a persistent visual record of the interaction in `public/proofs/`.
 
-### Tech Stack 
+### 2. Symmetric High-Fidelity Resume Engine
+- **Professional Aesthetic**: Centered, blue-themed, ATS-optimized layout with symmetric exports across OpenClaw (auto) and Resume Builder (manual).
+- **Dynamic Tailoring**: Roles, projects, and achievements are automatically formatted from your profile and tailored to specific job descriptions using LLM context.
+- **Profile Enriched**: Automatically injects verified CGPA, LinkedIn, Github, and project impact metrics.
 
-| Next.js 14 (App Router + TypeScript) |
-
-| PostgreSQL + Prisma 5 ORM |
-
-| NextAuth.js v5 (JWT sessions) |
-
-| node-cron + background workers |
-
-| `unpdf` (canvas-free PDF extractor) |
-
-| Cloudinary via upload_stream |
-
----
-
-## ✨ Platform Features & UI/UX Experience
-
-SkillGraph is built on a highly polished "deep dark" industrial AI aesthetic (`#0A0D14` canvas, `#141824` components), ensuring an immersive, professional environment across all portals. The sophisticated frontend utilizes vanilla Tailwind micro-interactions including smooth gradient meshes, tooltip transitions, and SVG glow filters.
-
-### 🚀 Core Modules & Capabilities
-
-**1. Multi-Role Portals**
-- **Student Dashboard**: Real-time tracking of skills, benchmark percentiles, and 7-day AI-driven career sprints.
-- **Faculty Placement Cell OS**: Deep analytics dashboard giving academic administrators visibility into student progress and institutional placement success formats.
-- **Recruiter Portal**: Seamless API-driven pipeline for specialized job posting and applicant feed exploration.
-
-**2. OpenClaw AI & Resume Builder**
-- **Application Feed**: Intelligent parsing that instantly matches a recruiter's specific demands with verified candidate skills.
-- **Resume Builder & Parsing Engine**: Canvas-free edge processing using `unpdf` to extract experience details accurately.
-
-**3. Hyper-Localized AI Advisor**
-- **Indian Market Intelligence**: Powered by specialized system prompts mathematically structured for tier 1/2/3 Indian corporate hiring algorithms.
-- **Project Architect**: Generates customized, demonstrable project roadmaps aimed at neutralizing critical skill gaps.
-- **LinkedIn Optimizer**: Side-by-side actionable tweaks leveraging OpenAI to immediately boost a candidate's public market visibility.
-
-**4. Skill Market & Benchmarking Index**
-- Real-time data visualization of the most sought-after tech stack components across the global industry.
-- Integrated Bell-curve statistical engine determining percentile ranks for competitive benchmarking.
+### 3. Topic-Aware Dynamic Sprints
+- **Mission Overrides**: Don't like your current 7-day sprint? Click **Refactor** to pivot your focus to specific topics (e.g., "System Design", "Rust Internals").
+- **Learning Resilience**: Integrated **YouTube Primary/Search fallbacks** ensure that educational resources are always accessible even if search indexes shift.
 
 ---
 
-## 📂 File Structure
+## 🛠️ Technology Stack & Architecture
 
+- **Frontend**: Next.js 16 (App Router), Tailwind CSS, Framer Motion
+- **Database**: PostgreSQL with Prisma ORM
+- **Automation Engine**: Playwright (Authenticated State Persistence)
+- **AI Orhcestration**: GPT-4o / Llama 3.3 (Learning & Strategy)
+- **File Management**: Cloudinary (Resume Hosting)
+
+### File Structure Overview
 ```text
 skillgraph-web/
-├── app/
-│   ├── (app)/
-│   │   ├── dashboard/page.tsx           ← Student analytics dashboard
-│   │   ├── openclaw/page.tsx            ← AI Resume screening interface
-│   │   └── resume-builder/page.tsx      ← ATS-friendly resume creator
-│   ├── (faculty)/
-│   │   └── faculty/dashboard/page.tsx   ← Placement Cell OS
-│   ├── (recruiter)/
-│   │   └── recruiter/dashboard/page.tsx ← Recruiter Applicant Feed
-│   ├── api/
-│   │   ├── auth/[...nextauth]/route.ts  ← NextAuth v5 session controller
-│   │   ├── openclaw/trigger/route.ts    ← OpenClaw AI logic
-│   │   └── resume-builder/score/route.ts← Native evaluation handlers
-│   ├── login/page.tsx                   ← Dynamic semantic portal login
-│   ├── register/                        ← Multi-role registration forms
-│   └── onboard/page.tsx                 ← 4-step AI Curriculum Ingestion
-├── components/
-│   ├── ui/                              ← radix-ui & tailwind semantic UI
-│   ├── AppSidebar.tsx                   ← Main functional unified portal
-│   └── NetworkBackground.tsx            ← Framer Motion aesthetic backdrop
-├── lib/
-│   ├── openclaw/agent.ts                ← Intelligent Core Recruiter logic
-│   └── prisma.ts                        ← Singleton ORM database client
-├── prisma/schema.prisma                 ← Prisma PostgreSQL schema definitions
-├── workers/index.ts                     ← Background processors (Redis/Bull)
-└── package.json                         ← Core dependencies (Next.js 16)
+├── app/(app)/sprint/           ← Target: Custom Topic Regeneration
+├── app/api/openclaw/            ← Orchestration: Multi-Platform Auth & Sync
+├── components/openclaw/         ← Dashboard: CareerOps Control Center
+├── lib/openclaw/agent.ts        ← Logic: Authenticated Applicator Bot
+├── lib/openclaw/syncer.ts       ← Service: Automated Status Tracking
+└── lib/resume/exporter.tsx      ← Engine: High-Fidelity PDF Generation
 ```
 
 ---
 
-## 🚀 How to Run locally
+## 📂 Visual Proof of Work
+<div align="center">
+  <img src="skillgraph-web/public/proofs/proof_1776706532099.jpg" width="400" />
+  <img src="skillgraph-web/public/proofs/proof_1776706627373.jpg" width="400" />
+</div>
+
+---
+
+## 🔨 How to Run locally
 
 ### 1. Configure the Environment
-Clone the repository and inject your configurations inside `skillgraph-web/.env.local`.
+Clone the repository and inject your configurations inside `skillgraph-web/.env.local` (OpenAI, Cloudinary, Database URLs).
 
-### 2. Synchronize the Database Platform
-Initialize PostgreSQL variables and align the Prisma schema definitions locally:
+### 2. Physical Database Sync
+Initialize PostgreSQL and align the Prisma schema definitions locally:
 ```bash
 cd skillgraph-web
 npx prisma db push
@@ -116,13 +75,16 @@ npx prisma db push
 
 ### 3. Initiate the Dev Server
 ```bash
-cd skillgraph-web
 npm run dev
 ```
-Navigate to `http://localhost:3000` 
+Navigate to `http://localhost:3000`.
 
-### 4. Background Data Sync (Workers)
+### 4. CareerOps Background Service
 ```bash
-cd skillgraph-web
-npx ts-node workers/index.ts
+npx ts-node lib/openclaw/syncer.ts
 ```
+
+---
+<p align="center">
+  Created with ♥ by ftaakash — SkillGraph v2.5 Stable
+</p>
