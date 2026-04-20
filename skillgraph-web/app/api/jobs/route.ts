@@ -6,11 +6,14 @@ export async function GET() {
   try {
     const session = await auth()
     if (!session?.user) return unauthorized()
-    const user = session.user as { role?: string }
+    const user = session.user as { role?: string, collegeId?: string | null }
     if (user.role !== 'STUDENT') return unauthorized()
 
     const jobs = await prisma.facultyJobPosting.findMany({
-      where: { deadline: { gte: new Date() } },
+      where: { 
+        collegeId: user.collegeId || '',
+        deadline: { gte: new Date() } 
+      },
       orderBy: { deadline: 'asc' },
     })
     return ok({ jobs })

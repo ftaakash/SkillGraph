@@ -10,13 +10,20 @@ export async function GET() {
     const user = session.user as { id?: string; role?: string }
     if (user.role !== 'STUDENT' || !user.id) return unauthorized()
 
-    const applications = await prisma.jobApplication.findMany({
-      where: { userId: user.id },
-      orderBy: { appliedAt: 'desc' },
-    })
+    const [apps, ocApps] = await Promise.all([
+      prisma.jobApplication.findMany({
+        where: { userId: user.id },
+        orderBy: { appliedAt: 'desc' },
+      }),
+      prisma.openClawApplication.findMany({
+        where: { userId: user.id },
+        include: { user: false }, // Use listingId manually to avoid complex join
+        orderBy: { appliedAt: 'desc' },
+      })
+    ])
 
-    // Manually join job posting data since there's no relation in schema
-    const jobIds = [...new Set(applications.map(a => a.jobPostingId))]
+    // Fetch details for manual applications
+    const jobIds = [...new Set(apps.map(a => a.jobPostingId))]
     const jobPostings = jobIds.length > 0
       ? await prisma.facultyJobPosting.findMany({
           where: { id: { in: jobIds } },
@@ -25,14 +32,53 @@ export async function GET() {
       : []
     const jobMap = Object.fromEntries(jobPostings.map(j => [j.id, j]))
 
-    const enriched = applications.map(a => ({
+    // Fetch details for OpenClaw applications
+    const listingIds = [...new Set(ocApps.map(a => a.listingId))]
+    const listings = listingIds.length > 0
+      ? await prisma.openClawListing.findMany({
+          where: { id: { in: listingIds } },
+        })
+      : []
+    const listingMap = new Map(listings.map(l => [l.id, l]))
+
+    const enrichedManual = apps.map(a => ({
       id: a.id,
       status: a.status,
       appliedAt: a.appliedAt,
-      jobPosting: jobMap[a.jobPostingId] ?? null,
+      jobPosting: jobMap[a.jobPostingId] ? {
+        id: jobMap[a.jobPostingId].id,
+        title: jobMap[a.jobPostingId].title,
+        company: jobMap[a.jobPostingId].company,
+        ctcMin: jobMap[a.jobPostingId].ctcMin,
+        ctcMax: jobMap[a.jobPostingId].ctcMax,
+        deadline: jobMap[a.jobPostingId].deadline
+      } : null,
+      source: 'Internal'
     }))
 
-    return ok({ applications: enriched })
+    const enrichedOC = ocApps.map(a => {
+      const l = listingMap.get(a.listingId)
+      return {
+        id: a.id,
+        status: a.status,
+        appliedAt: a.appliedAt,
+        jobPosting: l ? {
+          id: l.id,
+          title: l.role,
+          company: l.company,
+          ctcMin: null,
+          ctcMax: null,
+          deadline: null
+        } : null,
+        source: 'OpenClaw'
+      }
+    })
+
+    const allApps = [...enrichedManual, ...enrichedOC].sort((a, b) => 
+      new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime()
+    )
+
+    return ok({ applications: allApps })
   } catch (err) {
     console.error('[jobs/applications GET]', err)
     return serverError()

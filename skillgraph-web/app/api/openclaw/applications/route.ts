@@ -22,8 +22,7 @@ export async function GET() {
 
   // Fetch EvaluationResults for each application
   const appIds = applications.map(a => a.id)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const evals = await (prisma as any).evaluationResult.findMany({
+  const evals = await prisma.evaluationResult.findMany({
     where: { applicationId: { in: appIds } },
   })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

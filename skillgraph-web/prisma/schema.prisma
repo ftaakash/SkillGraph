@@ -213,6 +213,9 @@ model OpenClawConfig {
   dailyLimit           Int      @default(10)
   blacklistedCompanies Json     // string[]
   isActive             Boolean  @default(true)
+  applicationEmail     String?
+  phone                String?
+  sessionData          Json?    // Stores Playwright storageState
 
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

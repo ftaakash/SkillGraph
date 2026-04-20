@@ -15,13 +15,37 @@ export async function POST(req: NextRequest) {
     const { jobUrl } = await req.json()
     if (!jobUrl) return badRequest('jobUrl is required')
 
+    // 0. Deduplication Check: Has this user already evaluated/applied to this URL?
+    const existingListing = await prisma.openClawListing.findFirst({
+      where: { sourceUrl: jobUrl }
+    })
+    
+    if (existingListing) {
+      const existingApp = await prisma.openClawApplication.findFirst({
+        where: { userId, listingId: existingListing.id },
+        include: { user: false } // We can join eval results manually to keep it consistent
+      })
+
+      if (existingApp) {
+        const evaluation = await prisma.evaluationResult.findUnique({
+          where: { applicationId: existingApp.id }
+        })
+        return ok({
+          listing: existingListing,
+          application: existingApp,
+          evaluation: evaluation || (existingApp.tailoringNotes ? JSON.parse(existingApp.tailoringNotes) : null),
+          message: 'Retrieved existing evaluation'
+        })
+      }
+    }
+
     // 1. Scrape
     const scrapedData = await scrapeJobUrl(jobUrl)
     if (!scrapedData) return badRequest('Failed to scrape job URL')
 
     // 2. Upsert listing
     const listing = await prisma.openClawListing.upsert({
-      where: { id: scrapedData.id ?? 'new' },
+      where: { id: scrapedData.id ?? 'new' }, // Fallback to 'new' if id is missing
       update: {},
       create: {
         platform: scrapedData.platform,
@@ -53,7 +77,7 @@ export async function POST(req: NextRequest) {
     // 4. Score
     const evaluation = await scoreJobListing(listing, student, config)
 
-    // 5. Create application record (HUMAN-IN-LOOP: status = Pending, not Applied)
+    // 5. Create application record (HUMAN-IN-LOOP: status = Pending)
     const application = await prisma.openClawApplication.create({
       data: {
         userId,
@@ -64,9 +88,8 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // 6. Persist EvaluationResult (cast as any until Prisma client regenerates)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (prisma as any).evaluationResult.create({
+    // 6. Persist EvaluationResult
+    await prisma.evaluationResult.create({
       data: {
         applicationId: application.id,
         totalScore: evaluation.totalScore,

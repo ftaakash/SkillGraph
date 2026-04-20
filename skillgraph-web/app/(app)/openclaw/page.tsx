@@ -21,6 +21,8 @@ interface OpenClawConfig {
   dailyLimit: number;
   blacklistedCompanies: string[];
   isActive: boolean;
+  applicationEmail?: string | null;
+  phone?: string | null;
 }
 
 interface AppStats {
@@ -42,6 +44,8 @@ export default function OpenClawPage() {
   const [minCtcLpa, setMinCtcLpa] = useState(0);
   const [dailyLimit, setDailyLimit] = useState(10);
   const [blacklisted, setBlacklisted] = useState("");
+  const [applicationEmail, setApplicationEmail] = useState("");
+  const [phone, setPhone] = useState("");
 
   const loadData = useCallback(() => {
     Promise.all([
@@ -56,6 +60,8 @@ export default function OpenClawPage() {
         setMinCtcLpa(cfg.minCtcLpa);
         setDailyLimit(cfg.dailyLimit);
         setBlacklisted((cfg.blacklistedCompanies as string[]).join(", "));
+        setApplicationEmail(cfg.applicationEmail || "");
+        setPhone(cfg.phone || "");
       }
       setApplications(appData.applications ?? []);
       setStats(appData.stats ?? { total: 0, appliedToday: 0, avgMatchScore: 0 });
@@ -63,7 +69,12 @@ export default function OpenClawPage() {
     }).catch(() => setLoading(false));
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { 
+    loadData();
+    // Poll for updates every 15 seconds to reflect background agent applications
+    const interval = setInterval(loadData, 15000);
+    return () => clearInterval(interval);
+  }, [loadData]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -74,6 +85,8 @@ export default function OpenClawPage() {
       dailyLimit,
       blacklistedCompanies: blacklisted.split(",").map(s => s.trim()).filter(Boolean),
       isActive: config?.isActive ?? true,
+      applicationEmail: applicationEmail.trim() || undefined,
+      phone: phone.trim() || undefined,
     };
 
     const res = await fetch("/api/openclaw/config", {
@@ -176,6 +189,29 @@ export default function OpenClawPage() {
                     placeholder="Bangalore, Hyderabad, Remote"
                     className="bg-muted border-border text-sm"
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Application Email</label>
+                    <Input
+                      type="email"
+                      value={applicationEmail}
+                      onChange={e => setApplicationEmail(e.target.value)}
+                      placeholder="Email for recruiter responses"
+                      className="bg-muted border-border text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Phone Number</label>
+                    <Input
+                      type="tel"
+                      value={phone}
+                      onChange={e => setPhone(e.target.value)}
+                      placeholder="+91 9876543210"
+                      className="bg-muted border-border text-sm"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

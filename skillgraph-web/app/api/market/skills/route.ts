@@ -17,12 +17,33 @@ export async function GET(req: NextRequest) {
       ...(role ? { role: { contains: role, mode: 'insensitive' as const } } : {}),
     }
 
-    const jobs = await prisma.jobPosting.findMany({ where: whereClause, take: 500 })
+    // Try to get data for current week
+    let jobs = await prisma.jobPosting.findMany({ where: whereClause, take: 500 })
+
+    let weekToReport = currentWeek;
+
+    // FALLBACK: If current week is empty, find the most recent week with data
+    if (jobs.length === 0) {
+      const mostRecent = await prisma.jobPosting.findFirst({
+        orderBy: { demandWeek: 'desc' },
+        select: { demandWeek: true }
+      });
+      if (mostRecent) {
+        weekToReport = mostRecent.demandWeek;
+        jobs = await prisma.jobPosting.findMany({
+          where: {
+            demandWeek: weekToReport,
+            ...(role ? { role: { contains: role, mode: 'insensitive' as const } } : {}),
+          },
+          take: 500
+        });
+      }
+    }
 
     // Aggregate skill frequency
     const skillFreq: Record<string, number> = {}
     for (const job of jobs) {
-      const skills = job.requiredSkills as string[]
+      const skills = (job.requiredSkills as string[]) || []
       for (const skill of skills) {
         if (skill && skill.length > 1) {
           skillFreq[skill] = (skillFreq[skill] || 0) + 1
@@ -41,7 +62,7 @@ export async function GET(req: NextRequest) {
     })
 
     return ok({
-      week: currentWeek,
+      week: weekToReport,
       role: role ?? 'All Roles',
       topSkills,
       totalJobsAnalyzed: jobs.length,

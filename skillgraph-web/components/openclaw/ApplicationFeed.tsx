@@ -19,6 +19,7 @@ interface Application {
   appliedAt: string;
   tailoringNotes: string | null;
   listing: Listing | null;
+  resumeVersionId?: string | null;
 }
 
 interface ApplicationFeedProps {
@@ -52,18 +53,19 @@ export default function ApplicationFeed({ applications }: ApplicationFeedProps) 
       <div className="max-h-[480px] overflow-y-auto">
         {applications.map((app) => {
           const { icon, color } = statusConfig[app.status] ?? statusConfig.Applied;
+          const listing = (app as any).Listing ?? (app as any).listing;
           return (
             <div key={app.id} className="px-5 py-3.5 hover:bg-muted/30 transition-colors">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <h4 className="text-sm font-semibold text-foreground truncate">
-                      {app.listing?.sourceUrl ? (
-                        <a href={app.listing.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors hover:underline">
-                          {app.listing?.role ?? "Unknown Role"}
+                      {listing?.sourceUrl ? (
+                        <a href={listing.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors hover:underline">
+                          {listing?.role ?? "Unknown Role"}
                         </a>
                       ) : (
-                        app.listing?.role ?? "Unknown Role"
+                        listing?.role ?? "Unknown Role"
                       )}
                     </h4>
                     <span className={`flex items-center gap-1 text-xs font-semibold ${color}`}>
@@ -71,10 +73,10 @@ export default function ApplicationFeed({ applications }: ApplicationFeedProps) 
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {app.listing?.company ?? "—"} · {app.listing?.location ?? "Remote"} · {app.listing?.ctcBand ?? "CTC undisclosed"} · <span className="font-semibold text-foreground/80">{app.listing?.platform ?? ""}</span>
+                    {listing?.company ?? "—"} · {listing?.location ?? "Remote"} · {listing?.ctcBand ?? "CTC undisclosed"} · <span className="font-semibold text-foreground/80">{listing?.platform ?? ""}</span>
                   </p>
-                  {app.listing?.jdText && (
-                    <p className="text-[11px] text-muted-foreground/80 mt-1.5 leading-relaxed">&quot;{app.listing.jdText}&quot;</p>
+                  {listing?.jdText && (
+                    <p className="text-[11px] text-muted-foreground/80 mt-1.5 leading-relaxed">&quot;{listing.jdText}&quot;</p>
                   )}
                   {(() => {
                     if (!app.tailoringNotes) return null;
@@ -122,14 +124,24 @@ export default function ApplicationFeed({ applications }: ApplicationFeedProps) 
                   <p className="text-[10px] text-muted-foreground mt-0.5">
                     {new Date(app.appliedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
                   </p>
-                  {app.listing?.sourceUrl && (
+                  {listing?.sourceUrl && (
                     <a
-                      href={app.listing.sourceUrl}
+                      href={listing.sourceUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-0.5 text-[10px] text-primary hover:underline mt-0.5"
                     >
                       View <ExternalLink size={10} />
+                    </a>
+                  )}
+                  {app.resumeVersionId && app.status !== "Pending" && (
+                    <a
+                      href={`/api/resume/download/${app.resumeVersionId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-0.5 text-[10px] text-primary hover:underline mt-0.5 ml-3"
+                    >
+                      📄 Download CV
                     </a>
                   )}
                 </div>

@@ -8,13 +8,14 @@ import StatCard from "@/components/StatCard";
 import { Button } from "@/components/ui/button";
 
 interface BucketItem { range: string; count: number }
-interface BenchmarkData { buckets: BucketItem[]; median: number; top10Threshold: number; totalStudents: number }
+interface BenchmarkData { buckets: BucketItem[]; cohortBuckets?: BucketItem[]; median: number; top10Threshold: number; totalStudents: number; cohortMedian?: number; cohortTop10Threshold?: number; cohortTotalStudents?: number; hasCohortDetails?: boolean; }
 interface Skill { id: string; skillName: string; category: string; proficiency: string }
 
 export default function BenchmarkPage() {
   const [data, setData] = useState<BenchmarkData | null>(null);
   const [userScore, setUserScore] = useState<number | null>(null);
   const [role, setRole] = useState('Industrial AI Engineer');
+  const [viewMode, setViewMode] = useState<'global' | 'cohort'>('global');
   const [skills, setSkills] = useState<Skill[]>([]);
   const roles = ['Industrial AI Engineer', 'Data Analyst', 'ML Engineer', 'DevOps Engineer', 'Full Stack Dev'];
 
@@ -24,7 +25,8 @@ export default function BenchmarkPage() {
     fetch('/api/skills').then(r => r.json()).then(sk => setSkills(sk.skills ?? []));
   }, [role]);
 
-  const maxCount = data ? Math.max(...data.buckets.map(b => b.count), 1) : 1;
+  const activeBuckets = viewMode === 'global' ? data?.buckets : data?.cohortBuckets;
+  const maxCount = activeBuckets ? Math.max(...activeBuckets.map(b => b.count), 1) : 1;
   const userBucket = userScore !== null ? Math.min(Math.floor(userScore / 10) * 10, 90) : null;
   
   const mapProficiency = (prof: string) => {
@@ -40,24 +42,43 @@ export default function BenchmarkPage() {
     <PageTransition>
       <DashboardLayout title="Market Benchmarks">
         {/* Filter Tabs */}
-        <div className="flex gap-2 flex-wrap mb-8">
-          {roles.map(r => (
-            <Button
-              key={r}
-              onClick={() => setRole(r)}
-              variant={role === r ? "default" : "outline"}
-              className={role === r ? "gradient-primary text-primary-foreground glow-primary" : "text-muted-foreground hover:text-foreground"}
-            >
-              {r.toUpperCase()}
-            </Button>
-          ))}
+        <div className="flex flex-col lg:flex-row lg:justify-between items-start lg:items-center gap-4 mb-8">
+          <div className="flex gap-2 flex-wrap mb-2 lg:mb-0">
+            {roles.map(r => (
+              <Button
+                key={r}
+                onClick={() => setRole(r)}
+                variant={role === r ? "default" : "outline"}
+                className={role === r ? "gradient-primary text-primary-foreground glow-primary" : "text-muted-foreground hover:text-foreground"}
+              >
+                {r.toUpperCase()}
+              </Button>
+            ))}
+          </div>
+
+          {data?.hasCohortDetails && (
+            <div className="flex bg-muted rounded-lg p-1 border border-border">
+              <button
+                onClick={() => setViewMode('global')}
+                className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${viewMode === 'global' ? 'bg-background text-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Global
+              </button>
+              <button
+                onClick={() => setViewMode('cohort')}
+                className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${viewMode === 'cohort' ? 'bg-primary text-primary-foreground shadow glow-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                My College
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Metrics Stack */}
-        <div className="grid grid-cols-3 gap-6 mb-8">
-           <StatCard icon={<Award size={20} />} label="Global Median" value={data ? `${data.median}%` : '...'} trend={data ? `Top 10%: ${data.top10Threshold}+` : ''} trendUp />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+           <StatCard icon={<Award size={20} />} label={viewMode === 'global' ? "Global Median" : "Cohort Median"} value={data ? (viewMode === 'global' ? `${data.median}%` : `${data.cohortMedian}%`) : '...'} trend={data ? `Top 10%: ${viewMode === 'global' ? data.top10Threshold : data.cohortTop10Threshold}+` : ''} trendUp />
            <StatCard icon={<BarChart3 size={20} />} label="Floor Percentile" value={userScore !== null ? `${Math.round(userScore)}th` : 'N/A'} trend="Your Match Score" trendUp={userScore !== null && userScore > (data?.median || 0)} />
-           <StatCard icon={<TrendingUp size={20} />} label="Total Profiles" value={data ? data.totalStudents.toString() : '...'} trend={`In ${role}`} trendUp />
+           <StatCard icon={<TrendingUp size={20} />} label="Total Profiles" value={data ? (viewMode === 'global' ? data.totalStudents.toString() : data.cohortTotalStudents?.toString() || '0') : '...'} trend={`In ${role}`} trendUp />
         </div>
 
         <div className="grid grid-cols-12 gap-8">
@@ -72,7 +93,7 @@ export default function BenchmarkPage() {
               </div>
             ) : (
               <div className="relative h-64 flex items-end justify-center gap-2 mt-10 z-10">
-                {data?.buckets.map(({ range, count }) => {
+                {activeBuckets?.map(({ range, count }) => {
                   const isUser = userBucket !== null && parseInt(range) === userBucket;
                   const heightPct = Math.max((count / maxCount) * 100, count > 0 ? 5 : 0);
 

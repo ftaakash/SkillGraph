@@ -25,7 +25,7 @@ export default function RecruiterTalentPage() {
       fetch("/api/recruiter/talent").then(r => r.json()),
       fetch("/api/recruiter/shortlist").then(r => r.json()),
     ]).then(([t, s]) => {
-      setStudents(t.students ?? []);
+      setStudents(t.candidates ?? []);
       const ids = new Set<string>((s.shortlist ?? []).map((v: { student: { id: string } }) => v.student.id));
       setShortlistedIds(ids);
       setLoading(false);
