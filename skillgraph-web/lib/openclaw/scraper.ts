@@ -1,4 +1,6 @@
-import { chromium } from 'playwright';
+import { chromium } from 'playwright-extra';
+const stealth = require('puppeteer-extra-plugin-stealth');
+chromium.use(stealth());
 
 export interface OpenClawListing {
   title: string;
@@ -16,7 +18,11 @@ export async function scrapePlatformWithPlaywright(url: string, platform: OpenCl
   const page = await context.newPage();
   
   try {
-    await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 }).catch(() => {});
+    const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => null);
+    if (!response || response.status() >= 400) {
+       await browser.close();
+       return [];
+    }
 
     const listings = await page.$$eval(selectors.card, (els, platformLabel) => {
       // In SSR/Browser context, we map the elements using provided selectors
@@ -40,25 +46,10 @@ export async function scrapePlatformWithPlaywright(url: string, platform: OpenCl
       }).filter(job => job.title && job.company);
     }, platform);
 
-    // If generic parsing is too optimistic, create mock lists for MVP testing 
-    // to ensure agent loop succeeds if the layout changes aggressively.
+    // RapidAPI JSearch Rest Fallback if Playwright UI scraping fails (captchas, DOM updates)
     if (listings.length === 0) {
-      const mockUrls: Record<string, string> = {
-        'LinkedIn': 'https://www.linkedin.com/jobs/',
-        'Indeed': 'https://in.indeed.com/',
-        'Naukri': 'https://www.naukri.com/',
-        'Glassdoor': 'https://www.glassdoor.co.in/Job/'
-      };
-      
-      return Array(5).fill(0).map((_, i) => ({
-        title: `Mocked Senior Developer Role 0${i + 1}`,
-        company: 'Placeholder Corp (' + platform + ')',
-        skills: ['React', 'Node.js', 'AWS', 'System Design'],
-        salary: '15-20 LPA',
-        location: 'Bangalore',
-        url: mockUrls[platform] || url,
-        platform: platform
-      }));
+      console.log(`Playwright scraping yielded 0 for ${platform}. Falling back to JSearch API...`);
+      return fallbackToJSearch(url, platform);
     }
     
     return listings;
@@ -72,22 +63,57 @@ export async function scrapePlatformWithPlaywright(url: string, platform: OpenCl
 
 export async function scrapeNaukri(role: string, city: string): Promise<OpenClawListing[]> {
   const url = `https://www.naukri.com/${role.toLowerCase().replace(/ /g, '-')}-jobs-in-${city.toLowerCase().replace(/ /g, '-')}`;
-  return scrapePlatformWithPlaywright(url, 'Naukri', { card: '.jobTuple' });
+  return scrapePlatformWithPlaywright(url, 'Naukri', { card: '.srp-jobtuple-wrapper, .jobTuple' });
 }
 
 export async function scrapeLinkedIn(role: string, city: string): Promise<OpenClawListing[]> {
   const url = `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(role)}&location=${encodeURIComponent(city)}`;
-  return scrapePlatformWithPlaywright(url, 'LinkedIn', { card: '.job-search-card' });
+  return scrapePlatformWithPlaywright(url, 'LinkedIn', { card: '.base-card, .job-search-card' });
 }
 
 export async function scrapeGlassdoor(role: string, city: string): Promise<OpenClawListing[]> {
   const url = `https://www.glassdoor.co.in/Job/${city.toLowerCase().replace(/ /g, '-')}-${role.toLowerCase().replace(/ /g, '-')}-jobs.htm`;
-  return scrapePlatformWithPlaywright(url, 'Glassdoor', { card: '.react-job-listing' });
+  return scrapePlatformWithPlaywright(url, 'Glassdoor', { card: '.react-job-listing, .JobCard_jobCardContainer___WQ12' });
 }
 
 export async function scrapeIndeed(role: string, city: string): Promise<OpenClawListing[]> {
   const url = `https://in.indeed.com/jobs?q=${encodeURIComponent(role)}&l=${encodeURIComponent(city)}`;
-  return scrapePlatformWithPlaywright(url, 'Indeed', { card: '.job_seen_beacon' });
+  return scrapePlatformWithPlaywright(url, 'Indeed', { card: '.job_seen_beacon, .resultContent' });
+}
+
+// REST Fallback for Live Job Listings
+async function fallbackToJSearch(originalUrl: string, platform: OpenClawListing['platform']): Promise<OpenClawListing[]> {
+  if (!process.env.RAPIDAPI_KEY) return [];
+  try {
+    const defaultRole = "Software Engineer";
+    let query = defaultRole;
+    if (originalUrl.includes('naukri')) query = "developer in India";
+    else if (originalUrl.includes('linkedin')) query = "developer in Bangalore";
+    
+    const res = await fetch(`https://${process.env.RAPIDAPI_HOST}/search?query=${encodeURIComponent(query)}&num_pages=1&country=in`, {
+      method: 'GET',
+      headers: {
+        'x-rapidapi-key': process.env.RAPIDAPI_KEY,
+        'x-rapidapi-host': process.env.RAPIDAPI_HOST || 'jsearch.p.rapidapi.com'
+      }
+    });
+
+    const body = await res.json();
+    if (!body?.data || !Array.isArray(body.data)) return [];
+
+    return body.data.slice(0, 10).map((j: any) => ({
+      title: j.job_title || 'Software Engineer',
+      company: j.employer_name || 'Unknown Company',
+      skills: [],
+      salary: j.job_min_salary ? `${j.job_min_salary}-${j.job_max_salary} USD` : 'Not disclosed',
+      location: `${j.job_city || ''}, ${j.job_state || ''}`,
+      url: j.job_apply_link || originalUrl,
+      platform: platform
+    }));
+  } catch (error) {
+    console.error('JSearch Fallback failed:', error);
+    return [];
+  }
 }
 
 // ─── Single-URL scraper for the Auto-Pipeline ──────────────────────────────

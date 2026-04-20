@@ -9,28 +9,36 @@ export async function POST(req: NextRequest) {
     if (!userId) return unauthorized()
 
     const body = await req.json()
-    const { skillIds } = body // optional: manually override which gaps to use
+    const { skillIds, customTopics } = body
 
-    // Get up to 3 unclosed gaps for the next sprint
+    // 1. Abandon existing active sprints to make room for the new mission
+    await prisma.sprint.updateMany({
+      where: { userId, status: 'active' },
+      data: { status: 'abandoned' }
+    });
+
+    // 2. Get up to 3 unclosed gaps as base
     const gaps = await prisma.skillGap.findMany({
-      where: { userId, closed: false, sprintGenerated: false },
+      where: { userId, closed: false },
       orderBy: { identifiedAt: 'desc' },
       take: 3,
     })
-
-    if (gaps.length === 0) return badRequest('No capability gaps found in the database. Please initialize a new Gap Analysis first.')
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { targetRole: true },
     })
 
-    const skillNames = gaps.map(g => g.missingSkill)
+    const baseSkills = gaps.map(g => g.missingSkill).join(', ')
+    const aiContext = `Target role: ${user?.targetRole ?? 'Software Engineer'}. Base gaps to address: ${baseSkills}.`
+    const userInstruction = customTopics 
+      ? `MISSION OVERRIDE: Focus heavily on these custom topics: ${customTopics}. Still try to incorporate some relevant base gaps if they fit: ${baseSkills}.`
+      : `Create a sprint to learn these skills in priority order: ${baseSkills}. Student current level: beginner to intermediate.`;
 
-    // Call GPT-4o sprint generator
+    // Call AI sprint generator
     const rawJson = await callGPTArray(
       PROMPTS.SPRINT_GENERATOR,
-      `Create a sprint to learn these skills in priority order: ${skillNames.join(', ')}. Student current level: beginner to intermediate. Target role: ${user?.targetRole ?? 'Software Engineer'}.`
+      `${aiContext} ${userInstruction}`
     )
 
     let dayTasks
@@ -40,9 +48,9 @@ export async function POST(req: NextRequest) {
       return serverError('AI returned invalid sprint data. Please retry.')
     }
 
-    // Create sprint record
+    // 3. Create new active sprint
     const weekStart = new Date()
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1) // Monday
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1)
 
     const sprint = await prisma.sprint.create({
       data: {
@@ -50,16 +58,18 @@ export async function POST(req: NextRequest) {
         weekStartDate: weekStart,
         dayTasks,
         completionPercentage: 0,
-        skillsTargeted: skillNames,
+        skillsTargeted: customTopics ? [customTopics] : gaps.map(g => g.missingSkill),
         status: 'active',
       },
     })
 
-    // Mark gaps as sprint generated
-    await prisma.skillGap.updateMany({
-      where: { id: { in: gaps.map(g => g.id) } },
-      data: { sprintGenerated: true },
-    })
+    // Mark gaps as sprint generated if we used them
+    if (gaps.length > 0) {
+      await prisma.skillGap.updateMany({
+        where: { id: { in: gaps.map(g => g.id) } },
+        data: { sprintGenerated: true },
+      })
+    }
 
     return ok({ sprint })
   } catch (err) {
