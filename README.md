@@ -1,7 +1,7 @@
 # SkillGraph: Autonomous Career Orchestration Platform
 
 <p align="center">
-  <img src="skillgraph-web/public/proofs/proof_1776706434651.jpg" width="600" alt="SkillGraph AI In Action" style="border-radius: 20px; border: 1px solid rgba(0,255,255,0.2)"/>
+  <img src="skillgraph-web/public/screenshots/landing.png" width="800" alt="SkillGraph Landing Page" style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); shadow: 0 20px 40px rgba(0,0,0,0.4)"/>
 </p>
 
 ## Project Status ⚡
@@ -17,47 +17,40 @@ SkillGraph is an end-to-end AI career mentor and autonomous application agent. I
 
 ### 1. Multi-Platform CareerOps (OpenClaw)
 The platform now supports **Authenticated Autonomous Applications**. 
-- **Platform-Aware Auth**: Link separate persistent sessions for **LinkedIn, Glassdoor, Indeed, and Naukri**. The bot uses your real identity to apply directly.
-- **Real-Time Status Synchronization**: A dedicated `Syncer` service periodically revisits applications to track status changes (Shortlisted, Viewed, Rejected) live on your dashboard.
-- **Automated Interaction Proofs**: Every application generates a persistent visual record of the interaction in `public/proofs/`.
+- **Platform-Aware Auth**: Link separate persistent sessions for **LinkedIn, Glassdoor, Indeed, and Naukri**.
+- **Real-Time Status Synchronization**: A dedicated `Syncer` service tracks application status changes live.
 
 ### 2. Symmetric High-Fidelity Resume Engine
-- **Professional Aesthetic**: Centered, blue-themed, ATS-optimized layout with symmetric exports across OpenClaw (auto) and Resume Builder (manual).
-- **Dynamic Tailoring**: Roles, projects, and achievements are automatically formatted from your profile and tailored to specific job descriptions using LLM context.
-- **Profile Enriched**: Automatically injects verified CGPA, LinkedIn, Github, and project impact metrics.
+- **Professional Aesthetic**: Symmetric exports across automated agent and manual Resume Builder.
+- **Dynamic Tailoring**: Roles and achievements are tailored to job descriptions using LLM context.
 
 ### 3. Topic-Aware Dynamic Sprints
-- **Mission Overrides**: Don't like your current 7-day sprint? Click **Refactor** to pivot your focus to specific topics (e.g., "System Design", "Rust Internals").
-- **Learning Resilience**: Integrated **YouTube Primary/Search fallbacks** ensure that educational resources are always accessible even if search indexes shift.
+- **Mission Overrides**: Pivot focus to specific topics (e.g., "System Design") on the fly.
+- **Learning Resilience**: Integrated YouTube fallbacks ensure resources are always available.
 
 ---
 
 ## 🛠️ Technology Stack & Architecture
 
-- **Frontend**: Next.js 16 (App Router), Tailwind CSS, Framer Motion
+- **Frontend**: Next.js 16 (App Router), Tailwind CSS
 - **Database**: PostgreSQL with Prisma ORM
-- **Automation Engine**: Playwright (Authenticated State Persistence)
-- **AI Orhcestration**: GPT-4o / Llama 3.3 (Learning & Strategy)
-- **File Management**: Cloudinary (Resume Hosting)
-
-### File Structure Overview
-```text
-skillgraph-web/
-├── app/(app)/sprint/           ← Target: Custom Topic Regeneration
-├── app/api/openclaw/            ← Orchestration: Multi-Platform Auth & Sync
-├── components/openclaw/         ← Dashboard: CareerOps Control Center
-├── lib/openclaw/agent.ts        ← Logic: Authenticated Applicator Bot
-├── lib/openclaw/syncer.ts       ← Service: Automated Status Tracking
-└── lib/resume/exporter.tsx      ← Engine: High-Fidelity PDF Generation
-```
+- **Automation**: Playwright (Authenticated State)
+- **AI Orhcestration**: GPT-4o / Llama 3.3
 
 ---
 
-## 📂 Visual Proof of Work
-<div align="center">
-  <img src="skillgraph-web/public/proofs/proof_1776706532099.jpg" width="400" />
-  <img src="skillgraph-web/public/proofs/proof_1776706627373.jpg" width="400" />
-</div>
+## 📂 Platform Gallery
+
+### 🖥️ Main Interfaces
+<p align="center">
+  <img src="skillgraph-web/public/screenshots/dashboard.png" width="45%" alt="Dashboard"/>
+  <img src="skillgraph-web/public/screenshots/agent.png" width="45%" alt="OpenClaw Agent"/>
+</p>
+
+### 🎯 Skill Development
+<p align="center">
+  <img src="skillgraph-web/public/screenshots/sprint.png" width="80%" alt="7-Day Sprints"/>
+</p>
 
 ---
 
