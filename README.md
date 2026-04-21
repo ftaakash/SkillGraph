@@ -19,14 +19,23 @@ SkillGraph is an end-to-end AI career mentor and autonomous application agent. I
 The platform now supports **Authenticated Autonomous Applications**. 
 - **Platform-Aware Auth**: Link separate persistent sessions for **LinkedIn, Glassdoor, Indeed, and Naukri**.
 - **Real-Time Status Synchronization**: A dedicated `Syncer` service tracks application status changes live.
+- **JD Skill Extraction**: 120+ keyword-based job description parser dictates matching criteria.
 
-### 2. Symmetric High-Fidelity Resume Engine
-- **Professional Aesthetic**: Symmetric exports across automated agent and manual Resume Builder.
-- **Dynamic Tailoring**: Roles and achievements are tailored to job descriptions using LLM context.
+### 2. Resume-First High-Fidelity Engine
+- **Authenticity by Design**: The agent loads your real uploaded resume and uses AI *only* to tailor the 2-3 sentence "About Me" summary for that specific job posting—fabricating zero experience.
+- **Professional ATS Aesthetic**: Symmetrical PDF exports rendered flawlessly for both manual builds and OpenClaw submissions.
 
-### 3. Topic-Aware Dynamic Sprints
+### 3. Faculty & Recruiter Operating Systems
+- **Placement Cell OS**: Equips university faculty with cohort-level skill heatmaps, institutional matching benchmarks, and restricted campus job boards.
+- **Recruiter Talent Discovery**: Anonymised skill-based routing engine matching employers instantly to verified engineering talent.
+
+### 4. Topic-Aware Dynamic Sprints
 - **Mission Overrides**: Pivot focus to specific topics (e.g., "System Design") on the fly.
 - **Learning Resilience**: Integrated YouTube fallbacks ensure resources are always available.
+
+### 5. Production Environment Guardrails
+- **Environment Gateway**: Startup fast-fail validation prevents obscure deployment crashes.
+- **Dynamic Database Ties**: Elements like `collegeTier` extract real schema relations rather than static fallbacks.
 
 ---
 
