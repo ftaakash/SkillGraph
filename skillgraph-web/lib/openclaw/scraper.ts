@@ -101,15 +101,19 @@ async function fallbackToJSearch(originalUrl: string, platform: OpenClawListing[
     const body = await res.json();
     if (!body?.data || !Array.isArray(body.data)) return [];
 
-    return body.data.slice(0, 10).map((j: any) => ({
-      title: j.job_title || 'Software Engineer',
-      company: j.employer_name || 'Unknown Company',
-      skills: [],
-      salary: j.job_min_salary ? `${j.job_min_salary}-${j.job_max_salary} USD` : 'Not disclosed',
-      location: `${j.job_city || ''}, ${j.job_state || ''}`,
-      url: j.job_apply_link || originalUrl,
-      platform: platform
-    }));
+    // Only return jobs with a verified apply link — never use placeholder URLs
+    return body.data
+      .filter((j: any) => j.job_apply_link && j.employer_name)
+      .slice(0, 10)
+      .map((j: any) => ({
+        title: j.job_title || 'Software Engineer',
+        company: j.employer_name,
+        skills: [],
+        salary: j.job_min_salary ? `${j.job_min_salary}-${j.job_max_salary} USD` : 'Not disclosed',
+        location: `${j.job_city || ''}, ${j.job_state || ''}`.trim().replace(/^,\s*/, ''),
+        url: j.job_apply_link,
+        platform: platform
+      }));
   } catch (error) {
     console.error('JSearch Fallback failed:', error);
     return [];
@@ -149,9 +153,14 @@ export async function scrapeJobUrl(url: string): Promise<ScrapeJobResult | null>
     const description = await page.$eval('body', el => el.innerText?.slice(0, 3000) ?? '').catch(() => '')
     await browser.close()
 
-    if (!description) return null
+    // INTEGRITY GATE: if we can't extract real page content, skip this job entirely.
+    // We never fabricate application data — not even in dev or error scenarios.
+    if (!description || !title) {
+      console.warn(`[Scraper] Could not extract content from ${url}. Skipping to preserve application integrity.`)
+      return null
+    }
 
-    // Best-effort extraction
+    // Best-effort metadata extraction from real page content
     const companyMatch = description.match(/at\s+([A-Z][a-zA-Z\s&.]{2,40})/)?.[1]?.trim()
     const ctcMatch = description.match(/(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)\s*LPA/i)
     const locationMatch = description.match(/(Bangalore|Mumbai|Delhi|Hyderabad|Chennai|Pune|Kolkata|Remote|Gurgaon)/i)
@@ -159,22 +168,15 @@ export async function scrapeJobUrl(url: string): Promise<ScrapeJobResult | null>
     return {
       platform,
       company: companyMatch ?? 'Unknown Company',
-      role: title || 'Software Engineer',
+      role: title,
       location: locationMatch?.[0] ?? null,
       ctcBand: ctcMatch ? `${ctcMatch[1]}-${ctcMatch[2]} LPA` : null,
       jdText: description,
       sourceUrl: url,
     }
-  } catch {
-    // Return a minimal mock so the pipeline still runs in dev
-    return {
-      platform,
-      company: 'Demo Company',
-      role: 'Software Engineer',
-      location: 'Bangalore',
-      ctcBand: '10-15 LPA',
-      jdText: `Job posted at ${url}. React, Node.js, TypeScript required. Looking for 0-2 years experience. Remote friendly.`,
-      sourceUrl: url,
-    }
+  } catch (err) {
+    // Real scraping failed — return null. We NEVER create fake job applications.
+    console.error(`[Scraper] Failed to reach ${url}:`, err)
+    return null
   }
 }

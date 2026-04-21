@@ -195,17 +195,10 @@ export async function processOpenClawAgent(userId: string) {
 
         const platform = detectPlatform(listing.url);
         const platformSession = (config.sessionData as any)?.[platform];
+        const knownPlatforms = ['linkedin', 'naukri', 'glassdoor', 'indeed'];
+        const requiresSession = knownPlatforms.includes(platform);
 
-        const applyStatus = await applyToJob({
-          studentName: user.name,
-          studentEmail: config.applicationEmail || user.email,
-          studentPhone: config.phone || 'Not provided',
-          jobUrl: listing.url,
-          resumePdfPath: finalPath,
-          sessionData: platformSession
-        });
-
-        // Record Listing to DB
+        // Save listing to DB first so all subsequent status records can reference it
         const savedListing = await prisma.openClawListing.create({
           data: {
             platform: platform,
@@ -220,7 +213,44 @@ export async function processOpenClawAgent(userId: string) {
           }
         });
 
-        // Record Application
+        // ─── SESSION ENFORCEMENT GATE ─────────────────────────────────────────
+        // For all major job boards, we must have a linked authenticated session.
+        // Without it, we would either hit a login wall or apply anonymously,
+        // which is NOT the user's intent. Skip with a clear audit record.
+        if (requiresSession && !platformSession) {
+          console.warn(`[OpenClaw] Skipping ${listing.company} (${platform}): No linked session. User must link their ${platform} account in the OpenClaw dashboard.`);
+          await prisma.openClawApplication.create({
+            data: {
+              userId: user.id,
+              listingId: savedListing.id,
+              matchScore: matchStatus.matchScore,
+              resumeVersionId: resumeVersion.id,
+              status: 'UnableToApply',
+              screenshotUrl: null,
+              tailoringNotes: `No ${platform} account linked. Link your account in the OpenClaw dashboard to enable real applications.`,
+              appliedAt: new Date()
+            }
+          });
+          continue;
+        }
+
+        // ─── EMAIL VALIDATION ──────────────────────────────────────────────────
+        const applicationEmail = config.applicationEmail?.trim();
+        if (!applicationEmail || applicationEmail.length < 5) {
+          console.warn(`[OpenClaw] Skipping ${listing.company}: No valid application email configured.`);
+          continue;
+        }
+
+        const applyStatus = await applyToJob({
+          studentName: user.name,
+          studentEmail: applicationEmail,
+          studentPhone: config.phone || 'Not provided',
+          jobUrl: listing.url,
+          resumePdfPath: finalPath,
+          sessionData: platformSession
+        });
+
+        // Record Application with truthful status
         await prisma.openClawApplication.create({
           data: {
             userId: user.id,

@@ -40,10 +40,25 @@ const GRADE_COLORS: Record<string, string> = {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  Pending: 'text-yellow-400',
-  Applied: 'text-cyan-400',
-  Rejected: 'text-red-400',
-  Duplicate: 'text-zinc-500',
+  Pending:        'text-yellow-400',
+  Applied:        'text-cyan-400',
+  Failed:         'text-red-500',
+  UnableToApply:  'text-amber-400',
+  Shortlisted:    'text-green-400',
+  Viewed:         'text-blue-400',
+  Rejected:       'text-red-400',
+  Closed:         'text-zinc-500',
+  Duplicate:      'text-zinc-500',
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  UnableToApply: 'No Account Linked',
+  Applied:       'Applied',
+  Failed:        'Failed',
+  Shortlisted:   'Shortlisted',
+  Viewed:        'Viewed',
+  Rejected:      'Rejected',
+  Closed:        'Closed',
 }
 
 export default function PipelineDashboard() {
@@ -290,7 +305,12 @@ export default function PipelineDashboard() {
                   <span className="text-zinc-200 text-xs truncate">{listing?.company ?? '—'}</span>
                   <span className="text-zinc-400 text-xs truncate">{listing?.role ?? '—'}</span>
                   <span className="text-cyan-300 text-xs font-bold">{score.toFixed(0)}</span>
-                  <span className={`text-xs font-semibold ${STATUS_COLORS[status] ?? 'text-zinc-400'}`}>{status}</span>
+                  <span
+                    title={status === 'UnableToApply' ? (app.tailoringNotes ?? 'Link your account in settings') : status}
+                    className={`text-xs font-semibold cursor-help ${STATUS_COLORS[status] ?? 'text-zinc-400'}`}
+                  >
+                    {STATUS_LABELS[status] ?? status}
+                  </span>
                   <div className="flex gap-1 items-center" onClick={e => e.stopPropagation()}>
                     {status === 'Pending' && (
                       <Button size="sm" onClick={() => handleConfirmApply(app.id)} className="bg-green-700 hover:bg-green-600 text-white text-[10px] h-6 px-2 font-bold">Apply</Button>
