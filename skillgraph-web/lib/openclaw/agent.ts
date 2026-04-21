@@ -108,8 +108,13 @@ export async function processOpenClawAgent(userId: string) {
       
       if (matchStatus.applyRecommendation && matchStatus.matchScore >= 65) {
         
-        // Helper to parse complex sections
-        const parseText = (text: string) => {
+        // ── RESUME-FIRST STRATEGY ───────────────────────────────────────────
+        // The user's uploaded and parsed resume is the single source of truth.
+        // We only AI-customize the summary/about-me section for each specific job.
+        // Everything else (experience, projects, education, skills) is untouched.
+
+        // Helper to parse structured experience blocks from stored section text
+        const parseExperience = (text: string) => {
           if (!text) return [];
           return text.split(/\n\n+/).filter(Boolean).map((block) => {
             const lines = block.split('\n').filter(Boolean)
@@ -123,7 +128,7 @@ export async function processOpenClawAgent(userId: string) {
           })
         }
 
-        const parseTextProjects = (text: string) => {
+        const parseProjects = (text: string) => {
           if (!text) return []
           return text.split(/\n\n+/).filter(Boolean).map((block) => {
             const lines = block.split('\n').filter(Boolean)
@@ -136,34 +141,77 @@ export async function processOpenClawAgent(userId: string) {
           })
         }
 
-        // Dynamically generate standard resume tailored to user skills
+        // ── Step 1: Build base resume body from the user's stored sections ──
+        // Parse stored JSON sections — handle both string and structured JSON content
+        const parseSectionJson = (content: any): any => {
+          if (typeof content === 'string') return content;
+          if (content?.text) return content.text;
+          if (Array.isArray(content)) return content;
+          return content;
+        };
+
+        const experienceRaw   = parseSectionJson(getSectionContent('experience'));
+        const projectsRaw     = parseSectionJson(getSectionContent('projects'));
+        const existingSummary = parseSectionJson(getSectionContent('summary') || getSectionContent('about'));
+        
+        // ── Step 2: Generate ONLY the tailored summary via AI (max 300 tokens) ──
+        // This is the only AI customization per application. Everything else is real.
+        const baseSummary = typeof existingSummary === 'string' && existingSummary.length > 20
+          ? existingSummary
+          : `${user.name} is a ${user.targetRole || 'Software Engineer'} with expertise in ${user.skills.slice(0, 4).map(s => s.skillName).join(', ')}.`;
+
+        let tailoredSummary = baseSummary; // safe fallback if AI fails
+        try {
+          const { callGPTText, PROMPTS } = await import('@/lib/openai');
+          tailoredSummary = await callGPTText(
+            PROMPTS.TAILORED_SUMMARY,
+            `Candidate summary: "${baseSummary}"\n\nJob: ${listing.title} at ${listing.company}\nJD snippet: ${(listing.skills || []).slice(0, 10).join(', ') || listing.title}\n\nWrite the tailored summary now:`,
+          );
+        } catch (summaryErr) {
+          console.warn('[OpenClaw] Summary tailoring failed, using base summary:', summaryErr);
+        }
+
+        // ── Step 3: Assemble the full resume from stored + tailored data ────
         const resumeData = {
-          name: user.name || 'Student',
-          email: user.email || '',
+          name:    user.name    || 'Student',
+          email:   user.email   || '',
           tagline: user.targetRole || 'Software Professional',
-          phone: user.OpenClawConfig?.phone || '+91 0000000000',
-          // Use stored profile URLs; never guess from display name
+          phone:   user.OpenClawConfig?.phone || '+91 0000000000',
           linkedin: (user as any).linkedin || `linkedin.com/in/${user.email.split('@')[0]}`,
-          github: (user as any).github || `github.com/${user.email.split('@')[0]}`,
-          summary: `Motivated and skilled ${user.targetRole || 'Engineer'} with expertise in ${user.skills.slice(0, 5).map(s => s.skillName).join(', ')}. Applying for ${listing.title} at ${listing.company}.`,
+          github:   (user as any).github   || `github.com/${user.email.split('@')[0]}`,
+
+          // ← ONLY THIS FIELD IS CUSTOMIZED PER JOB
+          summary: tailoredSummary,
+
+          // ← EVERYTHING BELOW IS FROM THE USER'S ACTUAL UPLOADED RESUME
           skills: {
             technical: user.skills.filter(s => s.category === 'technical').map(s => s.skillName),
-            tools: user.skills.filter(s => s.category !== 'technical').map(s => s.skillName)
+            tools:     user.skills.filter(s => s.category !== 'technical').map(s => s.skillName)
           },
-          experience: parseText(typeof getSectionContent('experience') === 'string' ? getSectionContent('experience') as string : ''),
-          projects: parseTextProjects(typeof getSectionContent('projects') === 'string' ? getSectionContent('projects') as string : ''),
-          education: [
-            { 
-              degree: user.branch ? `${user.branch} (${user.year})` : 'Degree Candidate', 
-              college: user.college || 'University', 
-              cgpa: user.cgpa?.toString() || '—', 
-              year: user.year || '2026',
+          experience: typeof experienceRaw === 'string'
+            ? parseExperience(experienceRaw)
+            : (Array.isArray(experienceRaw) ? experienceRaw : []),
+
+          projects: typeof projectsRaw === 'string'
+            ? parseProjects(projectsRaw)
+            : (Array.isArray(projectsRaw) ? projectsRaw : []),
+
+          education: (() => {
+            const eduContent = parseSectionJson(getSectionContent('education'));
+            if (Array.isArray(eduContent)) return eduContent;
+            return [{ 
+              degree:   user.branch ? `${user.branch} (${user.year})` : 'Degree Candidate', 
+              college:  user.college || 'University', 
+              cgpa:     user.cgpa?.toString() || '—', 
+              year:     user.year || '2026',
               location: 'India' 
-            }
-          ],
+            }];
+          })(),
+
           achievements: parseSectionToLines(getSectionContent('achievements') || getSectionContent('honor')),
-          activities: parseSectionToLines(getSectionContent('activities') || getSectionContent('organization'))
+          activities:   parseSectionToLines(getSectionContent('activities')   || getSectionContent('organization'))
         };
+
         const pdfBuffer = await generateResumePDFBuffer(resumeData);
         
         // Save to public dir so it can be downloaded permanently by the user later
