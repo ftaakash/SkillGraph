@@ -26,6 +26,25 @@ export async function callGPT(
   return response.choices[0].message.content ?? '{}'
 }
 
+export async function callGPTText(
+  systemPrompt: string,
+  userPrompt: string,
+  model: GPTModel = 'llama-3.3-70b-versatile',
+  maxTokens = 300
+): Promise<string> {
+  const response = await openai.chat.completions.create({
+    model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    max_tokens: maxTokens,
+    temperature: 0.4,
+  })
+  return (response.choices[0].message.content ?? '').trim()
+}
+
+
 export async function callGPTArray(
   systemPrompt: string,
   userPrompt: string,
@@ -59,4 +78,14 @@ export const PROMPTS = {
   LINKEDIN_OPTIMIZER: `You are a LinkedIn optimization expert and ATS specialist. Rewrite the profile for maximum recruiter visibility. Return ONLY valid JSON. Schema: { "headline": string, "about": string, "skills": string[], "keywords_added": string[], "ats_score_estimate_before": number, "ats_score_estimate_after": number, "improvement_tips": string[] }`,
 
   JD_SKILL_EXTRACTOR: `Extract required skills from this job description. Return ONLY a JSON array of skill strings. No explanation. No markdown. Just the array.`,
+
+  TAILORED_SUMMARY: `You are a professional resume writer specializing in the Indian tech market.
+Your task: take an existing candidate summary and a job description, then write a SINGLE tailored version of the summary.
+Rules:
+- Keep it to 2-3 sentences maximum
+- Preserve the candidate's authentic voice and real experience
+- Naturally weave in 1-2 keywords from the job description where they fit truthfully
+- Do NOT add skills, projects, or experience the candidate does not have
+- Do NOT use generic filler phrases like "passionate" or "results-driven"
+- Output ONLY the summary text — no labels, no quotes, no JSON, no explanation`,
 }
