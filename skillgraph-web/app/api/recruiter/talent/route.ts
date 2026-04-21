@@ -73,14 +73,18 @@ export async function GET(req: NextRequest) {
     orderBy: { readinessScore: 'desc' },
   })
 
-  // Anonymize IDs
-  const anonymized = candidates.map((c, idx) => ({
-    anonymizedId: `SG-${String(idx + 1).padStart(5, '0')}`,
+  // Anonymize and format for frontend
+  const anonymized = candidates.map((c) => ({
+    id: c.id,
+    name: `Candidate SG-${c.id.substring(0, 6).toUpperCase()}`,
+    email: 'Hidden for privacy',
+    college: null,
+    branch: null,
     readinessScore: c.readinessScore,
     targetRole: c.targetRole,
     year: c.year,
     cgpa: c.cgpa,
-    topSkills: c.skills.map((s) => ({ name: s.skillName, level: s.proficiency })),
+    skills: c.skills,
   }))
 
   return NextResponse.json({ candidates: anonymized })

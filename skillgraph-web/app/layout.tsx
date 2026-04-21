@@ -2,6 +2,10 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import Providers from '@/components/Providers'
+import { validateEnv } from '@/lib/validateEnv'
+
+// Validate environment variables at startup
+validateEnv()
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
