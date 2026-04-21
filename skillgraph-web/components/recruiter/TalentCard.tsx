@@ -83,11 +83,11 @@ export default function TalentCard({ student, isShortlisted, onToggleShortlist }
       </div>
 
       {/* Skills */}
-      {student.skills.length > 0 && (
+      {(student.skills || []).length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {student.skills.slice(0, 6).map(s => (
+          {student.skills.slice(0, 6).map((s, i) => (
             <span
-              key={s.id}
+              key={s.skillName || i}
               className={`text-[10px] px-2 py-0.5 rounded-full border ${profBadge[s.proficiency.toLowerCase()] || "bg-muted border-border text-muted-foreground"}`}
             >
               {s.skillName}

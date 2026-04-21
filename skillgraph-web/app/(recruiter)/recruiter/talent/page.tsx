@@ -46,7 +46,7 @@ export default function RecruiterTalentPage() {
       list = list.filter(s =>
         s.name.toLowerCase().includes(q) ||
         s.targetRole?.toLowerCase().includes(q) ||
-        s.skills.some(sk => sk.skillName.toLowerCase().includes(q))
+        (s.skills || []).some(sk => sk.skillName.toLowerCase().includes(q))
       );
     }
     return list;
