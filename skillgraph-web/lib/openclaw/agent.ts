@@ -142,8 +142,9 @@ export async function processOpenClawAgent(userId: string) {
           email: user.email || '',
           tagline: user.targetRole || 'Software Professional',
           phone: user.OpenClawConfig?.phone || '+91 0000000000',
-          linkedin: `linkedin.com/in/${user.name?.toLowerCase().replace(/ /g, '-')}`,
-          github: `github.com/${user.name?.toLowerCase().replace(/ /g, '')}`,
+          // Use stored profile URLs; never guess from display name
+          linkedin: (user as any).linkedin || `linkedin.com/in/${user.email.split('@')[0]}`,
+          github: (user as any).github || `github.com/${user.email.split('@')[0]}`,
           summary: `Motivated and skilled ${user.targetRole || 'Engineer'} with expertise in ${user.skills.slice(0, 5).map(s => s.skillName).join(', ')}. Applying for ${listing.title} at ${listing.company}.`,
           skills: {
             technical: user.skills.filter(s => s.category === 'technical').map(s => s.skillName),

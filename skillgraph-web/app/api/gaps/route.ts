@@ -50,8 +50,11 @@ export async function POST(req: NextRequest) {
     )
     const analysis = JSON.parse(rawJson)
 
-    // Update user's readiness score
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { readinessScore: true } })
+    // Update user's readiness score (fetch with College relation for collegeTier)
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { readinessScore: true, year: true, College: { select: { tier: true } } }
+    })
     await prisma.user.update({
       where: { id: userId },
       data: {
@@ -78,13 +81,18 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Store anonymous benchmark
+    // Store anonymous benchmark with real collegeTier from institution record
+    const rawTier = user?.College?.tier  // e.g. "1", "2", "Tier-1", "A"
+    const collegeTier = rawTier
+      ? (rawTier.startsWith('Tier-') ? rawTier : `Tier-${rawTier}`)
+      : 'Unknown'
+
     await prisma.benchmark.create({
       data: {
         role: targetRole,
-        year: (await prisma.user.findUnique({ where: { id: userId }, select: { year: true } }))?.year ?? 'Unknown',
+        year: user?.year ?? 'Unknown',
         readinessScore: analysis.readiness_percentage,
-        collegeTier: 'Tier-2',
+        collegeTier,
       },
     })
 
