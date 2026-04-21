@@ -2,6 +2,41 @@ import { chromium } from 'playwright-extra';
 const stealth = require('puppeteer-extra-plugin-stealth');
 chromium.use(stealth());
 
+// ─── JD Skill Extractor ─────────────────────────────────────────────────────
+// Keyword-based extraction from JD text. Fast, zero API cost, zero latency.
+const SKILL_KEYWORDS = [
+  // Languages
+  'python','javascript','typescript','java','c++','c#','go','rust','kotlin','swift',
+  'ruby','php','scala','r','dart','elixir','haskell','perl',
+  // Web Frameworks
+  'react','next.js','vue','angular','svelte','nuxt','gatsby','remix','express',
+  'fastapi','flask','django','spring','nestjs','laravel','rails','asp.net',
+  // Mobile
+  'react native','flutter','android','ios','swiftui','jetpack compose',
+  // Databases
+  'postgresql','mysql','mongodb','redis','sqlite','dynamodb','cassandra',
+  'elasticsearch','firestore','neo4j','supabase','planetscale','cockroachdb',
+  // Cloud & Infra
+  'aws','gcp','azure','docker','kubernetes','terraform','ansible','jenkins',
+  'github actions','ci/cd','cloudflare','nginx','linux',
+  // AI/ML
+  'pytorch','tensorflow','scikit-learn','hugging face','langchain','openai',
+  'llm','rag','machine learning','deep learning','nlp','computer vision',
+  // Data
+  'spark','kafka','airflow','dbt','snowflake','bigquery','pandas','numpy',
+  // Tools
+  'git','graphql','rest','grpc','websockets','prisma','sequelize','mongoose',
+  'jest','vitest','cypress','playwright','storybook','webpack','vite','turbopack',
+  // Other
+  'node.js','bun','deno','microservices','system design','agile','scrum',
+];
+
+export function extractSkillsFromJD(text: string): string[] {
+  const lower = text.toLowerCase();
+  return SKILL_KEYWORDS.filter(skill => lower.includes(skill));
+}
+
+
 export interface OpenClawListing {
   title: string;
   company: string;
@@ -25,34 +60,39 @@ export async function scrapePlatformWithPlaywright(url: string, platform: OpenCl
     }
 
     const listings = await page.$$eval(selectors.card, (els, platformLabel) => {
-      // In SSR/Browser context, we map the elements using provided selectors
-      // For this MVP, we parse as safely as possible
-      return els.map(el => {
-        // Generic selector parsing (simplified for the agent MVP)
-        const titleEl = el.querySelector('h1, h2, h3, .title, .job-title');
-        const companyEl = el.querySelector('.companyName, .company, h4');
-        const salaryEl = el.querySelector('.salary, .compensation');
-        const locEl = el.querySelector('.location, .loc');
-        
-        return {
-          title: titleEl?.textContent?.trim() || '',
-          company: companyEl?.textContent?.trim() || '',
-          skills: [], // Advanced logic would extract from JD
-          salary: salaryEl?.textContent?.trim() || 'Not disclosed',
-          location: locEl?.textContent?.trim() || '',
-          url: (el.querySelector('a') as HTMLAnchorElement)?.href || '',
-          platform: platformLabel as any
-        };
-      }).filter(job => job.title && job.company);
+      // Playwright-scraped cards don't give us the full JD text in-card, but we
+    // can extract skills from whatever text is available in the card elements.
+    return els.map(el => {
+      const titleEl = el.querySelector('h1, h2, h3, .title, .job-title');
+      const companyEl = el.querySelector('.companyName, .company, h4');
+      const salaryEl = el.querySelector('.salary, .compensation');
+      const locEl = el.querySelector('.location, .loc');
+      const cardText = el.textContent || '';
+      
+      return {
+        title: titleEl?.textContent?.trim() || '',
+        company: companyEl?.textContent?.trim() || '',
+        skills: [] as string[], // Will be populated server-side after browser.close()
+        salary: salaryEl?.textContent?.trim() || 'Not disclosed',
+        location: locEl?.textContent?.trim() || '',
+        url: (el.querySelector('a') as HTMLAnchorElement)?.href || '',
+        platform: platformLabel as any,
+        _cardText: cardText, // Pass raw text for server-side skill extraction
+      };
+    }).filter(job => job.title && job.company);
     }, platform);
 
-    // RapidAPI JSearch Rest Fallback if Playwright UI scraping fails (captchas, DOM updates)
     if (listings.length === 0) {
       console.log(`Playwright scraping yielded 0 for ${platform}. Falling back to JSearch API...`);
       return fallbackToJSearch(url, platform);
     }
     
-    return listings;
+    // Server-side skill extraction from card text
+    return listings.map((l: any) => ({
+      ...l,
+      skills: extractSkillsFromJD(l._cardText || ''),
+      _cardText: undefined,  // Remove temp field
+    }));
   } catch (error) {
     console.error(`Error scraping ${platform}:`, error);
     return [];
@@ -131,6 +171,7 @@ export interface ScrapeJobResult {
   ctcBand: string | null
   jdText: string
   sourceUrl: string
+  skills?: string[]
 }
 
 export async function scrapeJobUrl(url: string): Promise<ScrapeJobResult | null> {
@@ -173,6 +214,7 @@ export async function scrapeJobUrl(url: string): Promise<ScrapeJobResult | null>
       ctcBand: ctcMatch ? `${ctcMatch[1]}-${ctcMatch[2]} LPA` : null,
       jdText: description,
       sourceUrl: url,
+      skills: extractSkillsFromJD(description),
     }
   } catch (err) {
     // Real scraping failed — return null. We NEVER create fake job applications.

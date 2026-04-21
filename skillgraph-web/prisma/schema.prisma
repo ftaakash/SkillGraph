@@ -41,6 +41,8 @@ model User {
   // Student specific v2
   cgpa              Float?
   isProfileVisible  Boolean     @default(false)
+  linkedin          String?     // Full LinkedIn profile URL
+  github            String?     // Full GitHub profile URL
 
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
