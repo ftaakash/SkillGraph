@@ -238,7 +238,7 @@ model OpenClawApplication {
   listingId       String
   matchScore      Float?
   resumeVersionId String?
-  status          String   @default("Applied")
+  status          String   @default("Applied") // Applied | Failed | UnableToApply | Shortlisted | Viewed | Rejected | Closed
   screenshotUrl   String?
   tailoringNotes  String?  @db.Text
   appliedAt       DateTime @default(now())
