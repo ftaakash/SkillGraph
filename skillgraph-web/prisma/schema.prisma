@@ -232,6 +232,8 @@ model OpenClawListing {
   jdText          String   @db.Text
   sourceUrl       String
   scrapedAt       DateTime @default(now())
+
+  applications    OpenClawApplication[]
 }
 
 model OpenClawApplication {
@@ -245,7 +247,8 @@ model OpenClawApplication {
   tailoringNotes  String?  @db.Text
   appliedAt       DateTime @default(now())
 
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing         OpenClawListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 }
 
 model RecruiterTalentView {

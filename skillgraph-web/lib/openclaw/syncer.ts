@@ -13,7 +13,7 @@ export async function syncApplicationStatuses(userId: string) {
       OpenClawConfig: true,
       OpenClawApplications: {
         where: { status: 'Applied' },
-        include: { Listing: true }
+        include: { listing: true }
       }
     }
   });
@@ -28,9 +28,9 @@ export async function syncApplicationStatuses(userId: string) {
   const browser = await chromium.launch({ headless: true });
 
   for (const app of user.OpenClawApplications) {
-    if (!app.Listing?.sourceUrl) continue;
+    if (!app.listing?.sourceUrl) continue;
 
-    const lowerUrl = app.Listing.sourceUrl.toLowerCase();
+    const lowerUrl = app.listing.sourceUrl.toLowerCase();
     const platform = lowerUrl.includes('linkedin.com') ? 'linkedin' : 
                      lowerUrl.includes('naukri.com') ? 'naukri' : 
                      lowerUrl.includes('indeed.com') ? 'indeed' : 
@@ -44,8 +44,8 @@ export async function syncApplicationStatuses(userId: string) {
 
     const page = await context.newPage();
     try {
-      console.log(`[Syncer] Checking ${app.Listing.company} - ${app.Listing.role}...`);
-      await page.goto(app.Listing.sourceUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      console.log(`[Syncer] Checking ${app.listing.company} - ${app.listing.role}...`);
+      await page.goto(app.listing.sourceUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
       await page.waitForTimeout(2000);
 
       const pageText = await page.innerText('body').catch(() => '');
@@ -63,7 +63,7 @@ export async function syncApplicationStatuses(userId: string) {
       }
 
       if (newStatus !== app.status) {
-        console.log(`[Syncer] Updating status for ${app.Listing.company}: ${app.status} -> ${newStatus}`);
+        console.log(`[Syncer] Updating status for ${app.listing.company}: ${app.status} -> ${newStatus}`);
         await prisma.openClawApplication.update({
           where: { id: app.id },
           data: { status: newStatus }
@@ -71,7 +71,7 @@ export async function syncApplicationStatuses(userId: string) {
       }
 
     } catch (e) {
-      console.error(`[Syncer] Failed to sync ${app.Listing.company}:`, e);
+      console.error(`[Syncer] Failed to sync ${app.listing.company}:`, e);
     } finally {
       await page.close();
     }

@@ -34,6 +34,7 @@ export async function PATCH(req: NextRequest) {
         targetRoles: targetRoles || ['Software Engineer'],
         preferredCities: preferredCities || ['Remote'],
         minCtcLpa: ctcLpa || 3.0,
+        blacklistedCompanies: [],
       }
     });
 
