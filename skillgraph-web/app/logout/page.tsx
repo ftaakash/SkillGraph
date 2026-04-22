@@ -15,7 +15,7 @@ export default function LogoutPage() {
 
   const handleSignOut = async () => {
     setLoading(true);
-    await signOut({ callbackUrl: "/" });
+    await signOut({ callbackUrl: window.location.origin });
   };
 
   return (
