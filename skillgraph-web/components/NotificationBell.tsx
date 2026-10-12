@@ -28,16 +28,15 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const fetchNotifications = async () => {
-    try {
-      const res = await fetch("/api/notifications");
-      if (!res.ok) return;
-      const data = await res.json();
-      setNotifications(data.notifications ?? []);
-      setUnread(data.unreadCount ?? 0);
-    } catch {
-      // ignore
-    }
+  const fetchNotifications = () => {
+    fetch("/api/notifications")
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (!data) return;
+        setNotifications(data.notifications ?? []);
+        setUnread(data.unreadCount ?? 0);
+      })
+      .catch(() => { /* ignore */ });
   };
 
   useEffect(() => {

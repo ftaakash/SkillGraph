@@ -18,6 +18,11 @@ model User {
   name                String
   email               String    @unique
   passwordHash        String
+  // Account security & consent (ADR-001 Phase 3)
+  emailVerifiedAt     DateTime?
+  sessionVersion      Int       @default(0) // bump to invalidate all existing sessions
+  termsAcceptedAt     DateTime?
+  termsVersion        String?
   role                UserRole  @default(STUDENT)
   college             String?
   branch              String?
@@ -61,6 +66,7 @@ model User {
   InterviewStories     InterviewStory[]
   NegotiationScripts   NegotiationScript[]
   AiUsage              AiUsage[]
+  AuthTokens           AuthToken[]
 }
 
 model SkillProfile {
@@ -277,6 +283,10 @@ model RecruiterTalentView {
   studentId       String
   revealedAt      DateTime?
   shortlisted     Boolean   @default(false)
+  // Mutual-consent reveal: none | requested | accepted | declined. Identity is shared only when accepted.
+  revealStatus    String    @default("none")
+  requestedAt     DateTime?
+  respondedAt     DateTime?
   viewedAt        DateTime  @default(now())
   notes           String?
 
@@ -403,4 +413,19 @@ model AiUsage {
   user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
+}
+
+// Single-use, hashed tokens for email verification and password reset
+model AuthToken {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String    // email_verify | password_reset
+  tokenHash String    @unique // SHA-256 of the token sent by email; the raw token is never stored
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
 }

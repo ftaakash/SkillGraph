@@ -28,13 +28,18 @@ OpenClaw does the research and preparation; **the student always submits**.
 
 ### 3. Faculty & Recruiter Operating Systems
 - **Placement Cell OS**: Equips university faculty with cohort-level skill heatmaps, institutional matching benchmarks, and restricted campus job boards.
-- **Recruiter Talent Discovery**: Anonymised skill-based routing engine matching employers instantly to verified engineering talent.
+- **Recruiter Talent Discovery**: anonymous, skill-based discovery of opted-in students. A student's name and contact details are shared only after they accept that recruiter's request.
 
-### 4. Topic-Aware Dynamic Sprints
+### 4. Privacy & Account Security
+- Email verification, password reset, and sign-out everywhere on password change.
+- Self-service data export and account deletion; consent recorded at sign-up ([Privacy](skillgraph-web/app/privacy/page.tsx), [Terms](skillgraph-web/app/terms/page.tsx)).
+- Rate limiting, SSRF-guarded job fetching, private file storage, structured logs with request IDs.
+
+### 5. Topic-Aware Dynamic Sprints
 - **Mission Overrides**: Pivot focus to specific topics (e.g., "System Design") on the fly.
 - **Learning Resilience**: Integrated YouTube fallbacks ensure resources are always available.
 
-### 5. Production Environment Guardrails
+### 6. Production Environment Guardrails
 - **Environment Gateway**: Startup fast-fail validation prevents obscure deployment crashes.
 - **Dynamic Database Ties**: Elements like `collegeTier` extract real schema relations rather than static fallbacks.
 
@@ -64,7 +69,7 @@ and long-running jobs into a *separate worker service*, and make OpenClaw *compl
 | **0 — Launch blockers** | Stop serving user résumés from `public/`, fail-closed cron auth, security headers, rate limiting, consistent validation, health check, `.env.example`, CI | ✅ Done (history purge pending) |
 | **1 — Data & storage** | Prisma migrations, indexes & constraints, private object storage with signed URLs, schema-validated AI layer with quotas | ✅ Code done — [migration rollout](docs/adr/ADR-001-production-architecture.md#phase-1--data--storage-week-12) pending |
 | **2 — OpenClaw compliance** | Remove stealth plugin & stored third-party cookies, official job sources, assisted apply, containerised workers | ✅ Code done — migration pending |
-| **3 — Trust & operations** | Email verification, password reset, mutual-consent recruiter reveal, DPDP/GDPR data rights, Sentry, tests | ⏳ Planned |
+| **3 — Trust & operations** | Email verification, password reset, mutual-consent recruiter reveal, DPDP/GDPR data rights, observability, tests | ✅ Code done — in review (migrate before merge) |
 | **4 — Commercial** | Billing & plan limits, multi-tenant college workspaces, load testing | ⏳ Planned |
 
 ```
@@ -118,7 +123,13 @@ npm run worker
 ```
 In production, deploy it as its own container: `docker build -f Dockerfile.worker -t skillgraph-worker .`
 
-### 5. Health Check
+### 5. Tests
+```bash
+npm test
+```
+Unit tests run on Node's built-in test runner; CI also runs the typecheck and lint on every push and pull request.
+
+### 6. Health Check
 `GET /api/health` returns `200` when the app and database are reachable (`503` otherwise) — point your uptime monitor here.
 
 ---

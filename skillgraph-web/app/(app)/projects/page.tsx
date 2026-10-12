@@ -20,30 +20,36 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [user, setUser] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
-  const [generating, setGenerating] = useState(false)
+  const [generating, setGenerating] = useState(true)
   const [error, setError] = useState('')
 
-  const fetchProjects = async () => {
-    setGenerating(true)
-    setError('')
-    try {
-      const uRes = await fetch('/api/users/me').then(r => r.json())
-      setUser(uRes.user)
-
-      const res = await fetch('/api/ai/projects', { method: 'POST' })
-      const data = await res.json()
-      if (data.projects) setProjects(data.projects)
-      else if (data.error) setError(data.error)
-    } catch (err) {
-      setError('Failed to generate architectural prompts.')
-    }
-    setGenerating(false)
-    setLoading(false)
-  }
+  // State is only updated in promise callbacks, so this is safe to call from an effect
+  const fetchProjects = () =>
+    fetch('/api/users/me')
+      .then(r => r.json())
+      .then(uRes => {
+        setUser(uRes.user)
+        return fetch('/api/ai/projects', { method: 'POST' }).then(r => r.json())
+      })
+      .then(data => {
+        if (data.projects) setProjects(data.projects)
+        else if (data.error) setError(data.error)
+      })
+      .catch(() => setError('Failed to generate architectural prompts.'))
+      .finally(() => {
+        setGenerating(false)
+        setLoading(false)
+      })
 
   useEffect(() => {
     fetchProjects()
   }, [])
+
+  const regenerate = () => {
+    setGenerating(true)
+    setError('')
+    fetchProjects()
+  }
 
   const readiness = user?.readinessScore ?? 0
   const rank = readiness > 80 ? 'L5 Architect' : readiness > 50 ? 'L3 Senior Student' : 'L1 Apprentice'
@@ -86,7 +92,7 @@ export default function ProjectsPage() {
            <button className="bg-[#141824] border border-[#1C212B] text-gray-300 px-4 py-1.5 rounded text-xs font-bold flex items-center gap-2">
              Industrial-Grade <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
            </button>
-           <button onClick={fetchProjects} disabled={generating} className="ml-4 bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white disabled:opacity-50 px-3 py-1.5 rounded text-xs font-bold transition">
+           <button onClick={regenerate} disabled={generating} className="ml-4 bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white disabled:opacity-50 px-3 py-1.5 rounded text-xs font-bold transition">
              {generating ? 'Regenerating...' : '↺ Refresh'}
            </button>
         </div>
@@ -115,7 +121,7 @@ export default function ProjectsPage() {
               <div className="relative z-10 p-8 flex flex-col h-full">
                 <div className="flex justify-between items-start mb-auto">
                   <span className="bg-cyan-400 text-[#0A0D14] text-[10px] font-black tracking-widest px-2.5 py-1 rounded w-fit uppercase">High Impact Potential</span>
-                  <span className="bg-white/10 text-white/50 border border-white/10 text-[9px] font-mono px-2 py-0.5 rounded">PROMPT-ID: NX-{(Math.random()*9000+1000).toFixed(0)}</span>
+                  <span className="bg-white/10 text-white/50 border border-white/10 text-[9px] font-mono px-2 py-0.5 rounded">PROMPT-ID: NX-{1000 + ([...projects[0].title].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 9000, 7))}</span>
                 </div>
                 
                 <h2 className="text-4xl font-bold text-white mt-12 mb-4 drop-shadow-lg">{projects[0].title}</h2>

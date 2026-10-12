@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   web:
-    name: Typecheck & lint (skillgraph-web)
+    name: Typecheck, lint & test (skillgraph-web)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -39,7 +39,9 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
-      # Non-blocking until the existing lint backlog is cleared (ADR-001, Phase 3)
+      # Errors fail the build; legacy no-explicit-any findings are warnings (tracked debt)
       - name: Lint
         run: npm run lint
-        continue-on-error: true
+
+      - name: Unit tests
+        run: npm test

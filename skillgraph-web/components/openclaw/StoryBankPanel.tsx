@@ -31,13 +31,12 @@ export default function StoryBankPanel() {
   const [generating, setGenerating] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
 
-  const load = async () => {
-    setLoading(true)
-    const res = await fetch('/api/openclaw/stories')
-    const data = await res.json()
-    setStories(data.stories ?? [])
-    setLoading(false)
-  }
+  const load = () =>
+    fetch('/api/openclaw/stories')
+      .then(res => res.json())
+      .then(data => setStories(data.stories ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
 
   useEffect(() => { load() }, [])
 

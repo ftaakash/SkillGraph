@@ -24,7 +24,7 @@ export default function MarketPage() {
   // Tab 1: Skill Demand State
   const [data, setData] = useState<MarketData | null>(null);
   const [role, setRole] = useState('All Roles');
-  const [loading, setLoading] = useState(true);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
 
   // Tab 2: Job Search State
   const [jobQuery, setJobQuery] = useState('');
@@ -41,12 +41,12 @@ export default function MarketPage() {
 
   useEffect(() => {
     if (activeTab === 'Skill Demand') {
-      setLoading(true);
       const q = role === 'All Roles' ? '' : `?role=${encodeURIComponent(role)}`;
-      fetch(`/api/market/skills${q}`).then(r => r.json()).then(d => { setData(d); setLoading(false); });
+      fetch(`/api/market/skills${q}`).then(r => r.json()).then(d => { setData(d); setLoadedKey(role); }).catch(() => setLoadedKey(role));
     }
   }, [role, activeTab]);
 
+  const loading = loadedKey !== role;
   const maxCount = data?.topSkills?.[0]?.count ?? 1;
 
   const handleSearchJobs = async (e: React.FormEvent) => {

@@ -151,6 +151,10 @@ const LandingPage = () => (
       {/* Footer */}
       <footer className="relative z-10 border-t border-border/50 py-8 text-center text-sm text-muted-foreground pinstripe-pattern">
         © 2026 SkillGraph. Fortune favors the prepared.
+        <span className="mx-2" aria-hidden>·</span>
+        <Link href="/terms" className="hover:text-foreground hover:underline">Terms</Link>
+        <span className="mx-2" aria-hidden>·</span>
+        <Link href="/privacy" className="hover:text-foreground hover:underline">Privacy</Link>
       </footer>
     </div>
   </PageTransition>

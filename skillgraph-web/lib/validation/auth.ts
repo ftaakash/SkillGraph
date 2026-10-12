@@ -2,8 +2,14 @@ import { z } from 'zod'
 
 export const PASSWORD_MIN_LENGTH = 8
 
-// Not lower-cased: login looks emails up verbatim and existing accounts may be mixed-case.
-export const emailSchema = z.string().trim().email().max(254)
+/** Bump when the Terms of Service or Privacy Policy materially change. */
+export const TERMS_VERSION = '2026-10-14'
+
+// Registration requires explicit acceptance (consent record for DPDP/GDPR)
+const acceptTerms = z.literal(true, { message: 'You must accept the Terms of Service and Privacy Policy' })
+
+// Emails are stored lower-case; login matches case-insensitively
+export const emailSchema = z.string().trim().toLowerCase().email().max(254)
 
 export const passwordSchema = z
   .string()
@@ -17,6 +23,7 @@ export const studentRegisterSchema = z.object({
   name: nameSchema,
   email: emailSchema,
   password: passwordSchema,
+  acceptTerms,
   role: z.enum(['STUDENT']).optional().default('STUDENT'),
   college: optionalText,
   branch: optionalText,
@@ -28,6 +35,7 @@ export const facultyRegisterSchema = z.object({
   name: nameSchema,
   email: emailSchema,
   password: passwordSchema,
+  acceptTerms,
   collegeName: z.string().trim().min(2).max(200),
   city: optionalText,
   state: optionalText,
@@ -39,6 +47,7 @@ export const recruiterRegisterSchema = z.object({
   name: nameSchema,
   email: emailSchema,
   password: passwordSchema,
+  acceptTerms,
   companyName: z.string().trim().min(2).max(200),
   companyWebsite: z.string().trim().max(300).optional(),
   tier: optionalText,

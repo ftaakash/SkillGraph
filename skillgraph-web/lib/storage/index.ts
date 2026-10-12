@@ -121,6 +121,38 @@ export async function getFileAccess(ref: string, ttlSec = DEFAULT_TTL_SEC): Prom
   return null
 }
 
+/**
+ * Permanently deletes a stored file. Legacy public URLs are not managed by us and are skipped.
+ * Returns false when the file could not be deleted (callers log and continue).
+ */
+export async function deletePrivateFile(ref: string): Promise<boolean> {
+  try {
+    if (ref.startsWith(CLOUDINARY_PREFIX)) {
+      if (!cloudinaryConfigured()) return false
+      ensureCloudinary()
+      const res = await cloudinary.uploader.destroy(ref.slice(CLOUDINARY_PREFIX.length), {
+        resource_type: 'raw',
+        type: 'authenticated',
+        invalidate: true,
+      })
+      return res.result === 'ok' || res.result === 'not found'
+    }
+    if (ref.startsWith(LOCAL_PREFIX)) {
+      const [folder, name] = ref.slice(LOCAL_PREFIX.length).split('/')
+      await fs.rm(path.join(LOCAL_ROOT, folder, safeName(name)), { force: true })
+      return true
+    }
+    const legacy = ref.match(/^\/(resumes|proofs)\/([\w.-]+)$/)
+    if (legacy) {
+      await fs.rm(path.join(process.cwd(), 'public', legacy[1], safeName(legacy[2])), { force: true })
+      return true
+    }
+    return false
+  } catch {
+    return false
+  }
+}
+
 async function readLocal(filePath: string): Promise<FileAccess | null> {
   try {
     const data = await fs.readFile(filePath)

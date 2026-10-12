@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
+import { emailInUse, consentFields, sendVerification } from '@/lib/accounts'
 import { facultyRegisterSchema, firstIssue } from '@/lib/validation/auth'
 
 export async function POST(req: NextRequest) {
@@ -12,8 +13,7 @@ export async function POST(req: NextRequest) {
     const { name, email, password, collegeName, city, state, tier, tpContactEmail } = parsed.data
 
     // Check if user already exists
-    const existing = await prisma.user.findUnique({ where: { email } })
-    if (existing) {
+    if (await emailInUse(email)) {
       return NextResponse.json({ error: 'Email already registered' }, { status: 409 })
     }
 
@@ -43,9 +43,12 @@ export async function POST(req: NextRequest) {
         email,
         passwordHash,
         role: 'FACULTY',
+        ...consentFields(),
         collegeId: college.id,
       },
     })
+
+    await sendVerification(user)
 
     return NextResponse.json({ id: user.id, email: user.email, role: user.role }, { status: 201 })
   } catch (error) {
