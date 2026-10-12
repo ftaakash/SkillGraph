@@ -146,12 +146,20 @@ both more reliable and defensible to colleges and recruiters who are the paying 
 9. [x] CI (GitHub Actions): install, Prisma generate, typecheck, lint (lint non-blocking until existing debt is cleared).
 
 ### Phase 1 — Data & storage (week 1–2)
-0. [ ] Redis-backed `RateLimitStore` (Upstash) so limits hold across serverless instances.
-1. [ ] Baseline Prisma migrations (`prisma migrate diff` from current DB) and switch deploys to `prisma migrate deploy`.
-2. [ ] Add `@@index([userId])` on user-owned tables, `@@unique([recruiterId, studentId])`, enums for status fields.
-3. [ ] `lib/storage` abstraction → private bucket + short-lived signed URLs; migrate existing `/resumes/*` references (C1, C4).
-4. [ ] `lib/ai` wrapper: zod-validated outputs, timeout + retry, per-user daily token quota, usage table (H3).
-5. [ ] Reorder `resume/upload` so destructive writes happen inside a transaction *after* successful parsing.
+0. [x] Redis-backed `RateLimitStore`, opt-in via `RATE_LIMIT_REDIS_URL`; falls back to memory with a 30 s reconnect cooldown so a Redis outage never blocks logins.
+1. [x] Prisma migrations: `0_init` baseline generated from the live database, plus `20261013000000_phase1_integrity_indexes_ai_usage`. npm scripts `db:migrate:*`. **Rollout below.**
+2. [x] `@@index` on user-owned/hot columns, `@@unique([recruiterId, studentId])`, the missing `OpenClawApplication.listingId` foreign key. *Status enums deferred:* live data already contains undocumented values (`Pending`, `Duplicate`), so values must be normalised first.
+3. [x] `lib/storage`: private Cloudinary (`type: authenticated`) storage with 5-minute signed download URLs; local `.data/` fallback in development only. OpenClaw résumés/screenshots, generated and uploaded résumés now use it; legacy references remain readable (C1, C4). New `GET /api/resume/file`.
+4. [x] `lib/ai`: zod-validated outputs with one corrective retry, 45 s timeout + SDK retries, per-user rolling 24 h token quota (`AI_DAILY_TOKEN_LIMIT`), metered in `AiUsage` (H3). Adopted by résumé parsing, gap analysis, sprints, project ideas, LinkedIn optimiser. OpenClaw/worker prompts move over in Phase 2.
+5. [x] `resume/upload`, `gaps` and `sprints` now validate AI output *before* any destructive write and apply changes in a single transaction. Upload also checks the PDF magic bytes and rejects unreadable (scanned) PDFs.
+
+**Migration rollout (one time, run against the production database):**
+```bash
+cd skillgraph-web
+npm run db:migrate:baseline   # marks 0_init as already applied (the DB was created with db push)
+npm run db:migrate:deploy     # applies the Phase 1 migration
+```
+The Phase 1 migration deletes `OpenClawApplication` rows whose listing no longer exists (1 row at the time of writing) so the foreign key can be created. Usage metering is fail-soft until the migration is applied. After rollout, set the Vercel build command to `prisma migrate deploy && next build` and replace the `findFirst`-then-write in `recruiter/reveal` with an `upsert` on the new unique key.
 
 ### Phase 2 — OpenClaw compliance re-architecture (week 2–4)
 1. [ ] Remove stealth plugin and stored third-party session cookies; delete `sessionData` column after migration (C3).

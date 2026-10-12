@@ -43,6 +43,8 @@ next-env.d.ts
 # user-generated files (résumés, application screenshots) — must never be committed or served publicly
 /public/resumes/
 /public/proofs/
+# local development storage fallback (lib/storage)
+/.data/
 
 # allow the documented env template
 !.env.example

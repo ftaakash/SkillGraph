@@ -1,7 +1,9 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { callGPTArray, PROMPTS } from '@/lib/openai'
-import { getUserId, unauthorized, serverError, ok, badRequest } from '@/lib/api'
+import { PROMPTS } from '@/lib/openai'
+import { generateJson } from '@/lib/ai'
+import { sprintSchema } from '@/lib/ai/schemas'
+import { getUserId, unauthorized, serverError, ok, badRequest, aiFailure } from '@/lib/api'
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,13 +13,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { skillIds, customTopics } = body
 
-    // 1. Abandon existing active sprints to make room for the new mission
-    await prisma.sprint.updateMany({
-      where: { userId, status: 'active' },
-      data: { status: 'abandoned' }
-    });
-
-    // 2. Get up to 3 unclosed gaps as base
+    // 1. Get up to 3 unclosed gaps as base
     const gaps = await prisma.skillGap.findMany({
       where: { userId, closed: false },
       orderBy: { identifiedAt: 'desc' },
@@ -35,44 +31,47 @@ export async function POST(req: NextRequest) {
       ? `MISSION OVERRIDE: Focus heavily on these custom topics: ${customTopics}. Still try to incorporate some relevant base gaps if they fit: ${baseSkills}.`
       : `Create a sprint to learn these skills in priority order: ${baseSkills}. Student current level: beginner to intermediate.`;
 
-    // Call AI sprint generator
-    const rawJson = await callGPTArray(
-      PROMPTS.SPRINT_GENERATOR,
-      `${aiContext} ${userInstruction}`
-    )
+    // 2. Generate the plan before touching existing sprints, so an AI failure changes nothing
+    const dayTasks = await generateJson({
+      feature: 'sprint',
+      system: PROMPTS.SPRINT_GENERATOR,
+      prompt: `${aiContext} ${userInstruction}`,
+      schema: sprintSchema,
+      userId,
+      maxTokens: 3000,
+      temperature: 0.3,
+    })
 
-    let dayTasks
-    try {
-      dayTasks = JSON.parse(rawJson)
-    } catch {
-      return serverError('AI returned invalid sprint data. Please retry.')
-    }
-
-    // 3. Create new active sprint
+    // 3. Swap the active sprint atomically
     const weekStart = new Date()
     weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1)
 
-    const sprint = await prisma.sprint.create({
-      data: {
-        userId,
-        weekStartDate: weekStart,
-        dayTasks,
-        completionPercentage: 0,
-        skillsTargeted: customTopics ? [customTopics] : gaps.map(g => g.missingSkill),
-        status: 'active',
-      },
-    })
-
-    // Mark gaps as sprint generated if we used them
-    if (gaps.length > 0) {
-      await prisma.skillGap.updateMany({
+    const [, sprint] = await prisma.$transaction([
+      prisma.sprint.updateMany({
+        where: { userId, status: 'active' },
+        data: { status: 'abandoned' },
+      }),
+      prisma.sprint.create({
+        data: {
+          userId,
+          weekStartDate: weekStart,
+          dayTasks,
+          completionPercentage: 0,
+          skillsTargeted: customTopics ? [customTopics] : gaps.map(g => g.missingSkill),
+          status: 'active',
+        },
+      }),
+      // Mark gaps as sprint generated if we used them
+      prisma.skillGap.updateMany({
         where: { id: { in: gaps.map(g => g.id) } },
         data: { sprintGenerated: true },
-      })
-    }
+      }),
+    ])
 
     return ok({ sprint })
   } catch (err) {
+    const failure = aiFailure(err)
+    if (failure) return failure
     console.error('[sprints/generate]', err)
     return serverError()
   }

@@ -3,6 +3,7 @@ import { scrapeNaukri, scrapeLinkedIn, scrapeGlassdoor, scrapeIndeed } from './s
 import { scoreJobMatch } from './matcher';
 import { applyToJob } from './applicator';
 import { generateResumePDFBuffer } from '@/lib/resume/exporter';
+import { putPrivateFile } from '@/lib/storage';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
@@ -214,19 +215,20 @@ export async function processOpenClawAgent(userId: string) {
 
         const pdfBuffer = await generateResumePDFBuffer(resumeData);
         
-        // Save to public dir so it can be downloaded permanently by the user later
+        // Persist privately for later download; the browser upload needs a local copy,
+        // which lives in the OS temp dir only for the duration of this application
         const resumeId = `cv_${Date.now()}`;
-        const resumesDir = path.join(process.cwd(), 'public', 'resumes');
-        await fs.mkdir(resumesDir, { recursive: true }).catch(() => {});
-        const finalPath = path.join(resumesDir, `${resumeId}.pdf`);
+        const storedRef = await putPrivateFile('resumes', `${resumeId}.pdf`, new Uint8Array(pdfBuffer));
+        const finalPath = path.join(os.tmpdir(), `skillgraph_${resumeId}.pdf`);
         await fs.writeFile(finalPath, new Uint8Array(pdfBuffer));
+        const removeTempResume = () => fs.unlink(finalPath).catch(() => {});
 
         const resumeVersion = await prisma.resumeVersion.create({
           data: {
             id: resumeId,
             userId: user.id,
             targetJd: listing.url,
-            cloudinaryUrl: `/resumes/${resumeId}.pdf`,
+            cloudinaryUrl: storedRef,
             atsScore: matchStatus.matchScore,
             generatedBy: 'AI'
           }
@@ -280,6 +282,7 @@ export async function processOpenClawAgent(userId: string) {
               appliedAt: new Date()
             }
           });
+          await removeTempResume();
           continue;
         }
 
@@ -287,6 +290,7 @@ export async function processOpenClawAgent(userId: string) {
         const applicationEmail = config.applicationEmail?.trim();
         if (!applicationEmail || applicationEmail.length < 5) {
           console.warn(`[OpenClaw] Skipping ${listing.company}: No valid application email configured.`);
+          await removeTempResume();
           continue;
         }
 
@@ -297,7 +301,7 @@ export async function processOpenClawAgent(userId: string) {
           jobUrl: listing.url,
           resumePdfPath: finalPath,
           sessionData: platformSession
-        });
+        }).finally(removeTempResume);
 
         // Record Application with truthful status
         await prisma.openClawApplication.create({

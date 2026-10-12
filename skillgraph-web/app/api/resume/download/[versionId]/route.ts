@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { getFileAccess, fileResponse } from '@/lib/storage'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ versionId: string }> }) {
   try {
@@ -62,31 +63,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ vers
       return [];
     };
 
-    // Case 1: Local file (served directly from public/resumes)
-    if (version.cloudinaryUrl?.startsWith('/resumes/')) {
-      try {
-        const fs = await import('fs/promises');
-        const path = await import('path');
-        const filePath = path.join(process.cwd(), 'public', version.cloudinaryUrl);
-        const fileBuffer = await fs.readFile(filePath);
-        
-        return new NextResponse(new Uint8Array(fileBuffer), {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="skillgraph_resume_${versionId.slice(-4)}.pdf"`,
-            'Content-Length': fileBuffer.length.toString(),
-          },
-        });
-      } catch (e) {
-        console.warn(`[resume/download] Local file not found: ${version.cloudinaryUrl}, falling back to regeneration.`);
-      }
+    // Case 1: Stored file (private storage, or legacy public URL / local path) — ownership checked above
+    const storedRef = version.cloudinaryUrl
+    if (storedRef && !storedRef.includes('mock-cloudinary.com')) {
+      const access = await getFileAccess(storedRef);
+      if (access) return fileResponse(access, `skillgraph_resume_${versionId.slice(-4)}.pdf`);
+      console.warn(`[resume/download] Stored file unavailable for version ${versionId}, falling back to regeneration.`);
     }
 
-    // Case 2: Fallback logic if Cloudinary is mock or missing
-    const isMock = !version.cloudinaryUrl || version.cloudinaryUrl.includes('mock-cloudinary.com');
-
-    if (isMock) {
+    // Case 2: Regenerate the PDF from the saved resume sections
+    {
       // Fetch sections for this specific version
       const sections = await prisma.resumeSection.findMany({
         where: { resumeVersionId: version.id }
@@ -141,9 +127,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ vers
         },
       });
     }
-
-    // Case 3: Public Cloudinary URL
-    return NextResponse.redirect(version.cloudinaryUrl!)
   } catch (err) {
     console.error('[resume/download GET]', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

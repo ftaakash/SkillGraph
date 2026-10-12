@@ -2,6 +2,7 @@ import { chromium } from 'playwright-extra';
 const stealth = require('puppeteer-extra-plugin-stealth');
 chromium.use(stealth());
 import path from 'path';
+import { putPrivateFile } from '@/lib/storage';
 
 export interface ApplicationArgs {
   studentName: string;
@@ -58,20 +59,14 @@ export async function applyToJob(args: ApplicationArgs): Promise<{ success: bool
       } catch (e) {}
     }
 
-    // Capture success screenshot for production audit
+    // Capture success screenshot for the audit trail — stored privately, never under public/
     const screenshotId = `proof_${Date.now()}`;
-    const proofsDir = path.join(process.cwd(), 'public', 'proofs');
-    
-    const { mkdir, writeFile } = await import('fs/promises');
-    await mkdir(proofsDir, { recursive: true }).catch(() => {});
-    
-    const screenshotPath = path.join(proofsDir, `${screenshotId}.jpg`);
     const buf = await page.screenshot({ fullPage: true, type: 'jpeg', quality: 60 });
-    await writeFile(screenshotPath, buf);
-    
-    return { 
-      success: true, 
-      screenshotUrl: `/proofs/${screenshotId}.jpg` 
+    const screenshotRef = await putPrivateFile('proofs', `${screenshotId}.jpg`, new Uint8Array(buf));
+
+    return {
+      success: true,
+      screenshotUrl: screenshotRef
     };
   } catch (error: any) {
     console.error(`Applicant Agent failed at ${args.jobUrl}:`, error);

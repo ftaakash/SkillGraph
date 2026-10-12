@@ -1,7 +1,9 @@
 import { NextRequest } from 'next/server'
-import { callGPT, PROMPTS } from '@/lib/openai'
+import { PROMPTS } from '@/lib/openai'
+import { generateJson } from '@/lib/ai'
+import { linkedinOptimizationSchema } from '@/lib/ai/schemas'
 import { prisma } from '@/lib/prisma'
-import { getUserId, unauthorized, serverError, ok, badRequest } from '@/lib/api'
+import { getUserId, unauthorized, serverError, ok, badRequest, aiFailure } from '@/lib/api'
 import { z } from 'zod'
 
 const schema = z.object({
@@ -25,12 +27,14 @@ export async function POST(req: NextRequest) {
       select: { targetRole: true },
     })
 
-    const rawJson = await callGPT(
-      PROMPTS.LINKEDIN_OPTIMIZER,
-      `Optimize for role: ${user?.targetRole ?? 'Software Engineer'}. Original headline: ${headline}. Original about: ${about}. Current skills: ${skillsList}.`
-    )
-
-    const result = JSON.parse(rawJson)
+    const result = await generateJson({
+      feature: 'linkedin_optimizer',
+      system: PROMPTS.LINKEDIN_OPTIMIZER,
+      prompt: `Optimize for role: ${user?.targetRole ?? 'Software Engineer'}. Original headline: ${headline}. Original about: ${about}. Current skills: ${skillsList}.`,
+      schema: linkedinOptimizationSchema,
+      userId,
+      temperature: 0,
+    })
 
     // Log the optimizer session for impact dashboard
     await prisma.optimizerSession.create({
@@ -50,6 +54,8 @@ export async function POST(req: NextRequest) {
 
     return ok({ result })
   } catch (err) {
+    const failure = aiFailure(err)
+    if (failure) return failure
     console.error('[ai/linkedin]', err)
     return serverError()
   }

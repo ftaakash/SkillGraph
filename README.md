@@ -59,8 +59,8 @@ and long-running jobs into a *separate worker service*, and make OpenClaw *compl
 
 | Phase | Focus | Status |
 |-------|-------|--------|
-| **0 — Launch blockers** | Stop serving user résumés from `public/`, fail-closed cron auth, security headers, rate limiting, consistent validation, health check, `.env.example`, CI | 🟡 In progress |
-| **1 — Data & storage** | Prisma migrations, indexes & constraints, private object storage with signed URLs, schema-validated AI layer with quotas | ⏳ Planned |
+| **0 — Launch blockers** | Stop serving user résumés from `public/`, fail-closed cron auth, security headers, rate limiting, consistent validation, health check, `.env.example`, CI | ✅ Done (history purge pending) |
+| **1 — Data & storage** | Prisma migrations, indexes & constraints, private object storage with signed URLs, schema-validated AI layer with quotas | ✅ Code done — [migration rollout](docs/adr/ADR-001-production-architecture.md#phase-1--data--storage-week-12) pending |
 | **2 — OpenClaw compliance** | Remove stealth plugin & stored third-party cookies, official job sources, assisted apply, containerised workers | ⏳ Planned |
 | **3 — Trust & operations** | Email verification, password reset, mutual-consent recruiter reveal, DPDP/GDPR data rights, Sentry, tests | ⏳ Planned |
 | **4 — Commercial** | Billing & plan limits, multi-tenant college workspaces, load testing | ⏳ Planned |
@@ -96,11 +96,12 @@ Clone the repository, copy `skillgraph-web/.env.example` to `skillgraph-web/.env
 (database, NextAuth secret, LLM key, Cloudinary). The app fails fast at startup if a required variable is missing.
 
 ### 2. Physical Database Sync
-Initialize PostgreSQL and align the Prisma schema definitions locally:
+Initialize PostgreSQL and apply the versioned migrations:
 ```bash
 cd skillgraph-web
-npx prisma db push
+npm run db:migrate:deploy
 ```
+Schema changes are made with `npm run db:migrate:dev -- --name <change>` — do not use `prisma db push` against shared databases.
 
 ### 3. Initiate the Dev Server
 ```bash

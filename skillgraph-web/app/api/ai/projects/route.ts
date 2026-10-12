@@ -1,7 +1,9 @@
 import { NextRequest } from 'next/server'
-import { callGPTArray, callGPT, PROMPTS } from '@/lib/openai'
+import { PROMPTS } from '@/lib/openai'
+import { generateJson } from '@/lib/ai'
+import { projectSuggestionsSchema } from '@/lib/ai/schemas'
 import { prisma } from '@/lib/prisma'
-import { getUserId, unauthorized, serverError, ok, badRequest } from '@/lib/api'
+import { getUserId, unauthorized, serverError, ok, badRequest, aiFailure } from '@/lib/api'
 
 // POST /api/ai/projects
 export async function POST(req: NextRequest) {
@@ -25,14 +27,19 @@ export async function POST(req: NextRequest) {
     const currentSkills = skills.map(s => s.skillName).join(', ')
     const gapSkills = gaps.map(g => g.missingSkill).join(', ')
 
-    const rawJson = await callGPTArray(
-      PROMPTS.PROJECT_SUGGESTER,
-      `Student knows: ${currentSkills}. Learning: ${gapSkills || 'nothing specific'}. Target role: ${user?.targetRole ?? 'Software Engineer'}. Suggest 5 projects that prove these skills to recruiters.`
-    )
-
-    const projects = JSON.parse(rawJson)
+    const projects = await generateJson({
+      feature: 'project_ideas',
+      system: PROMPTS.PROJECT_SUGGESTER,
+      prompt: `Student knows: ${currentSkills}. Learning: ${gapSkills || 'nothing specific'}. Target role: ${user?.targetRole ?? 'Software Engineer'}. Suggest 5 projects that prove these skills to recruiters.`,
+      schema: projectSuggestionsSchema,
+      userId,
+      maxTokens: 3000,
+      temperature: 0.3,
+    })
     return ok({ projects })
   } catch (err) {
+    const failure = aiFailure(err)
+    if (failure) return failure
     console.error('[ai/projects]', err)
     return serverError()
   }

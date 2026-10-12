@@ -3,10 +3,9 @@
  *
  * Fixed-window rate limiter used by proxy.ts.
  *
- * The default store is in-memory, which protects a single instance (dev, a
- * single Node server, or a warm serverless instance). For multi-instance
- * production deployments, implement `RateLimitStore` on top of Redis/Upstash
- * and pass it to `setRateLimitStore()` — see docs/adr/ADR-001.
+ * Set RATE_LIMIT_REDIS_URL (redis:// or rediss://) to share counters across
+ * instances; otherwise an in-memory store protects a single instance only
+ * (dev, a single Node server, or a warm serverless instance).
  */
 
 export interface RateLimitStore {
@@ -42,7 +41,69 @@ class MemoryStore implements RateLimitStore {
   }
 }
 
-let store: RateLimitStore = new MemoryStore()
+/**
+ * Shared counter in Redis so limits hold across serverless instances.
+ * Falls back to the in-memory store on any Redis error — a Redis outage must not block logins.
+ */
+class RedisStore implements RateLimitStore {
+  private client: Promise<import('ioredis').default> | null = null
+  private retryAfter = 0
+  private static RETRY_COOLDOWN_MS = 30_000
+
+  constructor(private url: string, private fallback: RateLimitStore) {}
+
+  /** Connects once; after a failure, requests use the fallback until the cooldown passes. */
+  private connect(): Promise<import('ioredis').default> {
+    if (!this.client) {
+      if (Date.now() < this.retryAfter) return Promise.reject(new Error('redis unavailable (cooling down)'))
+      this.client = import('ioredis').then(async ({ default: Redis }) => {
+        const client = new Redis(this.url, {
+          lazyConnect: true,
+          connectTimeout: 2_000,
+          maxRetriesPerRequest: 1,
+          enableOfflineQueue: false,
+          retryStrategy: () => null, // reconnects are driven by connect() + cooldown, not in the background
+        })
+        client.on('error', (err) => console.warn('[rateLimit] redis error:', err.message))
+        client.on('end', () => { this.client = null })
+        try {
+          await client.connect()
+        } catch (err) {
+          client.disconnect()
+          throw err
+        }
+        return client
+      })
+      this.client.catch(() => {
+        this.client = null
+        this.retryAfter = Date.now() + RedisStore.RETRY_COOLDOWN_MS
+      })
+    }
+    return this.client
+  }
+
+  async increment(key: string, windowMs: number) {
+    try {
+      const redis = await this.connect()
+      const redisKey = `rl:${key}`
+      const [[, count], [, ttl]] = (await redis
+        .multi()
+        .incr(redisKey)
+        .pttl(redisKey)
+        .exec()) as [[null, number], [null, number]]
+      if (ttl < 0) await redis.pexpire(redisKey, windowMs)
+      return { count, resetAt: Date.now() + (ttl > 0 ? ttl : windowMs) }
+    } catch (err) {
+      console.warn('[rateLimit] falling back to memory store:', (err as Error).message)
+      return this.fallback.increment(key, windowMs)
+    }
+  }
+}
+
+const memoryStore = new MemoryStore()
+let store: RateLimitStore = process.env.RATE_LIMIT_REDIS_URL
+  ? new RedisStore(process.env.RATE_LIMIT_REDIS_URL, memoryStore)
+  : memoryStore
 
 export function setRateLimitStore(next: RateLimitStore) {
   store = next

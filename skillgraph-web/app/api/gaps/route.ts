@@ -1,7 +1,9 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { callGPT, PROMPTS } from '@/lib/openai'
-import { getUserId, unauthorized, serverError, ok, badRequest } from '@/lib/api'
+import { PROMPTS } from '@/lib/openai'
+import { generateJson } from '@/lib/ai'
+import { gapAnalysisSchema } from '@/lib/ai/schemas'
+import { getUserId, unauthorized, serverError, ok, badRequest, aiFailure } from '@/lib/api'
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,43 +45,42 @@ export async function POST(req: NextRequest) {
 
     const marketSkillsJson = JSON.stringify(marketSkills)
 
-    // Call GPT-4o gap analyzer
-    const rawJson = await callGPT(
-      PROMPTS.GAP_ANALYZER,
-      `Student skills: ${userSkillsJson}. Target role: ${targetRole}. Top skills required by market: ${marketSkillsJson}. Analyze the gap.`
-    )
-    const analysis = JSON.parse(rawJson)
+    const analysis = await generateJson({
+      feature: 'gap_analysis',
+      system: PROMPTS.GAP_ANALYZER,
+      prompt: `Student skills: ${userSkillsJson}. Target role: ${targetRole}. Top skills required by market: ${marketSkillsJson}. Analyze the gap.`,
+      schema: gapAnalysisSchema,
+      userId,
+      temperature: 0,
+    })
 
     // Update user's readiness score (fetch with College relation for collegeTier)
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { readinessScore: true, year: true, College: { select: { tier: true } } }
     })
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        readinessScorePrev: user?.readinessScore,
-        readinessScore: analysis.readiness_percentage,
-        targetRole,
-      },
-    })
 
-    // Delete old unclosed gaps and save new ones
-    await prisma.skillGap.deleteMany({ where: { userId, closed: false } })
-
-    if (analysis.missing_skills?.length > 0) {
-      await prisma.skillGap.createMany({
-        data: analysis.missing_skills.map((g: {
-          skill: string; urgency: string; weeks_to_learn: number; why_important: string
-        }) => ({
+    // Replace unclosed gaps atomically so a failure can't leave the user with none
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          readinessScorePrev: user?.readinessScore,
+          readinessScore: analysis.readiness_percentage,
+          targetRole,
+        },
+      }),
+      prisma.skillGap.deleteMany({ where: { userId, closed: false } }),
+      prisma.skillGap.createMany({
+        data: analysis.missing_skills.map(g => ({
           userId,
           missingSkill: g.skill,
           urgency: g.urgency,
           weeksToLearn: g.weeks_to_learn,
           whyImportant: g.why_important,
         })),
-      })
-    }
+      }),
+    ])
 
     // Store anonymous benchmark with real collegeTier from institution record
     const rawTier = user?.College?.tier  // e.g. "1", "2", "Tier-1", "A"
@@ -98,6 +99,8 @@ export async function POST(req: NextRequest) {
 
     return ok({ analysis })
   } catch (err) {
+    const failure = aiFailure(err)
+    if (failure) return failure
     console.error('[gaps/analyze]', err)
     return serverError()
   }

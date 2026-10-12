@@ -60,6 +60,7 @@ model User {
   Notifications        Notification[]
   InterviewStories     InterviewStory[]
   NegotiationScripts   NegotiationScript[]
+  AiUsage              AiUsage[]
 }
 
 model SkillProfile {
@@ -72,6 +73,8 @@ model SkillProfile {
   extractedAt DateTime @default(now())
 
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model JobPosting {
@@ -86,6 +89,8 @@ model JobPosting {
   scrapedAt      DateTime  @default(now())
   source         String    @default("linkedin")
   demandWeek     Int       // ISO week number (1-53)
+
+  @@index([demandWeek])
 }
 
 model SkillGap {
@@ -102,6 +107,8 @@ model SkillGap {
   identifiedAt    DateTime @default(now())
 
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, closed])
 }
 
 model Sprint {
@@ -116,6 +123,8 @@ model Sprint {
   completedAt          DateTime?
 
   user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
 }
 
 model Benchmark {
@@ -137,6 +146,8 @@ model OptimizerSession {
   createdAt      DateTime @default(now())
 
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // -------------------------------------------------------------
@@ -180,6 +191,8 @@ model FacultyJobPosting {
   driveDate        DateTime?
   applicationCount Int      @default(0)
   createdAt        DateTime @default(now())
+
+  @@index([collegeId])
 }
 
 model JobApplication {
@@ -192,6 +205,9 @@ model JobApplication {
   appliedAt       DateTime @default(now())
 
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([jobPostingId])
 }
 
 model ResumeVersion {
@@ -204,6 +220,8 @@ model ResumeVersion {
   createdAt       DateTime @default(now())
 
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model OpenClawConfig {
@@ -249,6 +267,9 @@ model OpenClawApplication {
 
   user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   listing         OpenClawListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([listingId])
 }
 
 model RecruiterTalentView {
@@ -261,6 +282,9 @@ model RecruiterTalentView {
   notes           String?
 
   student         User      @relation("TalentViews", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([recruiterId, studentId])
+  @@index([studentId])
 }
 
 model IndiaMarketData {
@@ -284,6 +308,8 @@ model PlacementRecord {
   offerDate       DateTime?
   batch           String?
   isVerified      Boolean  @default(false)
+
+  @@index([collegeId])
 }
 
 model ResumeSection {
@@ -292,6 +318,8 @@ model ResumeSection {
   type            String   // Summary | Experience | Skills | Projects | Education
   content         Json
   atsContribution Float?
+
+  @@index([resumeVersionId])
 }
 
 model Notification {
@@ -305,6 +333,8 @@ model Notification {
   createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
 }
 
 // -------------------------------------------------------------
@@ -338,6 +368,8 @@ model InterviewStory {
   createdAt      DateTime @default(now())
 
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model NegotiationScript {
@@ -350,4 +382,26 @@ model NegotiationScript {
   createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// -------------------------------------------------------------
+// PLATFORM / OPERATIONS
+// -------------------------------------------------------------
+
+// One row per LLM call — drives per-user daily quotas and cost reporting (lib/ai)
+model AiUsage {
+  id               String   @id @default(cuid())
+  userId           String?
+  feature          String   // e.g. resume_parse, gap_analysis, sprint
+  model            String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  success          Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
 }

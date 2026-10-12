@@ -1,5 +1,6 @@
 import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
+import { AiError, aiErrorResponse } from '@/lib/ai'
 
 export type AuthSession = Awaited<ReturnType<typeof auth>>
 
@@ -23,6 +24,14 @@ export function badRequest(message: string) {
 
 export function serverError(message = 'Internal server error') {
   return NextResponse.json({ error: message }, { status: 500 })
+}
+
+/** Converts an AiError into the matching HTTP response; returns null for any other error. */
+export function aiFailure(err: unknown) {
+  if (!(err instanceof AiError)) return null
+  console.error('[ai]', err.message)
+  const { status, error } = aiErrorResponse(err)
+  return NextResponse.json({ error }, { status })
 }
 
 export function ok(data: unknown) {

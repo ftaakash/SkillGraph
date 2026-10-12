@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { v2 as cloudinary } from 'cloudinary'
 import { generateResumePDFBuffer } from '@/lib/resume/exporter'
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-})
+import { putPrivateFile } from '@/lib/storage'
 
 export async function POST(req: NextRequest) {
   try {
@@ -55,19 +49,12 @@ export async function POST(req: NextRequest) {
 
     const pdfBuffer = await generateResumePDFBuffer(resumeData)
 
+    // Best-effort private copy; downloads regenerate from sections if this is missing
     let cloudinaryUrl: string | null = null
-    if (process.env.CLOUDINARY_API_KEY) {
-      try {
-        const uploadResult = await new Promise((resolve, reject) => {
-          cloudinary.uploader.upload_stream({ resource_type: 'raw', format: 'pdf' }, (error, result) => {
-            if (error) reject(error)
-            else resolve(result)
-          }).end(pdfBuffer)
-        }) as any
-        cloudinaryUrl = uploadResult.secure_url
-      } catch (e) {
-        console.error('Cloudinary upload error:', e)
-      }
+    try {
+      cloudinaryUrl = await putPrivateFile('resumes', `cv_${Date.now()}.pdf`, new Uint8Array(pdfBuffer))
+    } catch (e) {
+      console.error('[resume/generate] private storage upload failed:', e)
     }
 
     const version = await prisma.resumeVersion.create({
