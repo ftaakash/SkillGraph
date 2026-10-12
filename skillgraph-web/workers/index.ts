@@ -16,6 +16,7 @@ import { PROMPTS } from '../lib/openai'
 import { generateJson } from '../lib/ai'
 import { sprintSchema } from '../lib/ai/schemas'
 import { processOpenClawAgent } from '../lib/openclaw/agent'
+import { PLANS, type PlanId } from '../lib/billing/plans'
 
 const redisUrl = process.env.REDIS_URL
 if (!redisUrl) {
@@ -43,7 +44,8 @@ const scraperQueue = new Queue('jobScraper', redisUrl, bullOpts)
 const sprintQueue = new Queue('sprints', redisUrl, bullOpts)
 const reportQueue = new Queue('monthlyReports', redisUrl, bullOpts)
 const openclawQueue = new Queue('openclaw', redisUrl, bullOpts)
-const queues = [scraperQueue, sprintQueue, reportQueue, openclawQueue]
+const billingQueue = new Queue('billing', redisUrl, bullOpts)
+const queues = [scraperQueue, sprintQueue, reportQueue, openclawQueue, billingQueue]
 
 // ── WORKER 1: Weekly market data (JSearch) ──
 scraperQueue.process(async () => {
@@ -152,6 +154,47 @@ openclawQueue.process(async () => {
   }
 })
 
+// ── WORKER 5: Billing maintenance (expiry, abandoned checkouts, renewal reminders) ──
+billingQueue.process(async () => {
+  const now = new Date()
+  const expired = await prisma.subscription.updateMany({
+    where: { status: 'active', periodEnd: { lte: now } },
+    data: { status: 'expired' },
+  })
+  const abandoned = await prisma.subscription.deleteMany({
+    where: { status: 'pending', createdAt: { lt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) } },
+  })
+
+  // Remind the purchaser once, 7 days before a period ends (only if no later period is already paid)
+  const windowStart = new Date(now.getTime() + 6 * 24 * 60 * 60 * 1000)
+  const windowEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const ending = await prisma.subscription.findMany({
+    where: { status: 'active', periodEnd: { gt: windowStart, lte: windowEnd } },
+  })
+  let reminded = 0
+  for (const sub of ending) {
+    const renewed = await prisma.subscription.findFirst({
+      where: { ownerType: sub.ownerType, ownerId: sub.ownerId, plan: sub.plan, status: 'active', periodStart: { gte: sub.periodEnd! } },
+      select: { id: true },
+    })
+    if (renewed) continue
+    const buyer = await prisma.user.findUnique({ where: { id: sub.purchasedByUserId }, select: { email: true, name: true } })
+    if (!buyer) continue
+    const plan = PLANS[sub.plan as PlanId]
+    try {
+      await sendEmail(
+        buyer.email,
+        `Your SkillGraph ${plan?.name ?? 'plan'} ends on ${sub.periodEnd!.toLocaleDateString('en-IN')}`,
+        `<p>Hi ${escapeHtml(buyer.name)},</p><p>Your <strong>${escapeHtml(plan?.name ?? sub.plan)}</strong> plan ends on ${sub.periodEnd!.toLocaleDateString('en-IN')}. Renew to keep your benefits without interruption.</p><p><a href="${process.env.NEXTAUTH_URL}/billing">Renew now →</a></p>`
+      )
+      reminded++
+    } catch (err) {
+      console.error(`[Billing] reminder failed for subscription ${sub.id}:`, (err as Error).message)
+    }
+  }
+  console.log(`[Billing] expired=${expired.count} abandonedCheckouts=${abandoned.count} reminders=${reminded}`)
+})
+
 for (const q of queues) {
   q.on('failed', (job, err) => console.error(`[${q.name}] job ${job.id} failed:`, err.message))
 }
@@ -166,11 +209,12 @@ async function scheduleJobs() {
   await sprintQueue.add({}, { repeat: { cron: '*/5 * * * *' } })     // every 5 minutes
   await reportQueue.add({}, { repeat: { cron: '30 2 1 * *' } })      // 1st of month 08:00 IST
   await openclawQueue.add({}, { repeat: { cron: '0 1 * * *' } })     // daily 06:30 IST
+  await billingQueue.add({}, { repeat: { cron: '30 0 * * *' } })     // daily 06:00 IST
 
   // Optional immediate market-data refresh (uses paid API quota)
   if (process.env.RUN_SCRAPER_ON_START === 'true') await scraperQueue.add({})
 
-  console.log('✅ SkillGraph workers started: market data (weekly), sprints (5 min), reports (monthly), OpenClaw (daily)')
+  console.log('✅ SkillGraph workers started: market data (weekly), sprints (5 min), reports (monthly), OpenClaw (daily), billing (daily)')
 }
 
 // ── Health endpoint for the container platform ──

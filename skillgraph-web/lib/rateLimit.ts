@@ -122,6 +122,14 @@ const MINUTE = 60_000
 
 export const RATE_LIMIT_RULES: RateLimitRule[] = [
   {
+    // Creating payment orders and confirming payments
+    name: 'billing',
+    limit: 20,
+    windowMs: 60 * MINUTE,
+    methods: ['POST'],
+    match: (p) => p.startsWith('/api/billing/checkout') || p.startsWith('/api/billing/verify'),
+  },
+  {
     // Login + all registration endpoints — credential stuffing / signup spam
     name: 'auth',
     limit: 10,

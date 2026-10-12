@@ -9,6 +9,8 @@ const PUBLIC_PREFIXES = [
   '/api/auth', '/api/health', '/api/stats',
   // Cron target — authenticates via x-cron-secret, not a session
   '/api/openclaw/integrity',
+  // Payment provider callbacks — authenticated by HMAC signature, not a session
+  '/api/billing/webhook',
 ]
 
 const REQUEST_ID = /^[\w-]{8,64}$/

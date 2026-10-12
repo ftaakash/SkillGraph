@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { created, unauthorized, serverError, badRequest } from '@/lib/api'
 import { z } from 'zod'
+import { campusApplyBlocker } from '@/lib/tenant'
 
 const applySchema = z.object({
   jobPostingId: z.string(),
@@ -20,6 +21,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const parsed = applySchema.safeParse(body)
     if (!parsed.success) return badRequest(parsed.error.message)
+
+    // The posting must belong to the student's college and still be open
+    const blocker = await campusApplyBlocker(user.id, parsed.data.jobPostingId)
+    if (blocker) return badRequest(blocker)
 
     const existing = await prisma.jobApplication.findFirst({
       where: { userId: user.id, jobPostingId: parsed.data.jobPostingId },

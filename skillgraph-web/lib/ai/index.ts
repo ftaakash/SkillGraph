@@ -11,12 +11,16 @@
 import { z } from 'zod'
 import { openai, type GPTModel } from '@/lib/openai'
 import { prisma } from '@/lib/prisma'
+import { getEntitlements } from '@/lib/billing'
 
 export const DEFAULT_MODEL: GPTModel = 'llama-3.3-70b-versatile'
 const REQUEST_TIMEOUT_MS = 45_000
 const SDK_MAX_RETRIES = 2
 
-/** Tokens a single user may consume per rolling 24h. Override with AI_DAILY_TOKEN_LIMIT. */
+/**
+ * Fallback daily token limit when a user's plan can't be resolved. Per-plan limits live in
+ * lib/billing/plans.ts; AI_DAILY_TOKEN_LIMIT, if set, caps every plan (emergency cost brake).
+ */
 export function dailyTokenLimit(): number {
   const raw = Number(process.env.AI_DAILY_TOKEN_LIMIT)
   return Number.isFinite(raw) && raw > 0 ? raw : 200_000
@@ -35,7 +39,7 @@ export class AiError extends Error {
 export function aiErrorResponse(err: AiError): { status: number; error: string } {
   switch (err.code) {
     case 'quota_exceeded':
-      return { status: 429, error: 'Daily AI usage limit reached. Please try again tomorrow.' }
+      return { status: 429, error: 'Daily AI usage limit reached for your plan. Try again tomorrow or upgrade on the Billing page.' }
     case 'invalid_output':
       return { status: 502, error: 'The AI returned an unexpected response. Please retry.' }
     default:
@@ -51,7 +55,10 @@ export async function assertAiQuota(userId: string): Promise<void> {
       _sum: { promptTokens: true, completionTokens: true },
     })
     const used = (usage._sum.promptTokens ?? 0) + (usage._sum.completionTokens ?? 0)
-    if (used >= dailyTokenLimit()) {
+    const planLimit = await getEntitlements(userId).then(e => e.limits.aiTokensPerDay).catch(() => dailyTokenLimit())
+    const cap = Number(process.env.AI_DAILY_TOKEN_LIMIT)
+    const limit = Number.isFinite(cap) && cap > 0 ? Math.min(planLimit, cap) : planLimit
+    if (used >= limit) {
       throw new AiError('quota_exceeded', `User ${userId} exceeded daily AI token limit`)
     }
   } catch (err) {

@@ -27,6 +27,7 @@ const PROFILE_SELECT = {
   year: true, targetRole: true, readinessScore: true, resumeUrl: true,
   sprintsCompleted: true, optimizerSessions: true, createdAt: true,
   isProfileVisible: true, cgpa: true, linkedin: true, github: true, emailVerifiedAt: true,
+  collegeId: true, College: { select: { name: true, city: true } },
 } as const
 
 export async function GET() {

@@ -41,6 +41,8 @@ export const facultyRegisterSchema = z.object({
   state: optionalText,
   tier: optionalText,
   tpContactEmail: emailSchema.optional().or(z.literal('')),
+  // Required to join a college that already has a workspace
+  inviteCode: z.string().trim().max(32).optional().or(z.literal('')),
 })
 
 export const recruiterRegisterSchema = z.object({

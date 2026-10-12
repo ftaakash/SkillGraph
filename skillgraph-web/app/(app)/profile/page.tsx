@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { signOut } from "next-auth/react";
 import RecruiterRequests from "@/components/profile/RecruiterRequests";
 import PrivacyPanel from "@/components/profile/PrivacyPanel";
+import CollegeMembership from "@/components/profile/CollegeMembership";
 
 interface User { name: string; email: string; college: string; branch: string; year: string; targetRole: string; readinessScore: number; resumeUrl: string; sprintsCompleted: number; optimizerSessions: number; isProfileVisible: boolean }
 
@@ -300,6 +301,7 @@ export default function ProfilePage() {
               </div>
             </div>
 
+            <CollegeMembership />
             <RecruiterRequests />
             <PrivacyPanel />
           </div>

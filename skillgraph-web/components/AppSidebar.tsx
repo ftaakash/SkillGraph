@@ -23,6 +23,8 @@ import {
   Star,
   PlusCircle,
   GitBranch,
+  CreditCard,
+  KeyRound,
 } from "lucide-react";
 import SkillGraphLogo from "./SkillGraphLogo";
 
@@ -36,6 +38,7 @@ const studentNav = [
   { label: 'LinkedIn AI',     path: '/linkedin',        icon: User },
   { label: 'Benchmark',       path: '/benchmark',       icon: BarChart2 },
   { label: 'Profile',         path: '/profile',         icon: User },
+  { label: 'Plan & Billing',  path: '/billing',         icon: CreditCard },
 ];
 
 const facultyNav = [
@@ -45,6 +48,8 @@ const facultyNav = [
   { label: 'Cohort Analytics',path: '/faculty/analytics',   icon: BarChart3 },
   { label: 'Reports',         path: '/faculty/reports',      icon: FileOutput },
   { label: 'Companies',       path: '/faculty/companies',    icon: Building },
+  { label: 'Workspace',       path: '/faculty/workspace',    icon: KeyRound },
+  { label: 'Licence & Billing', path: '/billing',            icon: CreditCard },
 ];
 
 const recruiterNav = [
@@ -53,6 +58,7 @@ const recruiterNav = [
   { label: 'Post a Job',       path: '/recruiter/jobs/new',  icon: PlusCircle },
   { label: 'Pipeline',         path: '/recruiter/pipeline',  icon: GitBranch },
   { label: 'Analytics',        path: '/recruiter/analytics', icon: TrendingUp },
+  { label: 'Plan & Billing',   path: '/billing',             icon: CreditCard },
 ];
 
 const AppSidebar = () => {

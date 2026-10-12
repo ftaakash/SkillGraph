@@ -26,6 +26,7 @@ export default function FacultyRegisterPage() {
     state: "",
     tier: "Tier-2",
     tpContactEmail: "",
+    inviteCode: "",
   });
 
   const handleRegister = async (e?: React.FormEvent) => {
@@ -99,6 +100,14 @@ export default function FacultyRegisterPage() {
 
               <div className="border-t border-border pt-4 mt-2">
                 <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">College Details</p>
+              </div>
+
+              <div>
+                <label htmlFor="invite-code" className="sr-only">Faculty invite code</label>
+                <Input id="invite-code" placeholder="Faculty invite code (if your college is already on SkillGraph)" value={form.inviteCode}
+                  onChange={(e) => setForm({ ...form, inviteCode: e.target.value })}
+                  className="bg-muted border-border text-foreground placeholder:text-muted-foreground uppercase tracking-wider" autoComplete="off" />
+                <p className="text-[11px] text-muted-foreground mt-1">Leave blank to create a new workspace for your college — you&apos;ll be its admin.</p>
               </div>
 
               <div className="relative">
