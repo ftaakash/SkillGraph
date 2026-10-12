@@ -5,7 +5,7 @@
 </p>
 
 ## Project Status ⚡
-![Deployment](https://img.shields.io/badge/Status-Production--Ready-00FFCC?style=for-the-badge)
+![Deployment](https://img.shields.io/badge/Status-Pre--Launch%20Hardening-FFB020?style=for-the-badge)
 ![Tech Stack](https://img.shields.io/badge/Stack-Next.js%2016%20|%20Prisma%20|%20Playwright-000000?style=for-the-badge)
 ![Auth](https://img.shields.io/badge/Auth-NextAuth%20v5-blue?style=for-the-badge)
 
@@ -44,7 +44,33 @@ The platform now supports **Authenticated Autonomous Applications**.
 - **Frontend**: Next.js 16 (App Router), Tailwind CSS
 - **Database**: PostgreSQL with Prisma ORM
 - **Automation**: Playwright (Authenticated State)
-- **AI Orhcestration**: GPT-4o / Llama 3.3
+- **AI Orchestration**: GPT-4o / Llama 3.3
+
+---
+
+## 🧭 Road to Production Launch
+
+SkillGraph is moving from a working prototype to a sellable product. The full analysis, options considered and
+decision are in **[ADR-001: Production Architecture & Launch-Readiness Plan](docs/adr/ADR-001-production-architecture.md)**.
+
+**Architecture decision:** keep a *modular monolith* for the web tier (Next.js on Vercel), move browser automation
+and long-running jobs into a *separate worker service*, and make OpenClaw *compliant-by-design* (official job APIs +
+"assisted apply") instead of stealth automation of third-party sites.
+
+| Phase | Focus | Status |
+|-------|-------|--------|
+| **0 — Launch blockers** | Stop serving user résumés from `public/`, fail-closed cron auth, security headers, rate limiting, consistent validation, health check, `.env.example`, CI | 🟡 In progress |
+| **1 — Data & storage** | Prisma migrations, indexes & constraints, private object storage with signed URLs, schema-validated AI layer with quotas | ⏳ Planned |
+| **2 — OpenClaw compliance** | Remove stealth plugin & stored third-party cookies, official job sources, assisted apply, containerised workers | ⏳ Planned |
+| **3 — Trust & operations** | Email verification, password reset, mutual-consent recruiter reveal, DPDP/GDPR data rights, Sentry, tests | ⏳ Planned |
+| **4 — Commercial** | Billing & plan limits, multi-tenant college workspaces, load testing | ⏳ Planned |
+
+```
+ Browser ──► Next.js (Vercel, stateless) ──► lib/services ──► Postgres (migrations, backups)
+                 │   auth · RBAC · rate limit        ├─► lib/ai (validated outputs, quotas)
+                 │                                   └─► private object storage (signed URLs)
+                 └─► Redis queue ──► Worker service (job ingestion, sprints, reports, assisted apply)
+```
 
 ---
 
@@ -66,7 +92,8 @@ The platform now supports **Authenticated Autonomous Applications**.
 ## 🔨 How to Run locally
 
 ### 1. Configure the Environment
-Clone the repository and inject your configurations inside `skillgraph-web/.env.local` (OpenAI, Cloudinary, Database URLs).
+Clone the repository, copy `skillgraph-web/.env.example` to `skillgraph-web/.env.local` and fill in the values
+(database, NextAuth secret, LLM key, Cloudinary). The app fails fast at startup if a required variable is missing.
 
 ### 2. Physical Database Sync
 Initialize PostgreSQL and align the Prisma schema definitions locally:
@@ -81,10 +108,13 @@ npm run dev
 ```
 Navigate to `http://localhost:3000`.
 
-### 4. CareerOps Background Service
+### 4. Background Workers
 ```bash
-npx ts-node lib/openclaw/syncer.ts
+npx ts-node workers/index.ts
 ```
+
+### 5. Health Check
+`GET /api/health` returns `200` when the app and database are reachable (`503` otherwise) — point your uptime monitor here.
 
 ---
 <p align="center">
