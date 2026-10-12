@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { Mail, Lock, User, ArrowRight, RefreshCw, GraduationCap, Building2, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import TermsConsent from "@/components/auth/TermsConsent";
 import SkillGraphLogo from "@/components/SkillGraphLogo";
 import NetworkBackground from "@/components/NetworkBackground";
 import PageTransition from "@/components/PageTransition";
@@ -21,6 +22,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [selectedRole, setSelectedRole] = useState<"STUDENT" | "FACULTY" | "RECRUITER">("STUDENT");
   const [form, setForm] = useState({
     name: "",
@@ -40,7 +42,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, role: selectedRole }),
+        body: JSON.stringify({ ...form, role: selectedRole, acceptTerms }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -152,6 +154,8 @@ export default function RegisterPage() {
                 />
               </div>
 
+              <TermsConsent checked={acceptTerms} onChange={setAcceptTerms} />
+
               {error && (
                 <div className="text-destructive text-sm bg-destructive/10 border border-destructive/20 px-3 py-2 rounded-lg font-medium">
                   {error}
@@ -160,7 +164,7 @@ export default function RegisterPage() {
 
               <Button
                 type="submit"
-                disabled={loading || !form.name || !form.email || !form.password}
+                disabled={loading || !acceptTerms || !form.name || !form.email || !form.password}
                 className="w-full gradient-primary text-primary-foreground font-semibold glow-primary mt-4 group"
               >
                 {loading ? (

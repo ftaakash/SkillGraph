@@ -14,6 +14,7 @@ declare module 'next-auth' {
     role: 'STUDENT' | 'FACULTY' | 'RECRUITER'
     collegeId?: string | null
     companyId?: string | null
+    sessionVersion?: number
   }
 }
 
@@ -23,5 +24,7 @@ declare module 'next-auth/jwt' {
     role: 'STUDENT' | 'FACULTY' | 'RECRUITER'
     collegeId?: string | null
     companyId?: string | null
+    /** sessionVersion at sign-in; the session ends when it no longer matches the database */
+    sv?: number
   }
 }

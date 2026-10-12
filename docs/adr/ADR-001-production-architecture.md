@@ -171,12 +171,19 @@ The Phase 1 migration deletes `OpenClawApplication` rows whose listing no longer
 **Rollout:** deploy the code first, then `npm run db:migrate:deploy` (the column is unused by the new code). Run the worker on any container host (Railway/Fly/Render) with a working `REDIS_URL`.
 
 ### Phase 3 — Trust, compliance, operations (week 4–6)
-1. [ ] Email verification, password reset, optional Google OAuth; normalise emails to lower case (with a one-off migration of existing accounts).
-2. [ ] Mutual-consent recruiter reveal (student accepts before PII is shared) (H4).
-3. [ ] DPDP/GDPR: consent records, account deletion, data export endpoint, privacy policy & ToS pages.
-4. [ ] Sentry + structured logging + request IDs; uptime monitor on `/api/health`.
-5. [ ] Test pyramid: Vitest for `lib/` (scorer, matcher, parsers), Playwright e2e smoke for sign-up → upload → gap → sprint; make lint blocking.
-6. [ ] Move research artifacts (papers, drafts, docx) out of the product repo into `research/` or a separate repository.
+1. [x] **Account security.** Email verification and password reset with single-use, SHA-256-hashed, expiring tokens (`AuthToken`); the verify link POSTs from the page so mail scanners can't consume it; forgot-password answers identically for unknown emails. Emails are stored lower-case and matched case-insensitively. `sessionVersion` ends every existing session after a password change/reset or account deletion (checked in the NextAuth `jwt` callback with a 60 s cache). Changing the password now requires the current password (previously any session could change it, with a 6-character minimum). Login equalises timing for unknown emails. *Google OAuth deferred* — needs a Google Cloud client.
+2. [x] **Mutual-consent recruiter reveal (H4).** `revealStatus` none → requested → accepted/declined; identity (name, email, college, links) is masked in every recruiter response unless the student accepts that recruiter (`lib/talent.ts`). Students accept, decline or revoke from their profile; declined requests have a 30-day cooldown. Also fixed: `shortlist`/`pipeline` returned name + email for every shortlisted student; `shortlist` accepted any user id (including non-opted-in users); `pipeline` PATCH had no ownership check. The migration converts existing shortlists to pending requests.
+3. [x] **Data rights (DPDP/GDPR).** Consent recorded at registration (`termsAcceptedAt`, `termsVersion`; checkbox required); `GET /api/users/me/export` (JSON of all user data); password-confirmed `DELETE /api/users/me` that removes non-cascading rows and stored files; `/privacy` and `/terms` pages describing actual data handling — **pending legal review**.
+4. [x] **Observability.** Structured JSON logging (`lib/log.ts`), `x-request-id` on every request/response (proxy), `instrumentation.ts` `onRequestError` logs unhandled errors with the request id and optionally forwards to `ERROR_WEBHOOK_URL`. Unauthenticated API calls now get `401` JSON instead of a redirect to the login page. *Sentry SDK deferred* (large dependency — install `@sentry/nextjs` when a DSN exists); point an uptime monitor at `/api/health`.
+5. [x] **Tests & CI.** 17 unit tests on Node's built-in runner (`npm test`, no new dependencies) covering the SSRF guard, restricted sources, ATS parsing, AI output schemas, rate limiting, consent masking, token hashing, registration validation, status rules and storage path safety. CI now blocks on lint errors and runs the tests. Existing lint errors fixed at the root (impure renders, set-state-in-effect, unescaped entities); legacy `no-explicit-any` is a warning (tracked debt). Also fixed: the jobs page never applied CGPA eligibility (read the wrong response key). *Playwright e2e deferred* — needs a disposable test database and browser download.
+6. [x] Research artefacts moved to `research/` (papers, reports, design docs, prototypes, screenshots).
+
+**Rollout (order matters):** apply the migrations **before** deploying this code — Phase 3 adds `User` columns that every user query selects:
+```bash
+npm run db:migrate:baseline   # once, if not done yet
+npm run db:migrate:deploy     # applies Phase 1, 2 and 3 migrations
+```
+Then set `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `APP_URL` and `CONTACT_EMAIL`, and merge.
 
 ### Phase 4 — Commercial readiness
 1. [ ] Billing (Razorpay for India / Stripe) with plan limits enforced via the AI quota system.

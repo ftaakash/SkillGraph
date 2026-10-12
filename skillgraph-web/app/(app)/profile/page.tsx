@@ -7,6 +7,9 @@ import PageTransition from "@/components/PageTransition";
 import { useDropzone } from 'react-dropzone';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { signOut } from "next-auth/react";
+import RecruiterRequests from "@/components/profile/RecruiterRequests";
+import PrivacyPanel from "@/components/profile/PrivacyPanel";
 
 interface User { name: string; email: string; college: string; branch: string; year: string; targetRole: string; readinessScore: number; resumeUrl: string; sprintsCompleted: number; optimizerSessions: number; isProfileVisible: boolean }
 
@@ -18,6 +21,7 @@ export default function ProfilePage() {
   // Settings Form
   const [form, setForm] = useState({ name: '', college: '', branch: '', year: '', targetRole: '', cgpa: '' });
   const [password, setPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [settingsError, setSettingsError] = useState('');
@@ -63,19 +67,29 @@ export default function ProfilePage() {
     if (form.cgpa) payload.cgpa = parseFloat(form.cgpa);
     else delete payload.cgpa;
     if (password) {
-      if (password.length < 6) {
-        setSettingsError('Password must be at least 6 characters.');
+      if (password.length < 8) {
+        setSettingsError('Password must be at least 8 characters.');
+        setSavingSettings(false);
+        return;
+      }
+      if (!currentPassword) {
+        setSettingsError('Enter your current password to set a new one.');
         setSavingSettings(false);
         return;
       }
       payload.password = password;
+      payload.currentPassword = currentPassword;
     }
 
     try {
       const res = await fetch('/api/users/me', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const d = await res.json();
       if (!res.ok) {
-        const d = await res.json();
         setSettingsError(d.error || 'Failed to update profile');
+      } else if (d.signedOut) {
+        // A password change ends every session, including this one
+        await signOut({ redirect: false });
+        window.location.href = '/login?reason=password';
       } else {
         setSettingsSaved(true);
         setPassword('');
@@ -185,11 +199,19 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="pt-6 mt-4 border-t border-border/50">
-                  <label className="text-sm text-foreground font-medium mb-1.5 block">Update Password</label>
+                  <label htmlFor="new-password" className="text-sm text-foreground font-medium mb-1.5 block">Update Password</label>
                   <div className="relative">
                      <Shield className="absolute left-3 top-3 text-muted-foreground" size={16} />
-                     <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 bg-background border-border text-foreground focus:border-primary transition-colors" placeholder="Leave blank to keep current" />
+                     <Input id="new-password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 bg-background border-border text-foreground focus:border-primary transition-colors" placeholder="New password — leave blank to keep current" />
                   </div>
+                  {password && (
+                    <div className="relative mt-2">
+                      <Shield className="absolute left-3 top-3 text-muted-foreground" size={16} />
+                      <label htmlFor="current-password" className="sr-only">Current password</label>
+                      <Input id="current-password" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className="pl-10 bg-background border-border text-foreground focus:border-primary transition-colors" placeholder="Current password" />
+                      <p className="text-[11px] text-muted-foreground mt-1">Changing your password signs you out on every device.</p>
+                    </div>
+                  )}
                 </div>
 
                 {settingsError && <div className="text-destructive text-sm bg-destructive/10 border border-destructive/20 px-4 py-3 rounded-lg font-medium">{settingsError}</div>}
@@ -277,6 +299,9 @@ export default function ProfilePage() {
                 </button>
               </div>
             </div>
+
+            <RecruiterRequests />
+            <PrivacyPanel />
           </div>
 
         </div>

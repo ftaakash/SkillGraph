@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Mail, Lock, ArrowRight, GraduationCap, Building2, Briefcase } from "lucide-react";
@@ -18,13 +18,29 @@ const roles = [
   { key: "RECRUITER" as const, label: "Recruiter", icon: Briefcase },
 ];
 
+// Explains why the user landed here (after a reset, a password change or account deletion)
+const REASONS: Record<string, string> = {
+  reset: "Password updated. Sign in with your new password.",
+  password: "Your password was changed, so you were signed out everywhere. Sign in again.",
+  deleted: "Your account and data have been deleted.",
+};
+
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <Login />
+    </Suspense>
+  );
+}
+
+function Login() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<"STUDENT" | "FACULTY" | "RECRUITER">("STUDENT");
+  const notice = REASONS[useSearchParams().get("reason") ?? ""] ?? "";
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,8 +125,20 @@ export default function LoginPage() {
                 />
               </div>
 
+              <div className="flex justify-end -mt-1">
+                <Link href="/forgot-password" className="text-xs text-muted-foreground hover:text-primary hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
+
+              {notice && !error && (
+                <div role="status" className="text-sm bg-primary/10 border border-primary/20 text-foreground px-3 py-2 rounded-lg">
+                  {notice}
+                </div>
+              )}
+
               {error && (
-                <div className="text-destructive text-sm bg-destructive/10 border border-destructive/20 px-3 py-2 rounded-lg">
+                <div role="alert" className="text-destructive text-sm bg-destructive/10 border border-destructive/20 px-3 py-2 rounded-lg">
                   {error}
                 </div>
               )}

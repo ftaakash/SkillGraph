@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { Mail, Lock, User, ArrowRight, Globe, Building, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import TermsConsent from "@/components/auth/TermsConsent";
 import SkillGraphLogo from "@/components/SkillGraphLogo";
 import NetworkBackground from "@/components/NetworkBackground";
 import PageTransition from "@/components/PageTransition";
@@ -15,6 +16,7 @@ export default function RecruiterRegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -33,7 +35,7 @@ export default function RecruiterRegisterPage() {
       const res = await fetch("/api/auth/register/recruiter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, acceptTerms }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -124,11 +126,13 @@ export default function RecruiterRegisterPage() {
                   className="bg-muted border-border text-foreground placeholder:text-muted-foreground" required />
               </div>
 
+              <TermsConsent checked={acceptTerms} onChange={setAcceptTerms} />
+
               {error && (
                 <div className="text-destructive text-sm bg-destructive/10 border border-destructive/20 px-3 py-2 rounded-lg font-medium">{error}</div>
               )}
 
-              <Button type="submit" disabled={loading || !form.name || !form.email || !form.password || !form.companyName}
+              <Button type="submit" disabled={loading || !acceptTerms || !form.name || !form.email || !form.password || !form.companyName}
                 className="w-full gradient-primary text-primary-foreground font-semibold glow-primary mt-4 group">
                 {loading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <>Create Recruiter Account <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" /></>}
               </Button>

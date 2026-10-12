@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
-import { ok, created, badRequest, serverError } from '@/lib/api'
+import { created, badRequest, serverError } from '@/lib/api'
 import { studentRegisterSchema, firstIssue } from '@/lib/validation/auth'
+import { emailInUse, consentFields, sendVerification } from '@/lib/accounts'
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,15 +13,15 @@ export async function POST(req: NextRequest) {
 
     const { name, email, password, role, college, branch, year, targetRole } = parsed.data
 
-    const existing = await prisma.user.findUnique({ where: { email } })
-    if (existing) return badRequest('Email already registered')
+    if (await emailInUse(email)) return badRequest('Email already registered')
 
     const passwordHash = await bcrypt.hash(password, 12)
 
     const user = await prisma.user.create({
-      data: { name, email, passwordHash, role, college, branch, year, targetRole },
+      data: { name, email, passwordHash, role, college, branch, year, targetRole, ...consentFields() },
       select: { id: true, name: true, email: true, targetRole: true },
     })
+    await sendVerification(user)
 
     return created({ user })
   } catch (err) {

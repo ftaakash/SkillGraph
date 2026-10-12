@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import AppSidebar from "./AppSidebar";
 import NotificationBell from "./NotificationBell";
+import EmailVerificationBanner from "./EmailVerificationBanner";
 
 const DashboardLayout = ({ children, title }: { children: ReactNode; title: string }) => {
   return (
@@ -14,6 +15,7 @@ const DashboardLayout = ({ children, title }: { children: ReactNode; title: stri
           </div>
           <NotificationBell />
         </header>
+        <EmailVerificationBanner />
         <div className="flex-1 p-8">
           {children}
         </div>

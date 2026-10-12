@@ -118,7 +118,7 @@ export default function SprintPage() {
             <div className="bg-card border border-border rounded-lg p-12 text-center max-w-sm mx-4 shadow-2xl animate-in zoom-in slide-in-from-bottom-5">
               <div className="text-6xl mb-6">🎉</div>
               <h2 className="text-2xl font-heading font-bold mb-3 text-foreground">Sprint Complete!</h2>
-              <p className="text-muted-foreground mb-8 text-sm leading-relaxed">Your readiness score just increased. Let's keep the momentum going!</p>
+              <p className="text-muted-foreground mb-8 text-sm leading-relaxed">Your readiness score just increased. Let&apos;s keep the momentum going!</p>
               <Button onClick={() => setShowConfetti(false)} className="w-full gradient-primary text-primary-foreground glow-primary">
                 Acknowledge
               </Button>
@@ -238,7 +238,7 @@ export default function SprintPage() {
                              className="flex items-center gap-2 text-[11px] text-zinc-500 hover:text-red-400 transition-colors ml-11"
                            >
                              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-                             Search YouTube for "{day.topic}"
+                             Search YouTube for &ldquo;{day.topic}&rdquo;
                            </a>
                          </div>
                          <div className="text-right">

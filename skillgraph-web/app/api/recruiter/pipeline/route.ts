@@ -1,33 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
+import { listShortlist } from '@/lib/talent'
 
 const PIPELINE_STAGES = ['Shortlisted', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected']
 
+async function recruiterId() {
+  const session = await auth()
+  const user = session?.user as { id?: string; role?: string } | undefined
+  return user?.role === 'RECRUITER' && user.id ? user.id : null
+}
+
 export async function GET() {
   try {
-    const session = await auth()
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const user = session.user as { id?: string; role?: string }
-    if (user.role !== 'RECRUITER' || !user.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const id = await recruiterId()
+    if (!id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const views = await prisma.recruiterTalentView.findMany({
-      where: { recruiterId: user.id, shortlisted: true },
-      include: {
-        student: {
-          select: { id: true, name: true, email: true, college: true, branch: true, readinessScore: true, targetRole: true },
-        },
-      },
-      orderBy: { viewedAt: 'desc' },
-    })
+    const views = await listShortlist(id)
 
-    // Group by pipeline stage (stored in notes field as convention)
+    // Group by pipeline stage (stored in the notes field by convention)
     const pipeline: Record<string, typeof views> = {}
     for (const stage of PIPELINE_STAGES) pipeline[stage] = []
     for (const v of views) {
       const stage = v.notes || 'Shortlisted'
-      if (pipeline[stage]) pipeline[stage].push(v)
-      else pipeline['Shortlisted'].push(v)
+      ;(pipeline[stage] ?? pipeline['Shortlisted']).push(v)
     }
 
     return NextResponse.json({ pipeline, stages: PIPELINE_STAGES })
@@ -37,23 +34,24 @@ export async function GET() {
   }
 }
 
+const patchSchema = z.object({ viewId: z.string().min(1).max(64), stage: z.enum(PIPELINE_STAGES as [string, ...string[]]) })
+
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const user = session.user as { id?: string; role?: string }
-    if (user.role !== 'RECRUITER' || !user.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const id = await recruiterId()
+    if (!id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { viewId, stage } = await req.json()
-    if (!viewId || !stage) return NextResponse.json({ error: 'viewId and stage required' }, { status: 400 })
-    if (!PIPELINE_STAGES.includes(stage)) return NextResponse.json({ error: 'Invalid stage' }, { status: 400 })
+    const parsed = patchSchema.safeParse(await req.json())
+    if (!parsed.success) return NextResponse.json({ error: 'viewId and a valid stage are required' }, { status: 400 })
 
-    const updated = await prisma.recruiterTalentView.update({
-      where: { id: viewId },
-      data: { notes: stage },
+    // Scoped to the recruiter's own views
+    const result = await prisma.recruiterTalentView.updateMany({
+      where: { id: parsed.data.viewId, recruiterId: id },
+      data: { notes: parsed.data.stage },
     })
+    if (result.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    return NextResponse.json({ view: updated })
+    return NextResponse.json({ view: { id: parsed.data.viewId, notes: parsed.data.stage } })
   } catch (err) {
     console.error('[recruiter/pipeline PATCH]', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

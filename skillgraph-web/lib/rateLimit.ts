@@ -127,7 +127,11 @@ export const RATE_LIMIT_RULES: RateLimitRule[] = [
     limit: 10,
     windowMs: 15 * MINUTE,
     methods: ['POST'],
-    match: (p) => p.startsWith('/api/auth/callback/credentials') || p.startsWith('/api/auth/register'),
+    match: (p) =>
+      p.startsWith('/api/auth/callback/credentials') ||
+      p.startsWith('/api/auth/register') ||
+      p.startsWith('/api/auth/password') ||
+      p.startsWith('/api/auth/verify-email'),
   },
   {
     // Endpoints that call the LLM — bounds per-user AI spend

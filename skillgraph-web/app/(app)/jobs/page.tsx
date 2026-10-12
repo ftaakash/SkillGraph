@@ -60,6 +60,7 @@ export default function StudentJobsPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -67,12 +68,14 @@ export default function StudentJobsPage() {
       fetch("/api/users/me").then(r => r.json()).catch(() => null),
     ]).then(([jobsData, profileData]) => {
       setJobs(jobsData.jobs ?? []);
-      if (profileData) {
+      setNow(Date.now());
+      const me = profileData?.user;
+      if (me) {
         setProfile({
-          cgpa: profileData.cgpa ?? null,
-          branch: profileData.branch ?? null,
-          skills: profileData.skills ?? [],
-          targetRole: profileData.targetRole ?? null,
+          cgpa: me.cgpa ?? null,
+          branch: me.branch ?? null,
+          skills: me.skills ?? [],
+          targetRole: me.targetRole ?? null,
         });
       }
       setLoading(false);
@@ -80,7 +83,7 @@ export default function StudentJobsPage() {
   }, []);
 
   const daysLeft = (deadline: string) => {
-    return Math.ceil((new Date(deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    return Math.ceil((new Date(deadline).getTime() - (now ?? new Date(deadline).getTime())) / (1000 * 60 * 60 * 24));
   };
 
   const isEligible = (job: Job) => {
