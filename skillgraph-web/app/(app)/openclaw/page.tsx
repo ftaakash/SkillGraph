@@ -27,16 +27,19 @@ interface OpenClawConfig {
 
 interface AppStats {
   total: number;
-  appliedToday: number;
+  preparedToday: number;
+  readyToApply: number;
   avgMatchScore: number;
 }
 
 export default function OpenClawPage() {
   const [config, setConfig] = useState<OpenClawConfig | null>(null);
   const [applications, setApplications] = useState<any[]>([]);
-  const [stats, setStats] = useState<AppStats>({ total: 0, appliedToday: 0, avgMatchScore: 0 });
+  const [stats, setStats] = useState<AppStats>({ total: 0, preparedToday: 0, readyToApply: 0, avgMatchScore: 0 });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [agentMessage, setAgentMessage] = useState("");
 
   // Editable form state
   const [targetRoles, setTargetRoles] = useState("");
@@ -64,7 +67,7 @@ export default function OpenClawPage() {
         setPhone(cfg.phone || "");
       }
       setApplications(appData.applications ?? []);
-      setStats(appData.stats ?? { total: 0, appliedToday: 0, avgMatchScore: 0 });
+      setStats(appData.stats ?? { total: 0, preparedToday: 0, readyToApply: 0, avgMatchScore: 0 });
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -84,9 +87,9 @@ export default function OpenClawPage() {
       minCtcLpa,
       dailyLimit,
       blacklistedCompanies: blacklisted.split(",").map(s => s.trim()).filter(Boolean),
-      isActive: config?.isActive ?? true,
-      applicationEmail: applicationEmail.trim() || undefined,
-      phone: phone.trim() || undefined,
+      isActive: config?.isActive ?? false,
+      applicationEmail: applicationEmail.trim(),
+      phone: phone.trim(),
     };
 
     const res = await fetch("/api/openclaw/config", {
@@ -95,7 +98,12 @@ export default function OpenClawPage() {
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    setConfig(data.config);
+    if (res.ok) {
+      setConfig(data.config);
+      setAgentMessage("Preferences saved.");
+    } else {
+      setAgentMessage(data.error ?? "Could not save preferences.");
+    }
     setSaving(false);
   };
 
@@ -108,27 +116,28 @@ export default function OpenClawPage() {
       body: JSON.stringify(payload),
     });
     const data = await res.json();
+    if (!res.ok) {
+      setAgentMessage(data.error ?? "Could not update the agent.");
+      return;
+    }
     setConfig(data.config);
 
+    // Active = the nightly run prepares matches; also run once now for immediate results
     if (isActivating) {
-      // Kick off the manual trigger
+      setRunning(true);
+      setAgentMessage("Finding and evaluating matching roles…");
       try {
-        await fetch("/api/openclaw/trigger", { method: "POST" });
-        
-        // Return toggle back to paused state automatically when finished
-        const resetRes = await fetch("/api/openclaw/config", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isActive: false }),
-        });
-        const resetData = await resetRes.json();
-        setConfig(resetData.config);
-
-        // Once the synchronous playwight agent finishes, reload data
+        const runRes = await fetch("/api/openclaw/trigger", { method: "POST" });
+        const run = await runRes.json();
+        setAgentMessage(run.message ?? run.error ?? "Run finished.");
         loadData();
-      } catch (err) {
-        console.error("Trigger fail", err);
+      } catch {
+        setAgentMessage("The run failed. Please try again.");
+      } finally {
+        setRunning(false);
       }
+    } else {
+      setAgentMessage("");
     }
   };
 
@@ -149,12 +158,17 @@ export default function OpenClawPage() {
         <div className="mb-6">
           <AgentStatusCard
             isActive={config?.isActive ?? false}
-            appliedToday={stats.appliedToday}
+            preparedToday={stats.preparedToday}
+            readyToApply={stats.readyToApply}
             dailyLimit={config?.dailyLimit ?? 10}
             totalApplications={stats.total}
             avgMatchScore={stats.avgMatchScore}
+            running={running}
             onToggle={toggleAgent}
           />
+          {agentMessage && (
+            <p role="status" className="mt-2 text-xs text-muted-foreground px-1">{agentMessage}</p>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">

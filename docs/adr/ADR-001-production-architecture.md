@@ -162,10 +162,13 @@ npm run db:migrate:deploy     # applies the Phase 1 migration
 The Phase 1 migration deletes `OpenClawApplication` rows whose listing no longer exists (1 row at the time of writing) so the foreign key can be created. Usage metering is fail-soft until the migration is applied. After rollout, set the Vercel build command to `prisma migrate deploy && next build` and replace the `findFirst`-then-write in `recruiter/reveal` with an `upsert` on the new unique key.
 
 ### Phase 2 — OpenClaw compliance re-architecture (week 2–4)
-1. [ ] Remove stealth plugin and stored third-party session cookies; delete `sessionData` column after migration (C3).
-2. [ ] Job ingestion from official/public APIs (JSearch already integrated; add Adzuna, Greenhouse/Lever/Ashby boards).
-3. [ ] "Assisted Apply": generate tailored résumé + answers, open the posting for the user to submit; auto-submit only where an official API allows it.
-4. [ ] Deploy `workers/` as a container service with its own health check and queue dashboards.
+1. [x] Removed browser automation entirely: `playwright`, `playwright-extra` and the stealth plugin are uninstalled; `scraper.ts`, `applicator.ts`, `syncer.ts` and `POST /api/openclaw/sync` are deleted. Migration `20261013120000_phase2_remove_third_party_sessions` drops `OpenClawConfig.sessionData`, permanently deleting stored third-party cookies (C3).
+2. [x] `lib/jobs`: compliant ingestion — official public ATS APIs (Greenhouse, Lever, Ashby), licensed aggregators for discovery (JSearch; Adzuna optional), a single SSRF-guarded static GET for company career pages, and pasted JD text. LinkedIn, Naukri, Indeed, Glassdoor and similar boards are never fetched; users paste the description instead. The previous pipeline launched headless Chromium on any user-supplied URL (an SSRF vector); the guard now blocks private/link-local/metadata addresses, non-standard ports and credentialed URLs, and re-checks every redirect.
+3. [x] Assisted apply: the agent discovers roles, filters blacklisted companies and duplicates, scores fit, and for strong matches generates the tailored résumé and queues it as `ReadyToApply`. The student opens the posting, submits, and marks it `Applied`. Statuses are validated (`lib/openclaw/status.ts`). Placeholder phone numbers / invented LinkedIn URLs are no longer printed on résumés.
+4. [x] `workers/` runs as its own service (`npm run worker`, `Dockerfile.worker`) with a `/health` endpoint, graceful shutdown, a daily OpenClaw run for active students, verified TLS to Redis, and HTML-escaped emails. *Queue dashboards deferred to Phase 3.*
+5. [x] Remaining LLM calls (matcher, 10-dimension scorer, negotiator, story bank, worker sprint/skill extraction) moved to `lib/ai`. Fixed along the way: the story bank never saved stories (array requested in JSON-object mode); the scorer's duplicate check flagged every student with any application; the OpenClaw page called `GET`/`PUT /api/openclaw/config`, which did not exist, so preferences never saved; activating the agent switched it back off after one run.
+
+**Rollout:** deploy the code first, then `npm run db:migrate:deploy` (the column is unused by the new code). Run the worker on any container host (Railway/Fly/Render) with a working `REDIS_URL`.
 
 ### Phase 3 — Trust, compliance, operations (week 4–6)
 1. [ ] Email verification, password reset, optional Google OAuth; normalise emails to lower case (with a one-off migration of existing accounts).

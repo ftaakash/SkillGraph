@@ -1,126 +1,47 @@
 import { NextRequest } from 'next/server'
+import { z } from 'zod'
 import { auth } from '@/auth'
-import { prisma } from '@/lib/prisma'
-import { ok, unauthorized, serverError, badRequest } from '@/lib/api'
-import { scoreJobListing } from '@/lib/openclaw/scorer'
-import { extractStories } from '@/lib/openclaw/storybank'
-import { scrapeJobUrl } from '@/lib/openclaw/scraper'
+import { ok, unauthorized, serverError, badRequest, aiFailure, jobSourceFailure } from '@/lib/api'
+import { resolveJobFromUrl, listingFromPastedText } from '@/lib/jobs'
+import { evaluateListing } from '@/lib/openclaw/evaluate'
+import { firstIssue } from '@/lib/validation/auth'
 
+export const maxDuration = 60
+
+// Either a job link (official ATS API / public career page) or pasted JD text (required for LinkedIn, Naukri, …)
+const bodySchema = z.union([
+  z.object({ jobUrl: z.string().trim().url().max(2000) }),
+  z.object({
+    jdText: z.string().min(1).max(20000),
+    company: z.string().trim().min(1).max(200),
+    role: z.string().trim().min(1).max(200),
+    location: z.string().trim().max(200).optional(),
+    sourceUrl: z.string().trim().url().max(2000).optional().or(z.literal('')),
+  }),
+])
+
+// POST /api/openclaw/pipeline — evaluate one job for the signed-in student
 export async function POST(req: NextRequest) {
   try {
     const session = await auth()
     if (!session?.user) return unauthorized()
     const userId = session.user.id as string
 
-    const { jobUrl } = await req.json()
-    if (!jobUrl) return badRequest('jobUrl is required')
+    const parsed = bodySchema.safeParse(await req.json())
+    if (!parsed.success) return badRequest('Provide a job link, or the job description with company and role.' + (parsed.error.issues.length ? ` (${firstIssue(parsed.error)})` : ''))
 
-    // 0. Deduplication Check: Has this user already evaluated/applied to this URL?
-    const existingListing = await prisma.openClawListing.findFirst({
-      where: { sourceUrl: jobUrl }
-    })
-    
-    if (existingListing) {
-      const existingApp = await prisma.openClawApplication.findFirst({
-        where: { userId, listingId: existingListing.id },
-        include: { user: false } // We can join eval results manually to keep it consistent
-      })
+    const job = 'jobUrl' in parsed.data
+      ? await resolveJobFromUrl(parsed.data.jobUrl)
+      : listingFromPastedText(parsed.data)
 
-      if (existingApp) {
-        const evaluation = await prisma.evaluationResult.findUnique({
-          where: { applicationId: existingApp.id }
-        })
-        return ok({
-          listing: existingListing,
-          application: existingApp,
-          evaluation: evaluation || (existingApp.tailoringNotes ? JSON.parse(existingApp.tailoringNotes) : null),
-          message: 'Retrieved existing evaluation'
-        })
-      }
-    }
-
-    // 1. Scrape
-    const scrapedData = await scrapeJobUrl(jobUrl)
-    if (!scrapedData) return badRequest('Failed to scrape job URL')
-
-    // 2. Upsert listing
-    const listing = await prisma.openClawListing.upsert({
-      where: { id: scrapedData.id ?? 'new' }, // Fallback to 'new' if id is missing
-      update: {},
-      create: {
-        platform: scrapedData.platform,
-        company: scrapedData.company,
-        role: scrapedData.role,
-        location: scrapedData.location ?? null,
-        ctcBand: scrapedData.ctcBand ?? null,
-        jdText: scrapedData.jdText,
-        sourceUrl: jobUrl,
-      },
-    })
-
-    // 3. Fetch student context
-    const student = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        skills: { select: { skillName: true, proficiency: true } },
-        sprints: { select: { completionPercentage: true }, take: 5, orderBy: { generatedAt: 'desc' } },
-        OpenClawConfig: { select: { preferredCities: true, minCtcLpa: true } },
-      },
-    })
-    if (!student) return badRequest('Student not found')
-
-    const config = {
-      preferredCities: (student.OpenClawConfig?.preferredCities as string[]) ?? [],
-      minCtcLpa: student.OpenClawConfig?.minCtcLpa ?? 5,
-    }
-
-    // 4. Score
-    const evaluation = await scoreJobListing(listing, student, config)
-
-    // 5. Create application record (HUMAN-IN-LOOP: status = Pending)
-    const application = await prisma.openClawApplication.create({
-      data: {
-        userId,
-        listingId: listing.id,
-        matchScore: evaluation.totalScore,
-        status: 'Pending',
-        tailoringNotes: JSON.stringify(evaluation),
-      },
-    })
-
-    // 6. Persist EvaluationResult
-    await prisma.evaluationResult.create({
-      data: {
-        applicationId: application.id,
-        totalScore: evaluation.totalScore,
-        grade: evaluation.grade,
-        dimensions: evaluation.dimensions as object,
-        recommendation: evaluation.recommendation,
-        keyStrengths: evaluation.keyStrengths,
-        keyWeaknesses: evaluation.keyWeaknesses,
-        negotiationLeverage: evaluation.negotiationLeverage,
-      },
-    })
-
-    // 7. Fire-and-forget: extract stories for A/B grades
-    if (evaluation.grade === 'A' || evaluation.grade === 'B') {
-      setImmediate(() => {
-        extractStories(
-          userId,
-          listing.role,
-          listing.company,
-          listing.jdText,
-          student.skills.map(s => s.skillName)
-        ).catch(console.error)
-      })
-    }
-
+    const result = await evaluateListing(userId, job)
     return ok({
-      listing,
-      application,
-      evaluation,
+      ...result,
+      message: result.existing ? 'Already in your pipeline — showing the existing evaluation' : undefined,
     })
   } catch (err) {
+    const failure = jobSourceFailure(err) ?? aiFailure(err)
+    if (failure) return failure
     console.error('[openclaw/pipeline]', err)
     return serverError()
   }

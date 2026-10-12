@@ -1,39 +1,57 @@
+/**
+ * SkillGraph background worker (separate service from the Next.js app — see ADR-001).
+ * Run with:  npm run worker      (tsx resolves the project's "@/..." path aliases)
+ */
 import dotenv from 'dotenv'
-// Load .env then override with .env.local
-dotenv.config({ path: '.env' })
-dotenv.config({ path: '.env.local' })
+// Load .env then override with .env.local (no-ops in containers that inject env vars)
+dotenv.config({ path: '.env', quiet: true })
+dotenv.config({ path: '.env.local', override: true, quiet: true })
+
+import http from 'http'
 import Queue from 'bull'
-import Redis from 'ioredis'
+import sgMail from '@sendgrid/mail'
 import { runJobScraper } from './jobScraper'
 import { prisma } from '../lib/prisma'
-import { callGPTArray, PROMPTS } from '../lib/openai'
-import sgMail from '@sendgrid/mail'
+import { PROMPTS } from '../lib/openai'
+import { generateJson } from '../lib/ai'
+import { sprintSchema } from '../lib/ai/schemas'
+import { processOpenClawAgent } from '../lib/openclaw/agent'
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY ?? '')
-
-const redisUrl = process.env.REDIS_URL!
-
-const bullOpts = {
-  redis: {
-    tls: { rejectUnauthorized: false },
-    maxRetriesPerRequest: null,
-    enableReadyCheck: false
-  }
+const redisUrl = process.env.REDIS_URL
+if (!redisUrl) {
+  console.error('REDIS_URL is required to run the worker.')
+  process.exit(1)
 }
 
-// Initialize Bull Queues
+const sendgridReady = Boolean(process.env.SENDGRID_API_KEY && process.env.SENDGRID_FROM_EMAIL)
+if (sendgridReady) sgMail.setApiKey(process.env.SENDGRID_API_KEY!)
+
+const escapeHtml = (s: string) =>
+  s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+
+async function sendEmail(to: string, subject: string, html: string) {
+  if (!sendgridReady) return console.warn(`[email] SendGrid not configured — skipped "${subject}" to ${to}`)
+  await sgMail.send({ to, from: process.env.SENDGRID_FROM_EMAIL!, subject, html })
+}
+
+// rediss:// enables TLS with certificate verification (ioredis default); never disable verification
+const bullOpts: Queue.QueueOptions = {
+  redis: { maxRetriesPerRequest: null, enableReadyCheck: false },
+}
+
 const scraperQueue = new Queue('jobScraper', redisUrl, bullOpts)
 const sprintQueue = new Queue('sprints', redisUrl, bullOpts)
 const reportQueue = new Queue('monthlyReports', redisUrl, bullOpts)
+const openclawQueue = new Queue('openclaw', redisUrl, bullOpts)
+const queues = [scraperQueue, sprintQueue, reportQueue, openclawQueue]
 
-// ── WORKER 1: Job Scraper ──
+// ── WORKER 1: Weekly market data (JSearch) ──
 scraperQueue.process(async () => {
   await runJobScraper()
 })
 
 // ── WORKER 2: Sprint Generator ──
 sprintQueue.process(async () => {
-  console.log('[SprintGenerator] Checking for unprocessed high-urgency gaps...')
   const users = await prisma.skillGap.findMany({
     where: { urgency: 'high', closed: false, sprintGenerated: false },
     distinct: ['userId'],
@@ -42,57 +60,54 @@ sprintQueue.process(async () => {
 
   for (const { userId } of users) {
     const activeSprint = await prisma.sprint.findFirst({ where: { userId, status: 'active' } })
-    if (activeSprint) continue // already has one
+    if (activeSprint) continue
 
     const gaps = await prisma.skillGap.findMany({
       where: { userId, urgency: 'high', closed: false, sprintGenerated: false },
       orderBy: { identifiedAt: 'desc' },
       take: 3,
     })
-
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { email: true, name: true, targetRole: true },
     })
-    if (!user) continue
+    if (!user || gaps.length === 0) continue
 
     try {
       const skillNames = gaps.map(g => g.missingSkill)
-      const rawJson = await callGPTArray(
-        PROMPTS.SPRINT_GENERATOR,
-        `Create a sprint to learn: ${skillNames.join(', ')}. Role: ${user.targetRole ?? 'Software Engineer'}.`
-      )
-      const dayTasks = JSON.parse(rawJson)
+      const dayTasks = await generateJson({
+        feature: 'sprint',
+        system: PROMPTS.SPRINT_GENERATOR,
+        prompt: `Create a sprint to learn: ${skillNames.join(', ')}. Role: ${user.targetRole ?? 'Software Engineer'}.`,
+        schema: sprintSchema,
+        userId,
+        maxTokens: 3000,
+        temperature: 0.3,
+      })
       const weekStart = new Date()
       weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1)
 
-      await prisma.sprint.create({
-        data: { userId, weekStartDate: weekStart, dayTasks, completionPercentage: 0, skillsTargeted: skillNames, status: 'active' },
-      })
+      await prisma.$transaction([
+        prisma.sprint.create({
+          data: { userId, weekStartDate: weekStart, dayTasks, completionPercentage: 0, skillsTargeted: skillNames, status: 'active' },
+        }),
+        prisma.skillGap.updateMany({ where: { id: { in: gaps.map(g => g.id) } }, data: { sprintGenerated: true } }),
+      ])
 
-      await prisma.skillGap.updateMany({
-        where: { id: { in: gaps.map(g => g.id) } },
-        data: { sprintGenerated: true },
-      })
-
-      // Send email notification
-      await sgMail.send({
-        to: user.email,
-        from: process.env.SENDGRID_FROM_EMAIL ?? '',
-        subject: `⚡ Your 7-day sprint is ready, ${user.name}!`,
-        html: `<p>Hi ${user.name},</p><p>Your personalized learning sprint for <strong>${skillNames.join(', ')}</strong> is ready!</p><p><a href="${process.env.NEXTAUTH_URL}/sprint">View Your Sprint →</a></p>`,
-      })
-
-      console.log(`[SprintGenerator] Sprint created for userId ${userId}`)
+      await sendEmail(
+        user.email,
+        `⚡ Your 7-day sprint is ready, ${user.name}!`,
+        `<p>Hi ${escapeHtml(user.name)},</p><p>Your personalised learning sprint for <strong>${escapeHtml(skillNames.join(', '))}</strong> is ready!</p><p><a href="${process.env.NEXTAUTH_URL}/sprint">View your sprint →</a></p>`
+      )
+      console.log(`[SprintGenerator] Sprint created for user ${userId}`)
     } catch (err) {
-      console.error(`[SprintGenerator] Error for userId ${userId}:`, err)
+      console.error(`[SprintGenerator] Error for user ${userId}:`, (err as Error).message)
     }
   }
 })
 
 // ── WORKER 3: Monthly Report ──
 reportQueue.process(async () => {
-  console.log('[MonthlyReport] Generating monthly reports...')
   const users = await prisma.user.findMany({
     where: { readinessScore: { not: null } },
     select: { id: true, email: true, name: true, targetRole: true, readinessScore: true, readinessScorePrev: true, sprintsCompleted: true },
@@ -102,61 +117,91 @@ reportQueue.process(async () => {
     const delta = (user.readinessScore ?? 0) - (user.readinessScorePrev ?? 0)
     const sign = delta >= 0 ? '+' : ''
     try {
-      await sgMail.send({
-        to: user.email,
-        from: process.env.SENDGRID_FROM_EMAIL ?? '',
-        subject: `📊 Your SkillGraph Monthly Report — ${sign}${Math.round(delta)}pt this month`,
-        html: `
+      await sendEmail(
+        user.email,
+        `📊 Your SkillGraph Monthly Report — ${sign}${Math.round(delta)}pt this month`,
+        `
           <h2>Monthly Readiness Report</h2>
-          <p>Hi ${user.name},</p>
-          <p>Your readiness score for <strong>${user.targetRole}</strong>:</p>
+          <p>Hi ${escapeHtml(user.name)},</p>
+          <p>Your readiness score for <strong>${escapeHtml(user.targetRole ?? 'your target role')}</strong>:</p>
           <ul>
             <li>Current score: <strong>${Math.round(user.readinessScore ?? 0)}%</strong></li>
             <li>Change this month: <strong>${sign}${Math.round(delta)}pt</strong></li>
             <li>Sprints completed: <strong>${user.sprintsCompleted}</strong></li>
           </ul>
-          <p><a href="${process.env.NEXTAUTH_URL}/dashboard">See Full Dashboard →</a></p>
-        `,
-      })
-
-      // Reset readinessScorePrev for next month
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { readinessScorePrev: user.readinessScore },
-      })
+          <p><a href="${process.env.NEXTAUTH_URL}/dashboard">See full dashboard →</a></p>
+        `
+      )
+      await prisma.user.update({ where: { id: user.id }, data: { readinessScorePrev: user.readinessScore } })
     } catch (err) {
-      console.error(`[MonthlyReport] Error for userId ${user.id}:`, err)
+      console.error(`[MonthlyReport] Error for user ${user.id}:`, (err as Error).message)
     }
   }
-  console.log('[MonthlyReport] Done')
 })
 
-// ── SCHEDULE RECURRING JOBS ──
+// ── WORKER 4: OpenClaw nightly assisted-apply preparation ──
+openclawQueue.process(async () => {
+  const configs = await prisma.openClawConfig.findMany({ where: { isActive: true }, select: { userId: true } })
+  console.log(`[OpenClaw] Nightly run for ${configs.length} active student(s)`)
+  for (const { userId } of configs) {
+    try {
+      await processOpenClawAgent(userId)
+    } catch (err) {
+      console.error(`[OpenClaw] Run failed for user ${userId}:`, (err as Error).message)
+    }
+  }
+})
 
-async function scheduleJobs() {
-  // Clear any existing repeatable jobs to prevent duplicates during restarts
-  await Promise.all([
-    scraperQueue.empty(),
-    sprintQueue.empty(),
-    reportQueue.empty(),
-  ])
-
-  // 0. Immediate one-off Job Scrape to populate database right now
-  await scraperQueue.add({})
-
-  // 1. Job Scraper: Every Sunday at 00:00 IST (18:30 UTC Saturday)
-  await scraperQueue.add({}, { repeat: { cron: '30 18 * * 6' } })
-  
-  // 2. Sprint Generator: Every 5 minutes
-  await sprintQueue.add({}, { repeat: { cron: '*/5 * * * *' } })
-
-  // 3. Monthly Report: 1st of month at 02:30 UTC (8am IST)
-  await reportQueue.add({}, { repeat: { cron: '30 2 1 * *' } })
-
-  console.log('✅ SkillGraph Bull Workers started on Upstash Redis')
-  console.log('   • Job Scraper: Every Sunday 00:00 IST')
-  console.log('   • Sprint Generator: Every 5 minutes')
-  console.log('   • Monthly Report: 1st of month 08:00 IST')
+for (const q of queues) {
+  q.on('failed', (job, err) => console.error(`[${q.name}] job ${job.id} failed:`, err.message))
 }
 
-scheduleJobs().catch(console.error)
+async function scheduleJobs() {
+  // Remove stale repeatable schedules so cron changes take effect on deploy
+  for (const q of queues) {
+    for (const r of await q.getRepeatableJobs()) await q.removeRepeatableByKey(r.key)
+  }
+
+  await scraperQueue.add({}, { repeat: { cron: '30 18 * * 6' } })   // Sunday 00:00 IST
+  await sprintQueue.add({}, { repeat: { cron: '*/5 * * * *' } })     // every 5 minutes
+  await reportQueue.add({}, { repeat: { cron: '30 2 1 * *' } })      // 1st of month 08:00 IST
+  await openclawQueue.add({}, { repeat: { cron: '0 1 * * *' } })     // daily 06:30 IST
+
+  // Optional immediate market-data refresh (uses paid API quota)
+  if (process.env.RUN_SCRAPER_ON_START === 'true') await scraperQueue.add({})
+
+  console.log('✅ SkillGraph workers started: market data (weekly), sprints (5 min), reports (monthly), OpenClaw (daily)')
+}
+
+// ── Health endpoint for the container platform ──
+const port = Number(process.env.PORT ?? 8080)
+const server = http.createServer(async (req, res) => {
+  if (req.url !== '/health') {
+    res.writeHead(404).end()
+    return
+  }
+  const checks = await Promise.allSettled([
+    prisma.$queryRaw`SELECT 1`,
+    scraperQueue.client.ping(),
+  ])
+  const [db, redis] = checks.map(c => (c.status === 'fulfilled' ? 'ok' : 'unreachable'))
+  const healthy = db === 'ok' && redis === 'ok'
+  res.writeHead(healthy ? 200 : 503, { 'Content-Type': 'application/json' })
+  res.end(JSON.stringify({ status: healthy ? 'ok' : 'degraded', db, redis }))
+})
+
+async function shutdown(signal: string) {
+  console.log(`${signal} received — draining workers`)
+  server.close()
+  await Promise.allSettled(queues.map(q => q.close()))
+  await prisma.$disconnect()
+  process.exit(0)
+}
+process.on('SIGTERM', () => void shutdown('SIGTERM'))
+process.on('SIGINT', () => void shutdown('SIGINT'))
+
+server.listen(port, () => console.log(`[worker] health check on :${port}/health`))
+scheduleJobs().catch(err => {
+  console.error('[worker] failed to schedule jobs:', err)
+  process.exit(1)
+})

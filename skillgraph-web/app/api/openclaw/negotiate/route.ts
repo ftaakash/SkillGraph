@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { auth } from '@/auth'
-import { ok, unauthorized, serverError, badRequest } from '@/lib/api'
+import { ok, unauthorized, serverError, badRequest, aiFailure } from '@/lib/api'
 import { generateNegotiationScripts, getNegotiationScript } from '@/lib/openclaw/negotiator'
 import { prisma } from '@/lib/prisma'
 
@@ -34,6 +34,8 @@ export async function POST(req: NextRequest) {
 
     return ok({ scripts: record })
   } catch (err) {
+    const failure = aiFailure(err)
+    if (failure) return failure
     console.error('[openclaw/negotiate]', err)
     return serverError()
   }

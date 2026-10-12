@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { auth } from '@/auth'
-import { ok, unauthorized, serverError } from '@/lib/api'
+import { ok, unauthorized, serverError, aiFailure } from '@/lib/api'
 import { extractStories, getStories } from '@/lib/openclaw/storybank'
 import { prisma } from '@/lib/prisma'
 
@@ -40,6 +40,8 @@ export async function POST(req: NextRequest) {
     const stories = await getStories(userId)
     return ok({ stories })
   } catch (err) {
+    const failure = aiFailure(err)
+    if (failure) return failure
     console.error('[openclaw/stories POST]', err)
     return serverError()
   }

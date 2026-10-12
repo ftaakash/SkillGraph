@@ -1,36 +1,27 @@
-import { openai } from '../openai';
+import { generateJson } from '@/lib/ai'
+import { jobMatchSchema } from '@/lib/ai/schemas'
 
 const OPENCLAW_MATCH_PROMPT = `You are a senior technical recruiter assessing job-candidate fit for the Indian tech market.
-You will receive a student's skill profile and a job description.
-Return ONLY a valid JSON object. No markdown, no explanation, no backticks.
-Schema:
+You will receive a student's skills and a job description.
+Return ONLY a valid JSON object with this schema:
 {
-  "matchScore": 85, // number (0-100)
-  "matchingSkills": ["string"],
-  "missingSkills": ["string"],
-  "applyRecommendation": true,
-  "confidenceLevel": "high", // "high" | "medium" | "low"
-  "tailoringNotes": "string (1-2 sentences on what to emphasize in resume/cover letter)",
-  "indiaContext": {
-    "companyTier": "FAANG", // "FAANG" | "Unicorn" | "MNC" | "Service" | "Startup" | "Unknown"
-    "interviewStyle": "DSA-heavy", // "DSA-heavy" | "System Design" | "Balanced" | "Consulting"
-    "ctcRealism": true
-  }
+  "matchScore": number (0-100),
+  "matchingSkills": string[],
+  "missingSkills": string[],
+  "applyRecommendation": boolean,
+  "confidenceLevel": "high" | "medium" | "low",
+  "tailoringNotes": string (1-2 sentences on what to emphasize in resume/cover letter)
 }
-Apply only when matchScore >= 65 AND confidenceLevel is "high" or "medium".`;
+Recommend applying only when matchScore >= 65 AND confidenceLevel is "high" or "medium".`
 
-export async function scoreJobMatch(studentProfile: any, jdText: string) {
-  const res = await openai.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
+export async function scoreJobMatch(userId: string, skills: string[], jdText: string) {
+  return generateJson({
+    feature: 'openclaw_match',
+    system: OPENCLAW_MATCH_PROMPT,
+    prompt: `Student skills: ${JSON.stringify(skills)}\n\nJob description:\n${jdText.slice(0, 4000)}`,
+    schema: jobMatchSchema,
+    userId,
+    maxTokens: 600,
     temperature: 0,
-    messages: [
-      { role: "system", content: OPENCLAW_MATCH_PROMPT },
-      { role: "user", content: `Student profile: ${JSON.stringify(studentProfile)}\n\nJob description:\n${jdText}` }
-    ],
-    response_format: { type: "json_object" }
-  });
-
-  const content = res.choices[0].message.content;
-  if (!content) throw new Error("No response from GPT-4o matcher");
-  return JSON.parse(content);
+  })
 }

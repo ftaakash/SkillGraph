@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ok, serverError } from '@/lib/api'
 import { requireCronSecret } from '@/lib/cron'
+import { OPEN_STATUSES } from '@/lib/openclaw/status'
 
 // POST /api/openclaw/integrity — daily dedup cron
 export async function POST(req: NextRequest) {
@@ -11,7 +12,8 @@ export async function POST(req: NextRequest) {
 
     // Fetch all active apps with their listing data
     const apps = await prisma.openClawApplication.findMany({
-      where: { status: { in: ['Pending', 'Applied'] } },
+      where: { status: { in: [...OPEN_STATUSES] } },
+      orderBy: { appliedAt: 'asc' }, // keep the earliest entry, mark later ones as duplicates
     })
 
     // For each app, look up the listing by listingId to get company+role

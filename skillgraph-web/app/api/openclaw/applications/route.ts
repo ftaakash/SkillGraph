@@ -37,13 +37,16 @@ export async function GET() {
   // Summary stats
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
-  const appliedToday = applications.filter(a => new Date(a.appliedAt) >= todayStart).length
+  // The agent's daily limit counts applications it prepared today
+  const preparedToday = applications.filter(a => a.status === 'ReadyToApply' && new Date(a.appliedAt) >= todayStart).length
+  const readyToApply = applications.filter(a => a.status === 'ReadyToApply').length
 
   return NextResponse.json({
     applications: enriched,
     stats: {
       total: applications.length,
-      appliedToday,
+      preparedToday,
+      readyToApply,
       avgMatchScore: applications.length > 0
         ? Math.round(applications.reduce((s, a) => s + (a.matchScore ?? 0), 0) / applications.length)
         : 0,

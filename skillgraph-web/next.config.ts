@@ -14,7 +14,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  serverExternalPackages: ['playwright', 'playwright-extra', 'puppeteer-extra-plugin-stealth', 'bull', 'ioredis', 'openai', 'pdf-parse'],
+  serverExternalPackages: ['bull', 'ioredis', 'openai', 'pdf-parse'],
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },

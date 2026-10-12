@@ -29,6 +29,7 @@ interface ApplicationFeedProps {
 const statusConfig: Record<string, { icon: React.ReactNode; color: string }> = {
   Applied: { icon: <CheckCircle2 size={14} />, color: "text-green-500" },
   Pending: { icon: <Clock size={14} />, color: "text-yellow-500" },
+  ReadyToApply: { icon: <Zap size={14} />, color: "text-primary" },
   Failed: { icon: <XCircle size={14} />, color: "text-destructive" },
   Matched: { icon: <Zap size={14} />, color: "text-primary" },
 };
@@ -39,7 +40,7 @@ export default function ApplicationFeed({ applications }: ApplicationFeedProps) 
       <div className="bg-card border border-border rounded-lg p-8 text-center">
         <Zap size={32} className="mx-auto text-muted-foreground mb-3" />
         <p className="text-sm text-muted-foreground">
-          No applications yet. Activate the agent and configure your preferences to start auto-applying.
+          No applications yet. Save your preferences and activate OpenClaw — it will prepare tailored résumés for strong matches for you to review and submit.
         </p>
       </div>
     );

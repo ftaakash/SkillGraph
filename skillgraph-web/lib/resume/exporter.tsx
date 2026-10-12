@@ -50,8 +50,7 @@ const ResumeDocument = ({ data }: { data: any }) => (
         <Text style={styles.name}>{data.name}</Text>
         {data.tagline && <Text style={styles.tagline}>{data.tagline}</Text>}
         <View style={styles.contact}>
-          <Text>{data.phone}</Text>
-          <Text>•</Text>
+          {data.phone && <><Text>{data.phone}</Text><Text>•</Text></>}
           <Text>{data.email}</Text>
           {data.linkedin && <><Text>•</Text><Text>{data.linkedin}</Text></>}
           {data.github && <><Text>•</Text><Text>{data.github}</Text></>}

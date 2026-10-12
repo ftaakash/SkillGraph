@@ -1,4 +1,4 @@
-# SkillGraph: Autonomous Career Orchestration Platform
+# SkillGraph: AI Career Orchestration Platform
 
 <p align="center">
   <img src="skillgraph-web/public/screenshots/landing.png" width="800" alt="SkillGraph Landing Page" style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); shadow: 0 20px 40px rgba(0,0,0,0.4)"/>
@@ -6,24 +6,25 @@
 
 ## Project Status ⚡
 ![Deployment](https://img.shields.io/badge/Status-Pre--Launch%20Hardening-FFB020?style=for-the-badge)
-![Tech Stack](https://img.shields.io/badge/Stack-Next.js%2016%20|%20Prisma%20|%20Playwright-000000?style=for-the-badge)
+![Tech Stack](https://img.shields.io/badge/Stack-Next.js%2016%20|%20Prisma%20|%20Bull%20Workers-000000?style=for-the-badge)
 ![Auth](https://img.shields.io/badge/Auth-NextAuth%20v5-blue?style=for-the-badge)
 
-SkillGraph is an end-to-end AI career mentor and autonomous application agent. It transforms the job search from a manual grind into a persistent, authenticated technical mission through robotic process automation and high-fidelity project-based learning.
+SkillGraph is an end-to-end AI career mentor and assisted job-application platform. It finds skill gaps against live market demand, builds focused learning sprints, and prepares tailored, truthful applications — while the student stays in control of every submission.
 
 ---
 
-## 🚀 Production-Grade Features (v2.5)
+## 🚀 Features
 
-### 1. Multi-Platform CareerOps (OpenClaw)
-The platform now supports **Authenticated Autonomous Applications**. 
-- **Platform-Aware Auth**: Link separate persistent sessions for **LinkedIn, Glassdoor, Indeed, and Naukri**.
-- **Real-Time Status Synchronization**: A dedicated `Syncer` service tracks application status changes live.
-- **JD Skill Extraction**: 120+ keyword-based job description parser dictates matching criteria.
+### 1. OpenClaw — Assisted Apply
+OpenClaw does the research and preparation; **the student always submits**.
+- **Compliant job sources**: official public ATS APIs (Greenhouse, Lever, Ashby), licensed aggregators (JSearch, optional Adzuna) and company career pages. For LinkedIn, Naukri, Indeed and Glassdoor, students paste the job description — SkillGraph never logs into, scrapes or automates those sites, and never stores third-party credentials.
+- **10-dimension fit evaluation** with strengths, gaps and negotiation leverage for any job link or pasted description.
+- **Nightly preparation**: for active students the worker discovers roles, scores fit, and queues strong matches as *Ready to apply* with a tailored résumé.
+- **Interview prep**: STAR story bank and salary-negotiation scripts per role.
 
-### 2. Resume-First High-Fidelity Engine
-- **Authenticity by Design**: The agent loads your real uploaded resume and uses AI *only* to tailor the 2-3 sentence "About Me" summary for that specific job posting—fabricating zero experience.
-- **Professional ATS Aesthetic**: Symmetrical PDF exports rendered flawlessly for both manual builds and OpenClaw submissions.
+### 2. Resume-First Engine
+- **Authenticity by design**: the student's real uploaded résumé is the source of truth; AI tailors *only* the 2–3 sentence summary for each posting — no fabricated experience or contact details.
+- **ATS-friendly PDF export**, stored privately and downloaded through short-lived signed links.
 
 ### 3. Faculty & Recruiter Operating Systems
 - **Placement Cell OS**: Equips university faculty with cohort-level skill heatmaps, institutional matching benchmarks, and restricted campus job boards.
@@ -43,7 +44,8 @@ The platform now supports **Authenticated Autonomous Applications**.
 
 - **Frontend**: Next.js 16 (App Router), Tailwind CSS
 - **Database**: PostgreSQL with Prisma ORM
-- **Automation**: Playwright (Authenticated State)
+- **Background jobs**: Bull + Redis worker service (`workers/`, `Dockerfile.worker`)
+- **Job sources**: Greenhouse / Lever / Ashby public APIs, JSearch, Adzuna
 - **AI Orchestration**: GPT-4o / Llama 3.3
 
 ---
@@ -61,7 +63,7 @@ and long-running jobs into a *separate worker service*, and make OpenClaw *compl
 |-------|-------|--------|
 | **0 — Launch blockers** | Stop serving user résumés from `public/`, fail-closed cron auth, security headers, rate limiting, consistent validation, health check, `.env.example`, CI | ✅ Done (history purge pending) |
 | **1 — Data & storage** | Prisma migrations, indexes & constraints, private object storage with signed URLs, schema-validated AI layer with quotas | ✅ Code done — [migration rollout](docs/adr/ADR-001-production-architecture.md#phase-1--data--storage-week-12) pending |
-| **2 — OpenClaw compliance** | Remove stealth plugin & stored third-party cookies, official job sources, assisted apply, containerised workers | ⏳ Planned |
+| **2 — OpenClaw compliance** | Remove stealth plugin & stored third-party cookies, official job sources, assisted apply, containerised workers | ✅ Code done — migration pending |
 | **3 — Trust & operations** | Email verification, password reset, mutual-consent recruiter reveal, DPDP/GDPR data rights, Sentry, tests | ⏳ Planned |
 | **4 — Commercial** | Billing & plan limits, multi-tenant college workspaces, load testing | ⏳ Planned |
 
@@ -110,9 +112,11 @@ npm run dev
 Navigate to `http://localhost:3000`.
 
 ### 4. Background Workers
+Requires `REDIS_URL`. Runs market-data refresh, sprint generation, monthly reports and the nightly OpenClaw preparation; exposes `GET /health` on `PORT` (default 8080).
 ```bash
-npx ts-node workers/index.ts
+npm run worker
 ```
+In production, deploy it as its own container: `docker build -f Dockerfile.worker -t skillgraph-worker .`
 
 ### 5. Health Check
 `GET /api/health` returns `200` when the app and database are reachable (`503` otherwise) — point your uptime monitor here.

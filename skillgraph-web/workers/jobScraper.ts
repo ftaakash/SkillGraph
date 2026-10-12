@@ -1,12 +1,13 @@
 import axios from 'axios'
 import { prisma } from '../lib/prisma'
-import { callGPTArray, PROMPTS } from '../lib/openai'
-import cron from 'node-cron'
+import { PROMPTS } from '../lib/openai'
+import { generateJson } from '../lib/ai'
+import { jdSkillsSchema } from '../lib/ai/schemas'
 
 /**
  * Worker 1 — Weekly Job Scraper
  * Runs every Sunday at 00:00 IST
- * Fetches job postings from RapidAPI JSearch, extracts required skills with GPT-4o,
+ * Fetches job postings from RapidAPI JSearch (licensed aggregator), extracts required skills with the LLM,
  * and upserts them into the JobPostings table.
  */
 
@@ -43,15 +44,20 @@ async function fetchJobsForRole(role: string, page: number = 1): Promise<{ title
 
 async function extractSkills(description: string): Promise<string[]> {
   try {
-    const raw = await callGPTArray(
-      PROMPTS.JD_SKILL_EXTRACTOR,
-      `Extract required skills from this job description:\n\n${description}`,
-      'llama-3.3-70b-versatile',
-      500
-    )
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed.filter((s: unknown) => typeof s === 'string') : []
-  } catch { return [] }
+    const skills = await generateJson({
+      feature: 'jd_skill_extract',
+      system: PROMPTS.JD_SKILL_EXTRACTOR,
+      prompt: `Extract required skills from this job description:\n\n${description}`,
+      schema: jdSkillsSchema,
+      userId: null,
+      maxTokens: 500,
+      temperature: 0,
+    })
+    return skills.map(s => s.trim()).filter(Boolean)
+  } catch (err) {
+    console.warn('[JobScraper] skill extraction failed:', (err as Error).message)
+    return []
+  }
 }
 
 export async function runJobScraper() {
@@ -76,7 +82,7 @@ export async function runJobScraper() {
             rawDescription: job.description,
             requiredSkills,
             demandWeek: week,
-            source: 'linkedin',
+            source: 'jsearch',
           },
         })
         totalInserted++

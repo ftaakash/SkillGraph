@@ -1,19 +1,31 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
-import { processOpenClawAgent } from '@/lib/openclaw/agent';
+import { auth } from '@/auth'
+import { ok, unauthorized, serverError, aiFailure } from '@/lib/api'
+import { processOpenClawAgent } from '@/lib/openclaw/agent'
 
-export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+// Discovery + scoring + résumé tailoring for up to `dailyLimit` jobs
+export const maxDuration = 300
 
+// POST /api/openclaw/trigger — run the assisted-apply agent now for the signed-in student.
+// The nightly worker (workers/index.ts) runs the same agent for every active config.
+export async function POST() {
   try {
-    // In a real app, you'd trigger a Bull job here. 
-    // We are awaiting it synchronously to give the user immediate UI feedback.
-    await processOpenClawAgent(session.user.id);
-    
-    return NextResponse.json({ success: true, message: 'Agent execution finished' });
-  } catch (error: any) {
-    console.error('Trigger agent error:', error);
-    return NextResponse.json({ error: error.message || 'Failed to trigger agent' }, { status: 500 });
+    const session = await auth()
+    if (!session?.user?.id) return unauthorized()
+
+    const result = await processOpenClawAgent(session.user.id)
+    const messages: Record<typeof result.status, string> = {
+      completed: result.prepared > 0
+        ? `${result.prepared} application${result.prepared === 1 ? '' : 's'} ready for you to review and submit.`
+        : 'No new strong matches right now. Try widening your target roles or cities.',
+      inactive: 'Activate OpenClaw and save your preferences first.',
+      no_sources: 'Job discovery is not configured on this server.',
+      limit_reached: 'Daily limit reached — review your ready applications.',
+    }
+    return ok({ ...result, message: messages[result.status] })
+  } catch (err) {
+    const failure = aiFailure(err)
+    if (failure) return failure
+    console.error('[openclaw/trigger]', err)
+    return serverError()
   }
 }

@@ -1,4 +1,5 @@
-import { callGPT } from '@/lib/openai'
+import { generateJson } from '@/lib/ai'
+import { dimensionScoreSchema, evaluationSummarySchema } from '@/lib/ai/schemas'
 import { prisma } from '@/lib/prisma'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -73,15 +74,17 @@ export async function scoreJobListing(
 
   // ── D1: Role-Skill Match (25 pts) — AI ──
   const skillNames = student.skills.map(s => s.skillName).join(', ')
-  const d1Raw = await callGPT(
-    `You are a hiring manager. Score how well these skills match the JD. Return JSON: { "score": number (0-25), "reasoning": string }`,
-    `Skills: ${skillNames}\nJD: ${listing.jdText.slice(0, 1500)}`,
-    'llama-3.3-70b-versatile',
-    400
-  )
-  const d1 = JSON.parse(d1Raw)
-  dimensions['Role-Skill Match'] = { score: d1.score ?? 0, maxScore: 25, reasoning: d1.reasoning ?? '' }
-  total += d1.score ?? 0
+  const d1 = await generateJson({
+    feature: 'openclaw_eval',
+    system: `You are a hiring manager. Score how well these skills match the JD. Return JSON: { "score": number (0-25), "reasoning": string }`,
+    prompt: `Skills: ${skillNames}\nJD: ${listing.jdText.slice(0, 1500)}`,
+    schema: dimensionScoreSchema(25),
+    userId: student.id,
+    maxTokens: 400,
+    temperature: 0,
+  })
+  dimensions['Role-Skill Match'] = { score: d1.score, maxScore: 25, reasoning: d1.reasoning }
+  total += d1.score
 
   // ── D2: Company Tier (15 pts) — rule-based ──
   const tierKw = ['FAANG', 'Unicorn', 'MNC', 'Startup', 'Service']
@@ -103,15 +106,17 @@ export async function scoreJobListing(
   total += d3Score
 
   // ── D4: Growth Trajectory (10 pts) — AI ──
-  const d4Raw = await callGPT(
-    `Score 0-10 the growth trajectory for a fresh grad from this JD. Return JSON: { "score": number, "reasoning": string }`,
-    listing.jdText.slice(0, 800),
-    'llama-3.3-70b-versatile',
-    300
-  )
-  const d4 = JSON.parse(d4Raw)
-  dimensions['Growth Trajectory'] = { score: d4.score ?? 5, maxScore: 10, reasoning: d4.reasoning ?? '' }
-  total += d4.score ?? 5
+  const d4 = await generateJson({
+    feature: 'openclaw_eval',
+    system: `Score 0-10 the growth trajectory for a fresh grad from this JD. Return JSON: { "score": number, "reasoning": string }`,
+    prompt: listing.jdText.slice(0, 800),
+    schema: dimensionScoreSchema(10),
+    userId: student.id,
+    maxTokens: 300,
+    temperature: 0,
+  })
+  dimensions['Growth Trajectory'] = { score: d4.score, maxScore: 10, reasoning: d4.reasoning }
+  total += d4.score
 
   // ── D5: Interview Complexity (10 pts) — rule-based ──
   const avgCompletion = student.sprints.length
@@ -145,25 +150,32 @@ export async function scoreJobListing(
   total += d8Score
 
   // ── D9: Culture Signal (3 pts) — AI ──
-  const d9Raw = await callGPT(
-    `Score 0-3 the company culture based on JD signals. Return JSON: { "score": number, "reasoning": string }`,
-    `Company: ${listing.company}\nJD excerpt: ${listing.jdText.slice(0, 500)}`,
-    'llama-3.3-70b-versatile',
-    200
-  )
-  const d9 = JSON.parse(d9Raw)
-  dimensions['Culture Signal'] = { score: d9.score ?? 1, maxScore: 3, reasoning: d9.reasoning ?? '' }
-  total += d9.score ?? 1
+  const d9 = await generateJson({
+    feature: 'openclaw_eval',
+    system: `Score 0-3 the company culture based on JD signals. Return JSON: { "score": number, "reasoning": string }`,
+    prompt: `Company: ${listing.company}\nJD excerpt: ${listing.jdText.slice(0, 500)}`,
+    schema: dimensionScoreSchema(3),
+    userId: student.id,
+    maxTokens: 200,
+    temperature: 0,
+  })
+  dimensions['Culture Signal'] = { score: d9.score, maxScore: 3, reasoning: d9.reasoning }
+  total += d9.score
 
-  // ── D10: Pipeline Integrity (2 pts) — DB check ──
+  // ── D10: Pipeline Integrity (2 pts) — is this company+role already in the student's pipeline? ──
   const duplicate = await prisma.openClawApplication.findFirst({
-    where: { userId: student.id, status: { not: 'Rejected' } },
+    where: {
+      userId: student.id,
+      listingId: { not: listing.id },
+      status: { notIn: ['Rejected', 'Duplicate'] },
+      listing: {
+        company: { equals: listing.company, mode: 'insensitive' },
+        role: { equals: listing.role, mode: 'insensitive' },
+      },
+    },
+    select: { id: true },
   })
-  // Check via listing lookup
-  const dupListing = await prisma.openClawListing.findFirst({
-    where: { company: listing.company, role: listing.role },
-  })
-  const isDup = !!duplicate && !!dupListing
+  const isDup = !!duplicate
   const d10Score = isDup ? 0 : 2
   dimensions['Pipeline Integrity'] = { score: d10Score, maxScore: 2, reasoning: isDup ? 'Duplicate application detected' : 'No duplicate found' }
   total += d10Score
@@ -173,21 +185,23 @@ export async function scoreJobListing(
   const recommendation = toRecommendation(grade)
 
   // ── Key strengths/weaknesses from AI ──
-  const summaryRaw = await callGPT(
-    `Given these evaluation scores, list 3 key strengths and 3 key weaknesses, plus one negotiation leverage point. Return JSON: { "keyStrengths": string[], "keyWeaknesses": string[], "negotiationLeverage": string }`,
-    `Total: ${total}/100 Grade: ${grade}\nDimensions: ${JSON.stringify(dimensions)}`,
-    'llama-3.3-70b-versatile',
-    500
-  )
-  const summary = JSON.parse(summaryRaw)
+  const summary = await generateJson({
+    feature: 'openclaw_eval',
+    system: `Given these evaluation scores, list 3 key strengths and 3 key weaknesses, plus one negotiation leverage point. Return JSON: { "keyStrengths": string[], "keyWeaknesses": string[], "negotiationLeverage": string }`,
+    prompt: `Total: ${total}/100 Grade: ${grade}\nDimensions: ${JSON.stringify(dimensions)}`,
+    schema: evaluationSummarySchema,
+    userId: student.id,
+    maxTokens: 500,
+    temperature: 0,
+  })
 
   return {
     totalScore: total,
     grade,
     dimensions,
     recommendation,
-    keyStrengths: summary.keyStrengths ?? [],
-    keyWeaknesses: summary.keyWeaknesses ?? [],
-    negotiationLeverage: summary.negotiationLeverage ?? '',
+    keyStrengths: summary.keyStrengths,
+    keyWeaknesses: summary.keyWeaknesses,
+    negotiationLeverage: summary.negotiationLeverage,
   }
 }

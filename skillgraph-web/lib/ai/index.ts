@@ -88,6 +88,52 @@ export function extractJson(raw: string): unknown {
   }
 }
 
+/**
+ * Calls the LLM for short free-text output (e.g. a tailored summary). Same quota,
+ * metering and timeout behaviour as generateJson. Throws AiError on failure or empty output.
+ */
+export async function generateText(opts: {
+  feature: string
+  system: string
+  prompt: string
+  userId: string | null
+  model?: GPTModel
+  maxTokens?: number
+  temperature?: number
+}): Promise<string> {
+  const model = opts.model ?? DEFAULT_MODEL
+  if (opts.userId) await assertAiQuota(opts.userId)
+  try {
+    const response = await openai.chat.completions.create(
+      {
+        model,
+        messages: [
+          { role: 'system', content: opts.system },
+          { role: 'user', content: opts.prompt },
+        ],
+        max_tokens: opts.maxTokens ?? 300,
+        temperature: opts.temperature ?? 0.4,
+      },
+      { timeout: REQUEST_TIMEOUT_MS, maxRetries: SDK_MAX_RETRIES }
+    )
+    await recordUsage({
+      userId: opts.userId,
+      feature: opts.feature,
+      model,
+      promptTokens: response.usage?.prompt_tokens ?? 0,
+      completionTokens: response.usage?.completion_tokens ?? 0,
+      success: true,
+    })
+    const text = (response.choices[0]?.message?.content ?? '').trim()
+    if (!text) throw new AiError('invalid_output', `[${opts.feature}] empty model output`)
+    return text
+  } catch (err) {
+    if (err instanceof AiError) throw err
+    await recordUsage({ userId: opts.userId, feature: opts.feature, model, promptTokens: 0, completionTokens: 0, success: false })
+    throw new AiError('upstream', `[${opts.feature}] LLM request failed: ${(err as Error).message}`)
+  }
+}
+
 export type GenerateJsonOptions<S extends z.ZodType> = {
   /** Short identifier used for metering, e.g. "gap_analysis". */
   feature: string

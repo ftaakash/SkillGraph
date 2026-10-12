@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { ok, unauthorized, serverError, badRequest } from '@/lib/api'
+import { USER_SETTABLE_STATUSES } from '@/lib/openclaw/status'
 
+const bodySchema = z.object({ status: z.enum(USER_SETTABLE_STATUSES) })
+
+// PATCH /api/openclaw/applications/:id — the student reports progress on their own application
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -12,28 +17,26 @@ export async function PATCH(
     if (!session?.user) return unauthorized()
     const userId = session.user.id as string
 
-    const { status } = await req.json()
-    if (!status) return badRequest('status is required')
+    const parsed = bodySchema.safeParse(await req.json())
+    if (!parsed.success) return badRequest(`status must be one of: ${USER_SETTABLE_STATUSES.join(', ')}`)
 
-    const resolvedParams = await params
-    const id = resolvedParams.id
-
-    const existing = await prisma.openClawApplication.findUnique({
-      where: { id },
-    })
-
+    const { id } = await params
+    const existing = await prisma.openClawApplication.findUnique({ where: { id }, select: { userId: true } })
     if (!existing || existing.userId !== userId) {
-      return NextResponse.json({ error: 'Application not found or unauthorized' }, { status: 404 })
+      return NextResponse.json({ error: 'Application not found' }, { status: 404 })
     }
 
     const updated = await prisma.openClawApplication.update({
       where: { id },
-      data: { status },
+      data: {
+        status: parsed.data.status,
+        // appliedAt marks when the student actually applied
+        ...(parsed.data.status === 'Applied' ? { appliedAt: new Date() } : {}),
+      },
     })
-
     return ok({ application: updated })
   } catch (err) {
-    console.error('[openclaw/applications/patch]', err)
+    console.error('[openclaw/applications PATCH]', err)
     return serverError()
   }
 }

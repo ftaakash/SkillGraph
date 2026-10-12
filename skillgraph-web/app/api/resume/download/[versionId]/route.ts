@@ -92,9 +92,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ vers
         name: user.name || 'Student',
         email: user.email || '',
         tagline: user.targetRole || 'Software Professional',
-        phone: user.OpenClawConfig?.phone || '+91 0000000000',
-        linkedin: `linkedin.com/in/${user.name?.toLowerCase().replace(/ /g, '-')}`,
-        github: `github.com/${user.name?.toLowerCase().replace(/ /g, '')}`,
+        phone: user.OpenClawConfig?.phone || '',
+        linkedin: user.linkedin || '',
+        github: user.github || '',
         summary: getSectionContent('summary') || `Professional ${user.targetRole || 'Engineer'} with expertise in technology.`,
         skills: {
           technical: user.skills.filter(s => s.category === 'technical').map(s => s.skillName),

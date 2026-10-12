@@ -21,9 +21,9 @@ export async function POST(req: NextRequest) {
       name: name || userProfile?.name || 'Student',
       email: email || userProfile?.email || '',
       tagline: userProfile?.targetRole || 'Software Professional',
-      phone: userProfile?.OpenClawConfig?.phone || '+91 0000000000',
-      linkedin: `linkedin.com/in/${(name || userProfile?.name)?.toLowerCase().replace(/ /g, '-')}`,
-      github: `github.com/${(name || userProfile?.name)?.toLowerCase().replace(/ /g, '')}`,
+      phone: userProfile?.OpenClawConfig?.phone || '',
+      linkedin: userProfile?.linkedin || '',
+      github: userProfile?.github || '',
       summary: sections?.summary || `Motivated professional with expertise in technology.`,
       skills: {
         technical: (sections?.skills || '')

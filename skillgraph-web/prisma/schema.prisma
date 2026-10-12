@@ -235,7 +235,6 @@ model OpenClawConfig {
   isActive             Boolean  @default(true)
   applicationEmail     String?
   phone                String?
-  sessionData          Json?    // Stores Playwright storageState
 
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -260,7 +259,7 @@ model OpenClawApplication {
   listingId       String
   matchScore      Float?
   resumeVersionId String?
-  status          String   @default("Applied") // Applied | Failed | UnableToApply | Shortlisted | Viewed | Rejected | Closed
+  status          String   @default("Pending") // see lib/openclaw/status.ts
   screenshotUrl   String?
   tailoringNotes  String?  @db.Text
   appliedAt       DateTime @default(now())

@@ -1,328 +1,265 @@
-import { PrismaClient } from '@prisma/client';
-import { scrapeNaukri, scrapeLinkedIn, scrapeGlassdoor, scrapeIndeed } from './scraper';
-import { scoreJobMatch } from './matcher';
-import { applyToJob } from './applicator';
-import { generateResumePDFBuffer } from '@/lib/resume/exporter';
-import { putPrivateFile } from '@/lib/storage';
-import fs from 'fs/promises';
-import path from 'path';
-import os from 'os';
-export async function processOpenClawAgent(userId: string) {
-  const prisma = new PrismaClient();
-  // 1. Fetch Student Config with profile data
+/**
+ * OpenClaw "assisted apply" agent (ADR-001, Phase 2).
+ *
+ * Finds roles through licensed job APIs, scores fit, and for strong matches prepares a
+ * tailored résumé. Each match is queued as `ReadyToApply`; the student opens the
+ * employer's posting and submits themselves. The agent never logs into or automates
+ * third-party sites and never stores third-party credentials.
+ */
+import type { JobListing } from '@/lib/jobs'
+import { discoverJobs, discoveryConfigured } from '@/lib/jobs'
+import { prisma } from '@/lib/prisma'
+import { generateText } from '@/lib/ai'
+import { PROMPTS } from '@/lib/openai'
+import { generateResumePDFBuffer } from '@/lib/resume/exporter'
+import { putPrivateFile } from '@/lib/storage'
+import { scoreJobMatch } from './matcher'
+import { OPEN_STATUSES } from './status'
+
+const MIN_MATCH_SCORE = 65
+
+export type AgentRunResult = {
+  status: 'completed' | 'inactive' | 'no_sources' | 'limit_reached'
+  discovered: number
+  evaluated: number
+  prepared: number
+  skipped: { duplicate: number; blacklisted: number; lowMatch: number; failed: number }
+}
+
+type StoredContent = unknown
+
+/** Reads a ResumeSection content blob that may be a string, {text}, or an array. */
+function sectionText(content: StoredContent): string | unknown[] | null {
+  if (typeof content === 'string') return content
+  if (Array.isArray(content)) return content
+  if (content && typeof content === 'object' && 'text' in content && typeof (content as { text: unknown }).text === 'string') {
+    return (content as { text: string }).text
+  }
+  return null
+}
+
+function toLines(content: StoredContent): string[] {
+  const value = sectionText(content)
+  if (typeof value === 'string') return value.split('\n').filter(Boolean)
+  if (Array.isArray(value)) return value.map(String)
+  return []
+}
+
+function parseExperience(text: string) {
+  return text.split(/\n\n+/).filter(Boolean).map(block => {
+    const lines = block.split('\n').filter(Boolean)
+    return {
+      role: lines[0] || 'Role',
+      company: lines[1] || 'Company',
+      location: lines[2]?.includes(',') ? lines[2] : 'Remote',
+      duration: lines[3] || '',
+      bullets: lines.slice(4),
+    }
+  })
+}
+
+function parseProjects(text: string) {
+  return text.split(/\n\n+/).filter(Boolean).map(block => {
+    const lines = block.split('\n').filter(Boolean)
+    return {
+      name: lines[0] || 'Project',
+      techStack: (lines[1] || '').split(',').map(t => t.trim()),
+      date: lines[2] || '',
+      bullets: lines.slice(3),
+    }
+  })
+}
+
+function startOfToday() {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+export async function processOpenClawAgent(userId: string): Promise<AgentRunResult> {
+  const result: AgentRunResult = {
+    status: 'completed',
+    discovered: 0,
+    evaluated: 0,
+    prepared: 0,
+    skipped: { duplicate: 0, blacklisted: 0, lowMatch: 0, failed: 0 },
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { 
-      OpenClawConfig: true, 
+    include: {
+      OpenClawConfig: true,
       skills: true,
-      ResumeVersions: {
-        orderBy: { createdAt: 'desc' },
-        take: 1
-      }
-    }
-  });
+      ResumeVersions: { orderBy: { createdAt: 'desc' }, take: 1 },
+    },
+  })
+  const config = user?.OpenClawConfig
+  if (!user || !config || !config.isActive) return { ...result, status: 'inactive' }
+  if (!discoveryConfigured()) return { ...result, status: 'no_sources' }
 
-  if (!user || !user.OpenClawConfig || !user.OpenClawConfig.isActive) {
-    console.log(`OpenClaw is inactive or undefined for user ${userId}.`);
-    return;
-  }
+  // Daily limit counts everything the agent prepared today
+  const preparedToday = await prisma.openClawApplication.count({
+    where: { userId, status: 'ReadyToApply', appliedAt: { gte: startOfToday() } },
+  })
+  const remaining = Math.max(0, config.dailyLimit - preparedToday)
+  if (remaining === 0) return { ...result, status: 'limit_reached' }
 
-  // Fetch all existing resume sections for the user to populate the dynamic resume
+  const roles = asStringArray(config.targetRoles, ['Software Engineer'])
+  const cities = asStringArray(config.preferredCities, ['Remote'])
+  const blacklist = asStringArray(config.blacklistedCompanies, []).map(c => c.toLowerCase())
+
+  // Evaluate at most twice the remaining budget to bound AI cost per run
+  const listings = await discoverJobs(roles, cities, Math.min(remaining * 2, 20))
+  result.discovered = listings.length
+
   const sections = await prisma.resumeSection.findMany({
-    where: { 
-      resumeVersionId: user.ResumeVersions[0]?.id || 'never'
+    where: { resumeVersionId: user.ResumeVersions[0]?.id ?? 'none' },
+  })
+  const section = (...types: string[]) =>
+    sections.find(s => types.includes(s.type.toLowerCase()))?.content ?? null
+  const skillNames = user.skills.map(s => s.skillName)
+
+  for (const listing of listings) {
+    if (result.prepared >= remaining) break
+
+    if (blacklist.some(b => listing.company.toLowerCase().includes(b))) {
+      result.skipped.blacklisted++
+      continue
     }
-  });
-
-  const getSectionContent = (type: string) => {
-    const s = sections.find(sec => sec.type.toLowerCase() === type.toLowerCase());
-    if (!s) return null;
-    return s.content;
-  };
-
-  // Helper to parse experience/projects from section data
-  const parseSectionToLines = (content: any): string[] => {
-    if (typeof content === 'string') return content.split('\n').filter(Boolean);
-    if (Array.isArray(content)) return content.map(String);
-    if (content?.text && typeof content.text === 'string') return content.text.split('\n').filter(Boolean);
-    return [];
-  };
-
-  const config = user.OpenClawConfig;
-  console.log(`Running OpenClaw for ${user.email}... Target Roles:`, config.targetRoles);
-
-  const roles = Array.isArray(config.targetRoles) && config.targetRoles.length > 0 ? (config.targetRoles as string[]) : ['Software Engineer'];
-  const cities = Array.isArray(config.preferredCities) && config.preferredCities.length > 0 ? (config.preferredCities as string[]) : ['Remote'];
-  
-  const platforms = [scrapeNaukri, scrapeLinkedIn, scrapeGlassdoor, scrapeIndeed];
-  
-  const allListings: any[] = [];
-  const activeCity = cities[Math.floor(Math.random() * cities.length)];
-
-  for (const r of roles) {
-    for (const scraper of platforms) {
-      if (allListings.length >= Math.max(config.dailyLimit * 2, 20)) break; 
-      try {
-        console.log(`[OpenClaw] Scraper: ${scraper.name} starting for role: ${r}...`);
-        const l = await scraper(r, activeCity);
-        console.log(`[OpenClaw] Scraper: ${scraper.name} extracted ${l.length} potentials.`);
-        allListings.push(...l);
-      } catch(e: any) {
-        console.error(`[OpenClaw] Scraper: ${scraper.name} failed:`, e?.message || e);
-      }
+    if (await alreadyInPipeline(userId, listing)) {
+      result.skipped.duplicate++
+      continue
     }
-  }
-
-  console.log(`[OpenClaw] Indexing Complete. Processing ${allListings.length} total listings for user ${user.id}.`);
-
-  let appliedCount = 0;
-
-  // 3. Match and Apply
-  for (const listing of allListings) {
-    if (appliedCount >= config.dailyLimit) break;
-
-    // Duplication Check: Has this user already applied to this specific URL?
-    const existingListings = await prisma.openClawListing.findMany({
-      where: { sourceUrl: listing.url },
-      select: { id: true }
-    });
-    
-    if (existingListings.length > 0) {
-      const existingApp = await prisma.openClawApplication.findFirst({
-        where: {
-          userId: user.id,
-          listingId: { in: existingListings.map(l => l.id) }
-        }
-      });
-
-      if (existingApp) {
-        console.log(`[OpenClaw] Skipping duplicate application for ${listing.company}: ${listing.url}`);
-        continue;
-      }
-    }
-
-    // Check Blacklist
 
     try {
-      // Analyze Match
-      const matchStatus = await scoreJobMatch(user.skills, `${listing.title} at ${listing.company}`);
-      
-      if (matchStatus.applyRecommendation && matchStatus.matchScore >= 65) {
-        
-        // ── RESUME-FIRST STRATEGY ───────────────────────────────────────────
-        // The user's uploaded and parsed resume is the single source of truth.
-        // We only AI-customize the summary/about-me section for each specific job.
-        // Everything else (experience, projects, education, skills) is untouched.
-
-        // Helper to parse structured experience blocks from stored section text
-        const parseExperience = (text: string) => {
-          if (!text) return [];
-          return text.split(/\n\n+/).filter(Boolean).map((block) => {
-            const lines = block.split('\n').filter(Boolean)
-            return {
-              role: lines[0] || 'Role',
-              company: lines[1] || 'Company',
-              location: lines[2]?.includes(',') ? lines[2] : 'Remote',
-              duration: lines[3] || '',
-              bullets: lines.slice(4),
-            }
-          })
-        }
-
-        const parseProjects = (text: string) => {
-          if (!text) return []
-          return text.split(/\n\n+/).filter(Boolean).map((block) => {
-            const lines = block.split('\n').filter(Boolean)
-            return {
-              name: lines[0] || 'Project',
-              techStack: (lines[1] || '').split(',').map((t: string) => t.trim()),
-              date: lines[2] || '',
-              bullets: lines.slice(3),
-            }
-          })
-        }
-
-        // ── Step 1: Build base resume body from the user's stored sections ──
-        // Parse stored JSON sections — handle both string and structured JSON content
-        const parseSectionJson = (content: any): any => {
-          if (typeof content === 'string') return content;
-          if (content?.text) return content.text;
-          if (Array.isArray(content)) return content;
-          return content;
-        };
-
-        const experienceRaw   = parseSectionJson(getSectionContent('experience'));
-        const projectsRaw     = parseSectionJson(getSectionContent('projects'));
-        const existingSummary = parseSectionJson(getSectionContent('summary') || getSectionContent('about'));
-        
-        // ── Step 2: Generate ONLY the tailored summary via AI (max 300 tokens) ──
-        // This is the only AI customization per application. Everything else is real.
-        const baseSummary = typeof existingSummary === 'string' && existingSummary.length > 20
-          ? existingSummary
-          : `${user.name} is a ${user.targetRole || 'Software Engineer'} with expertise in ${user.skills.slice(0, 4).map(s => s.skillName).join(', ')}.`;
-
-        let tailoredSummary = baseSummary; // safe fallback if AI fails
-        try {
-          const { callGPTText, PROMPTS } = await import('@/lib/openai');
-          tailoredSummary = await callGPTText(
-            PROMPTS.TAILORED_SUMMARY,
-            `Candidate summary: "${baseSummary}"\n\nJob: ${listing.title} at ${listing.company}\nJD snippet: ${(listing.skills || []).slice(0, 10).join(', ') || listing.title}\n\nWrite the tailored summary now:`,
-          );
-        } catch (summaryErr) {
-          console.warn('[OpenClaw] Summary tailoring failed, using base summary:', summaryErr);
-        }
-
-        // ── Step 3: Assemble the full resume from stored + tailored data ────
-        const resumeData = {
-          name:    user.name    || 'Student',
-          email:   user.email   || '',
-          tagline: user.targetRole || 'Software Professional',
-          phone:   user.OpenClawConfig?.phone || '+91 0000000000',
-          linkedin: (user as any).linkedin || `linkedin.com/in/${user.email.split('@')[0]}`,
-          github:   (user as any).github   || `github.com/${user.email.split('@')[0]}`,
-
-          // ← ONLY THIS FIELD IS CUSTOMIZED PER JOB
-          summary: tailoredSummary,
-
-          // ← EVERYTHING BELOW IS FROM THE USER'S ACTUAL UPLOADED RESUME
-          skills: {
-            technical: user.skills.filter(s => s.category === 'technical').map(s => s.skillName),
-            tools:     user.skills.filter(s => s.category !== 'technical').map(s => s.skillName)
-          },
-          experience: typeof experienceRaw === 'string'
-            ? parseExperience(experienceRaw)
-            : (Array.isArray(experienceRaw) ? experienceRaw : []),
-
-          projects: typeof projectsRaw === 'string'
-            ? parseProjects(projectsRaw)
-            : (Array.isArray(projectsRaw) ? projectsRaw : []),
-
-          education: (() => {
-            const eduContent = parseSectionJson(getSectionContent('education'));
-            if (Array.isArray(eduContent)) return eduContent;
-            return [{ 
-              degree:   user.branch ? `${user.branch} (${user.year})` : 'Degree Candidate', 
-              college:  user.college || 'University', 
-              cgpa:     user.cgpa?.toString() || '—', 
-              year:     user.year || '2026',
-              location: 'India' 
-            }];
-          })(),
-
-          achievements: parseSectionToLines(getSectionContent('achievements') || getSectionContent('honor')),
-          activities:   parseSectionToLines(getSectionContent('activities')   || getSectionContent('organization'))
-        };
-
-        const pdfBuffer = await generateResumePDFBuffer(resumeData);
-        
-        // Persist privately for later download; the browser upload needs a local copy,
-        // which lives in the OS temp dir only for the duration of this application
-        const resumeId = `cv_${Date.now()}`;
-        const storedRef = await putPrivateFile('resumes', `${resumeId}.pdf`, new Uint8Array(pdfBuffer));
-        const finalPath = path.join(os.tmpdir(), `skillgraph_${resumeId}.pdf`);
-        await fs.writeFile(finalPath, new Uint8Array(pdfBuffer));
-        const removeTempResume = () => fs.unlink(finalPath).catch(() => {});
-
-        const resumeVersion = await prisma.resumeVersion.create({
-          data: {
-            id: resumeId,
-            userId: user.id,
-            targetJd: listing.url,
-            cloudinaryUrl: storedRef,
-            atsScore: matchStatus.matchScore,
-            generatedBy: 'AI'
-          }
-        });
-
-        // Detect platform strictly from URL to avoid mislabeling
-        const detectPlatform = (url: string): string => {
-          const lower = url.toLowerCase();
-          if (lower.includes('linkedin.com')) return 'linkedin';
-          if (lower.includes('naukri.com')) return 'naukri';
-          if (lower.includes('glassdoor.com')) return 'glassdoor';
-          if (lower.includes('indeed.com')) return 'indeed';
-          return 'generic';
-        };
-
-        const platform = detectPlatform(listing.url);
-        const platformSession = (config.sessionData as any)?.[platform];
-        const knownPlatforms = ['linkedin', 'naukri', 'glassdoor', 'indeed'];
-        const requiresSession = knownPlatforms.includes(platform);
-
-        // Save listing to DB first so all subsequent status records can reference it
-        const savedListing = await prisma.openClawListing.create({
-          data: {
-            platform: platform,
-            company: listing.company,
-            role: listing.title,
-            location: listing.location,
-            ctcBand: listing.salary,
-            jdText: listing.skills && listing.skills.length > 0 
-                      ? 'Required skills: ' + listing.skills.join(', ')
-                      : 'Emphasize experience in relevant modern stacks.',
-            sourceUrl: listing.url
-          }
-        });
-
-        // ─── SESSION ENFORCEMENT GATE ─────────────────────────────────────────
-        // For all major job boards, we must have a linked authenticated session.
-        // Without it, we would either hit a login wall or apply anonymously,
-        // which is NOT the user's intent. Skip with a clear audit record.
-        if (requiresSession && !platformSession) {
-          console.warn(`[OpenClaw] Skipping ${listing.company} (${platform}): No linked session. User must link their ${platform} account in the OpenClaw dashboard.`);
-          await prisma.openClawApplication.create({
-            data: {
-              userId: user.id,
-              listingId: savedListing.id,
-              matchScore: matchStatus.matchScore,
-              resumeVersionId: resumeVersion.id,
-              status: 'UnableToApply',
-              screenshotUrl: null,
-              tailoringNotes: `No ${platform} account linked. Link your account in the OpenClaw dashboard to enable real applications.`,
-              appliedAt: new Date()
-            }
-          });
-          await removeTempResume();
-          continue;
-        }
-
-        // ─── EMAIL VALIDATION ──────────────────────────────────────────────────
-        const applicationEmail = config.applicationEmail?.trim();
-        if (!applicationEmail || applicationEmail.length < 5) {
-          console.warn(`[OpenClaw] Skipping ${listing.company}: No valid application email configured.`);
-          await removeTempResume();
-          continue;
-        }
-
-        const applyStatus = await applyToJob({
-          studentName: user.name,
-          studentEmail: applicationEmail,
-          studentPhone: config.phone || 'Not provided',
-          jobUrl: listing.url,
-          resumePdfPath: finalPath,
-          sessionData: platformSession
-        }).finally(removeTempResume);
-
-        // Record Application with truthful status
-        await prisma.openClawApplication.create({
-          data: {
-            userId: user.id,
-            listingId: savedListing.id,
-            matchScore: matchStatus.matchScore,
-            resumeVersionId: resumeVersion.id,
-            status: applyStatus.success ? 'Applied' : 'Failed',
-            screenshotUrl: applyStatus.screenshotUrl || null,
-            tailoringNotes: matchStatus.tailoringNotes || 'No notes',
-            appliedAt: new Date()
-          }
-        });
-
-        if (applyStatus.success) appliedCount++;
+      result.evaluated++
+      const match = await scoreJobMatch(userId, skillNames, `${listing.role} at ${listing.company}\n\n${listing.jdText}`)
+      if (!match.applyRecommendation || match.matchScore < MIN_MATCH_SCORE || match.confidenceLevel === 'low') {
+        result.skipped.lowMatch++
+        continue
       }
-    } catch (apiError) {
-      console.error(`AI Analysis/Application error for ${listing.company}:`, apiError);
+
+      // ── Résumé-first: only the summary is tailored; everything else is the student's own data ──
+      const storedSummary = sectionText(section('summary', 'about'))
+      const baseSummary = typeof storedSummary === 'string' && storedSummary.length > 20
+        ? storedSummary
+        : `${user.name} is a ${user.targetRole || 'Software Engineer'} with expertise in ${skillNames.slice(0, 4).join(', ')}.`
+
+      let tailoredSummary = baseSummary
+      try {
+        tailoredSummary = await generateText({
+          feature: 'openclaw_summary',
+          system: PROMPTS.TAILORED_SUMMARY,
+          prompt: `Candidate summary: "${baseSummary}"\n\nJob: ${listing.role} at ${listing.company}\nJD excerpt: ${listing.jdText.slice(0, 1200)}\n\nWrite the tailored summary now:`,
+          userId,
+        })
+      } catch (err) {
+        console.warn('[OpenClaw] summary tailoring failed, using stored summary:', (err as Error).message)
+      }
+
+      const experience = sectionText(section('experience'))
+      const projects = sectionText(section('projects'))
+      const education = sectionText(section('education'))
+      const pdfBuffer = await generateResumePDFBuffer({
+        name: user.name || 'Student',
+        email: config.applicationEmail || user.email,
+        tagline: user.targetRole || 'Software Professional',
+        phone: config.phone || '',
+        linkedin: user.linkedin || '',
+        github: user.github || '',
+        summary: tailoredSummary,
+        skills: {
+          technical: user.skills.filter(s => s.category === 'technical').map(s => s.skillName),
+          tools: user.skills.filter(s => s.category !== 'technical').map(s => s.skillName),
+        },
+        experience: typeof experience === 'string' ? parseExperience(experience) : Array.isArray(experience) ? experience : [],
+        projects: typeof projects === 'string' ? parseProjects(projects) : Array.isArray(projects) ? projects : [],
+        education: Array.isArray(education)
+          ? education
+          : [{
+              degree: user.branch ? `${user.branch} (${user.year})` : 'Degree Candidate',
+              college: user.college || 'University',
+              cgpa: user.cgpa?.toString() || '—',
+              year: user.year || '',
+              location: 'India',
+            }],
+        achievements: toLines(section('achievements', 'honor')),
+        activities: toLines(section('activities', 'organization')),
+      })
+
+      const resumeId = `cv_${Date.now()}`
+      const storedRef = await putPrivateFile('resumes', `${resumeId}.pdf`, new Uint8Array(pdfBuffer))
+
+      await prisma.$transaction(async tx => {
+        const resumeVersion = await tx.resumeVersion.create({
+          data: { id: resumeId, userId, targetJd: listing.sourceUrl, cloudinaryUrl: storedRef, atsScore: match.matchScore, generatedBy: 'AI' },
+        })
+        const saved = await tx.openClawListing.create({
+          data: {
+            platform: listing.platform,
+            company: listing.company,
+            role: listing.role,
+            location: listing.location,
+            ctcBand: listing.ctcBand,
+            jdText: listing.jdText,
+            sourceUrl: listing.sourceUrl,
+          },
+        })
+        await tx.openClawApplication.create({
+          data: {
+            userId,
+            listingId: saved.id,
+            matchScore: match.matchScore,
+            resumeVersionId: resumeVersion.id,
+            status: 'ReadyToApply',
+            tailoringNotes: match.tailoringNotes || null,
+          },
+        })
+      })
+      result.prepared++
+    } catch (err) {
+      result.skipped.failed++
+      console.error(`[OpenClaw] could not prepare ${listing.company} / ${listing.role}:`, (err as Error).message)
     }
   }
 
-  console.log(`OpenClaw finished for ${user.email}. Applied to ${appliedCount} jobs.`);
+  if (result.prepared > 0) {
+    await prisma.notification.create({
+      data: {
+        userId,
+        type: 'system',
+        title: `${result.prepared} application${result.prepared === 1 ? '' : 's'} ready to submit`,
+        body: 'OpenClaw prepared tailored résumés for strong matches. Review them and apply on the employer’s site.',
+        link: '/openclaw',
+      },
+    }).catch(err => console.warn('[OpenClaw] notification failed:', err.message))
+  }
+
+  console.log(`[OpenClaw] user ${userId}:`, JSON.stringify(result))
+  return result
+}
+
+function asStringArray(value: unknown, fallback: string[]): string[] {
+  const list = Array.isArray(value) ? value.map(String).map(s => s.trim()).filter(Boolean) : []
+  return list.length > 0 ? list : fallback
+}
+
+async function alreadyInPipeline(userId: string, listing: JobListing) {
+  const existing = await prisma.openClawApplication.findFirst({
+    where: {
+      userId,
+      status: { in: [...OPEN_STATUSES] },
+      listing: {
+        OR: [
+          { sourceUrl: listing.sourceUrl },
+          {
+            company: { equals: listing.company, mode: 'insensitive' },
+            role: { equals: listing.role, mode: 'insensitive' },
+          },
+        ],
+      },
+    },
+    select: { id: true },
+  })
+  return Boolean(existing)
 }

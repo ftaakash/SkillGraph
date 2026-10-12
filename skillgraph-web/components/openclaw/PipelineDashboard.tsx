@@ -41,30 +41,36 @@ const GRADE_COLORS: Record<string, string> = {
 
 const STATUS_COLORS: Record<string, string> = {
   Pending:        'text-yellow-400',
+  ReadyToApply:   'text-emerald-400',
   Applied:        'text-cyan-400',
   Failed:         'text-red-500',
   UnableToApply:  'text-amber-400',
   Shortlisted:    'text-green-400',
+  Interviewing:   'text-green-400',
+  Offer:          'text-green-300',
   Viewed:         'text-blue-400',
   Rejected:       'text-red-400',
+  Withdrawn:      'text-zinc-500',
   Closed:         'text-zinc-500',
   Duplicate:      'text-zinc-500',
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  UnableToApply: 'No Account Linked',
-  Applied:       'Applied',
-  Failed:        'Failed',
-  Shortlisted:   'Shortlisted',
-  Viewed:        'Viewed',
-  Rejected:      'Rejected',
-  Closed:        'Closed',
+  Pending:       'Evaluated',
+  ReadyToApply:  'Ready to apply',
+  UnableToApply: 'Not submitted',
+  Failed:        'Not submitted',
 }
+
+// Statuses where the student still has to apply on the employer's site
+const AWAITING_STUDENT = ['Pending', 'ReadyToApply']
 
 export default function PipelineDashboard() {
   const [applications, setApplications] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
   const [urlInput, setUrlInput] = useState('')
+  const [pasteMode, setPasteMode] = useState(false)
+  const [pasted, setPasted] = useState({ company: '', role: '', jdText: '', sourceUrl: '' })
   const [submitting, setSubmitting] = useState(false)
   const [selected, setSelected] = useState<Application | null>(null)
   const [negListing, setNegListing] = useState<{ id: string; company: string; role: string } | null>(null)
@@ -83,32 +89,49 @@ export default function PipelineDashboard() {
     return () => clearInterval(interval)
   }, [loadApps])
 
-  const handlePasteUrl = async () => {
-    if (!urlInput.trim()) return
+  const submit = async (body: Record<string, string>) => {
     setSubmitting(true)
     setSubmitMsg('')
     try {
       const res = await fetch('/api/openclaw/pipeline', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobUrl: urlInput.trim() }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
-      if (data.evaluation) {
-        setSubmitMsg(`✓ Evaluated: Grade ${data.evaluation.grade} (${data.evaluation.totalScore.toFixed(0)}/100)`)
+      if (res.ok && data.evaluation) {
+        setSubmitMsg(`✓ ${data.existing ? 'Already in pipeline' : 'Evaluated'}: Grade ${data.evaluation.grade} (${Number(data.evaluation.totalScore).toFixed(0)}/100)`)
+        setUrlInput('')
+        setPasted({ company: '', role: '', jdText: '', sourceUrl: '' })
+        loadApps()
+      } else if (data.code === 'unsupported_source') {
+        // LinkedIn, Naukri, … — switch to paste mode and keep the link for reference
+        setPasted(p => ({ ...p, sourceUrl: urlInput.trim() }))
+        setPasteMode(true)
+        setSubmitMsg(`⚠ ${data.error}`)
       } else {
-        setSubmitMsg('⚠ Pipeline returned no evaluation.')
+        setSubmitMsg(`✗ ${data.error ?? 'Evaluation failed.'}`)
       }
-      setUrlInput('')
-      loadApps()
     } catch {
-      setSubmitMsg('✗ Pipeline failed. Check URL.')
+      setSubmitMsg('✗ Evaluation failed. Please try again.')
     } finally {
       setSubmitting(false)
     }
   }
 
-  const handleConfirmApply = async (appId: string) => {
+  const handleSubmit = () => {
+    if (pasteMode) {
+      if (!pasted.company.trim() || !pasted.role.trim() || !pasted.jdText.trim()) {
+        setSubmitMsg('⚠ Company, role and the job description are required.')
+        return
+      }
+      submit(pasted)
+    } else if (urlInput.trim()) {
+      submit({ jobUrl: urlInput.trim() })
+    }
+  }
+
+  const markApplied = async (appId: string) => {
     await fetch(`/api/openclaw/applications/${appId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -126,134 +149,81 @@ export default function PipelineDashboard() {
     return 'F'
   }
 
-  const [showSettings, setShowSettings] = useState(false)
-  const [activePlatform, setActivePlatform] = useState<'linkedin' | 'naukri' | 'indeed' | 'glassdoor'>('linkedin')
-  const [sessionJson, setSessionJson] = useState('')
-  const [syncing, setSyncing] = useState(false)
-
-  const handleSync = async () => {
-    setSyncing(true)
-    try {
-      await fetch('/api/openclaw/sync', { method: 'POST' })
-      loadApps()
-      setSubmitMsg('✓ Status sync complete.')
-    } catch {
-      setSubmitMsg('✗ Sync failed.')
-    } finally {
-      setSyncing(false)
-    }
-  }
-
-  const handleSaveSession = async () => {
-    try {
-      // Validate JSON
-      const parsed = JSON.parse(sessionJson)
-      await fetch('/api/openclaw/config', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          sessionData: { [activePlatform]: parsed } 
-        }),
-      })
-      setSubmitMsg(`✓ ${activePlatform} session linked successfully.`)
-      setShowSettings(false)
-      setSessionJson('')
-    } catch {
-      alert('Invalid Session JSON. Please paste a valid Playwright storageState.')
-    }
-  }
-
   return (
     <div className="h-full flex flex-col gap-4" style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>
-      {/* URL Input Bar */}
-      <div className="bg-[#0D1117] border border-cyan-500/20 rounded-xl p-4 flex gap-3 items-center">
-        <Terminal className="text-cyan-500 w-5 h-5 shrink-0" />
-        <input
-          value={urlInput}
-          onChange={e => setUrlInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handlePasteUrl()}
-          placeholder="Paste job URL to evaluate → press Enter"
-          className="flex-1 bg-transparent outline-none text-cyan-300 text-sm placeholder:text-zinc-600"
-        />
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowSettings(!showSettings)}
-            className="border-cyan-500/30 text-cyan-500 hover:bg-cyan-500/10 text-xs gap-1"
-          >
-            Link Account
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleSync}
-            disabled={syncing}
-            className="border-zinc-700 text-zinc-400 hover:bg-zinc-800 text-xs gap-1"
-          >
-            {syncing ? 'Syncing...' : 'Sync Status'}
-          </Button>
-          <Button
-            size="sm"
-            onClick={handlePasteUrl}
-            disabled={submitting || !urlInput.trim()}
-            className="bg-cyan-600 hover:bg-cyan-500 text-black font-bold text-xs gap-1 shrink-0"
-          >
-            <Plus size={12} /> {submitting ? 'Evaluating...' : 'Evaluate'}
-          </Button>
-        </div>
-      </div>
-      {submitMsg && <p className={`text-xs px-1 ${submitMsg.startsWith('✓') ? 'text-green-400' : 'text-yellow-400'}`}>{submitMsg}</p>}
-
-      {/* Account Settings Overlay */}
-      {showSettings && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowSettings(false)} />
-          <div className="relative z-10 w-full max-w-lg bg-[#0D1117] border border-cyan-500/30 rounded-2xl p-6 shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-zinc-800 pb-4">
-              <div className="flex items-center gap-2">
-                <Terminal className="text-cyan-500 w-5 h-5" />
-                <h3 className="text-white font-bold text-base tracking-tight">Multi-Platform Auth</h3>
-              </div>
-              <button onClick={() => setShowSettings(false)} className="text-zinc-500 hover:text-white">✕</button>
-            </div>
-
-            {/* Platform Selector */}
-            <div className="flex gap-1 p-1 bg-black/40 rounded-lg">
-              {['linkedin', 'naukri', 'indeed', 'glassdoor'].map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setActivePlatform(p as any)}
-                  className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-tighter rounded transition ${activePlatform === p ? 'bg-cyan-600 text-black' : 'text-zinc-500 hover:text-zinc-300'}`}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
-                {activePlatform} storageState.json
-              </label>
-              <textarea
-                value={sessionJson}
-                onChange={e => setSessionJson(e.target.value)}
-                placeholder={`Paste ${activePlatform} session JSON here...`}
-                className="w-full h-40 bg-[#010409] border border-zinc-800 rounded-lg p-3 text-[10px] text-cyan-500 outline-none focus:border-cyan-500/50 transition font-mono"
+      {/* Input: job link or pasted job description */}
+      <div className="bg-[#0D1117] border border-cyan-500/20 rounded-xl p-4 space-y-3">
+        <div className="flex gap-3 items-center">
+          <Terminal className="text-cyan-500 w-5 h-5 shrink-0" />
+          {pasteMode ? (
+            <div className="flex-1 grid grid-cols-2 gap-2">
+              <input
+                value={pasted.company}
+                onChange={e => setPasted({ ...pasted, company: e.target.value })}
+                placeholder="Company"
+                aria-label="Company"
+                className="bg-transparent border-b border-zinc-800 outline-none text-cyan-300 text-sm placeholder:text-zinc-600"
               />
-              <p className="text-[9px] text-zinc-600 leading-relaxed italic">
-                Tip: Run `playwright codegen --save-storage=${activePlatform}.json ${activePlatform}.com`
-              </p>
+              <input
+                value={pasted.role}
+                onChange={e => setPasted({ ...pasted, role: e.target.value })}
+                placeholder="Role"
+                aria-label="Role"
+                className="bg-transparent border-b border-zinc-800 outline-none text-cyan-300 text-sm placeholder:text-zinc-600"
+              />
             </div>
-
-            <div className="flex gap-3 pt-2">
-              <Button onClick={handleSaveSession} className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-black font-bold py-5">
-                Link {activePlatform.charAt(0).toUpperCase() + activePlatform.slice(1)}
-              </Button>
-            </div>
+          ) : (
+            <input
+              value={urlInput}
+              onChange={e => setUrlInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+              placeholder="Paste a job link (Greenhouse, Lever, Ashby, company careers page) → Enter"
+              aria-label="Job link"
+              className="flex-1 bg-transparent outline-none text-cyan-300 text-sm placeholder:text-zinc-600"
+            />
+          )}
+          <div className="flex gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => { setPasteMode(!pasteMode); setSubmitMsg('') }}
+              className="border-cyan-500/30 text-cyan-500 hover:bg-cyan-500/10 text-xs"
+            >
+              {pasteMode ? 'Use a link' : 'Paste JD'}
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSubmit}
+              disabled={submitting || (pasteMode ? !pasted.jdText.trim() : !urlInput.trim())}
+              className="bg-cyan-600 hover:bg-cyan-500 text-black font-bold text-xs gap-1"
+            >
+              <Plus size={12} /> {submitting ? 'Evaluating...' : 'Evaluate'}
+            </Button>
           </div>
         </div>
-      )}
+        {pasteMode && (
+          <>
+            <textarea
+              value={pasted.jdText}
+              onChange={e => setPasted({ ...pasted, jdText: e.target.value })}
+              placeholder="Paste the full job description here (required for LinkedIn, Naukri, Indeed and Glassdoor postings)"
+              aria-label="Job description"
+              className="w-full h-28 bg-[#010409] border border-zinc-800 rounded-lg p-3 text-xs text-cyan-200 outline-none focus:border-cyan-500/50 transition"
+            />
+            <input
+              value={pasted.sourceUrl}
+              onChange={e => setPasted({ ...pasted, sourceUrl: e.target.value })}
+              placeholder="Posting link (optional — used for the “Open posting” button)"
+              aria-label="Posting link"
+              className="w-full bg-transparent border-b border-zinc-800 outline-none text-cyan-300 text-xs placeholder:text-zinc-600"
+            />
+          </>
+        )}
+        <p className="text-[10px] text-zinc-600">
+          OpenClaw evaluates and prepares — you always submit the application yourself on the employer’s site.
+        </p>
+      </div>
+      {submitMsg && <p className={`text-xs px-1 ${submitMsg.startsWith('✓') ? 'text-green-400' : 'text-yellow-400'}`}>{submitMsg}</p>}
 
       {/* Pipeline Table */}
       <div className="flex-1 bg-[#0A0D14] border border-zinc-800 rounded-xl overflow-hidden flex flex-col">
@@ -267,7 +237,7 @@ export default function PipelineDashboard() {
           {loading ? (
             <div className="flex items-center justify-center py-16 text-cyan-500 text-xs tracking-widest animate-pulse">INITIALIZING PIPELINE...</div>
           ) : applications.length === 0 ? (
-            <div className="flex items-center justify-center py-16 text-zinc-600 text-xs tracking-widest">NO ENTRIES — PASTE A JOB URL TO BEGIN</div>
+            <div className="flex items-center justify-center py-16 text-zinc-600 text-xs tracking-widest">NO ENTRIES — ADD A JOB LINK OR DESCRIPTION TO BEGIN</div>
           ) : (
             applications.map(app => {
               let parsedEvals = app.EvaluationResult
@@ -306,29 +276,29 @@ export default function PipelineDashboard() {
                   <span className="text-zinc-400 text-xs truncate">{listing?.role ?? '—'}</span>
                   <span className="text-cyan-300 text-xs font-bold">{score.toFixed(0)}</span>
                   <span
-                    title={status === 'UnableToApply' ? (app.tailoringNotes ?? 'Link your account in settings') : status}
+                    title={status === 'UnableToApply' || status === 'Failed' ? 'Created by the retired auto-apply agent — apply on the posting yourself' : status}
                     className={`text-xs font-semibold cursor-help ${STATUS_COLORS[status] ?? 'text-zinc-400'}`}
                   >
                     {STATUS_LABELS[status] ?? status}
                   </span>
                   <div className="flex gap-1 items-center" onClick={e => e.stopPropagation()}>
-                    {status === 'Pending' && (
-                      <Button size="sm" onClick={() => handleConfirmApply(app.id)} className="bg-green-700 hover:bg-green-600 text-white text-[10px] h-6 px-2 font-bold">Apply</Button>
+                    {AWAITING_STUDENT.includes(status) && (
+                      <Button size="sm" onClick={() => markApplied(app.id)} title="I've submitted this application" className="bg-green-700 hover:bg-green-600 text-white text-[10px] h-6 px-2 font-bold">I applied</Button>
                     )}
                     {listing && (
-                      <Button size="sm" variant="ghost" onClick={() => setNegListing({ id: listing.id, company: listing.company, role: listing.role })} className="text-yellow-500 hover:text-yellow-400 h-6 px-1">
+                      <Button size="sm" variant="ghost" aria-label="Negotiation scripts" onClick={() => setNegListing({ id: listing.id, company: listing.company, role: listing.role })} className="text-yellow-500 hover:text-yellow-400 h-6 px-1">
                         <BarChart2 size={12} />
                       </Button>
                     )}
                     {listing?.sourceUrl && (
-                      <a href={listing.sourceUrl} target="_blank" rel="noopener noreferrer">
-                        <Button size="sm" variant="ghost" className="text-zinc-500 hover:text-cyan-400 h-6 px-1"><ChevronRight size={12} /></Button>
-                      </a>
+                      <Button asChild size="sm" variant="ghost" className="text-zinc-500 hover:text-cyan-400 h-6 px-1">
+                        <a href={listing.sourceUrl} target="_blank" rel="noopener noreferrer" aria-label="Open posting" title="Open posting"><ChevronRight size={12} /></a>
+                      </Button>
                     )}
-                    {app.resumeVersionId && status !== 'Pending' && (
-                      <a href={`/api/resume/download/${app.resumeVersionId}`} target="_blank" rel="noopener noreferrer">
-                        <Button size="sm" variant="ghost" className="text-primary hover:text-cyan-300 h-6 px-2 text-[10px] border border-primary/20">📄 DL</Button>
-                      </a>
+                    {app.resumeVersionId && (
+                      <Button asChild size="sm" variant="ghost" className="text-primary hover:text-cyan-300 h-6 px-2 text-[10px] border border-primary/20">
+                        <a href={`/api/resume/download/${app.resumeVersionId}`} target="_blank" rel="noopener noreferrer" title="Download tailored résumé">📄 CV</a>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -407,12 +377,27 @@ export default function PipelineDashboard() {
                   <p className="text-zinc-300 text-xs leading-relaxed">{selected.EvaluationResult.negotiationLeverage}</p>
                 </div>
 
-                {selected.status === 'Pending' && (
-                  <Button onClick={() => handleConfirmApply(selected.id)} className="w-full bg-green-700 hover:bg-green-600 text-white font-bold">
-                    ✓ Confirm & Apply
+              </>
+            )}
+
+            {!selected.EvaluationResult && selected.tailoringNotes && (
+              <div>
+                <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">What to emphasise</p>
+                <p className="text-zinc-300 text-xs leading-relaxed">{selected.tailoringNotes}</p>
+              </div>
+            )}
+
+            {AWAITING_STUDENT.includes(selected.status) && (
+              <div className="space-y-2 pt-2">
+                {selected.Listing?.sourceUrl && (
+                  <Button asChild className="w-full bg-cyan-600 hover:bg-cyan-500 text-black font-bold">
+                    <a href={selected.Listing.sourceUrl} target="_blank" rel="noopener noreferrer">Open posting & apply ↗</a>
                   </Button>
                 )}
-              </>
+                <Button onClick={() => markApplied(selected.id)} variant="outline" className="w-full border-green-700 text-green-400 hover:bg-green-900/30 font-bold">
+                  ✓ I’ve submitted this application
+                </Button>
+              </div>
             )}
           </div>
         </div>

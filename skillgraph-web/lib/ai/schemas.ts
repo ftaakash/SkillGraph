@@ -83,3 +83,54 @@ export const linkedinOptimizationSchema = z.object({
   ats_score_estimate_after: percent,
   improvement_tips: strList,
 })
+
+// ─── OpenClaw ───────────────────────────────────────────────────────────────
+
+export const jobMatchSchema = z.object({
+  matchScore: z.coerce.number().min(0).max(100).catch(0),
+  matchingSkills: strList,
+  missingSkills: strList,
+  applyRecommendation: z.preprocess(v => v === true || v === 'true', z.boolean()),
+  confidenceLevel: z.enum(['high', 'medium', 'low']).catch('low'),
+  tailoringNotes: str.catch(''),
+})
+
+/** Score out of `max` with a short justification (used per evaluation dimension). */
+export const dimensionScoreSchema = (max: number) =>
+  z.object({
+    score: z.coerce.number().catch(0).transform(n => Math.max(0, Math.min(max, Math.round(n)))),
+    reasoning: str.catch(''),
+  })
+
+export const evaluationSummarySchema = z.object({
+  keyStrengths: strList,
+  keyWeaknesses: strList,
+  negotiationLeverage: str.catch(''),
+})
+
+export const negotiationScriptSchema = z.object({
+  title: str,
+  openingLine: str,
+  mainArgument: str,
+  dataPoints: strList,
+  closingLine: str,
+})
+
+export const STORY_THEMES = ['Leadership', 'Tech', 'Conflict', 'Collaboration', 'Failure', 'Growth'] as const
+
+export const interviewStoriesSchema = z.object({
+  stories: z
+    .array(
+      z.object({
+        theme: str, // filtered against STORY_THEMES by the caller
+        starSituation: str,
+        starTask: str,
+        starAction: str,
+        starResult: str,
+        starReflection: str,
+      })
+    )
+    .max(5),
+})
+
+export const jdSkillsSchema = z.array(z.coerce.string()).max(40)

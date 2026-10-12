@@ -1,0 +1,30 @@
+# SkillGraph background worker (ADR-001): queues for market data, sprints, reports and
+# the OpenClaw nightly assisted-apply run. The Next.js app is deployed separately (Vercel).
+#
+#   docker build -f Dockerfile.worker -t skillgraph-worker .
+#   docker run --env-file .env.production -p 8080:8080 skillgraph-worker
+#
+# Required env: DATABASE_URL, REDIS_URL, OPENAI_API_KEY (+ OPENAI_BASE_URL), CLOUDINARY_*,
+# RAPIDAPI_KEY and/or ADZUNA_APP_ID/ADZUNA_APP_KEY. Optional: SENDGRID_*, NEXTAUTH_URL.
+FROM node:22-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+# tsx (devDependency) runs the TypeScript worker with the project's path aliases
+COPY package.json package-lock.json ./
+COPY prisma ./prisma
+RUN npm ci --include=dev --ignore-scripts && npx prisma generate
+
+COPY tsconfig.json ./
+COPY lib ./lib
+COPY workers ./workers
+
+USER node
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||8080)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["npx", "tsx", "workers/index.ts"]

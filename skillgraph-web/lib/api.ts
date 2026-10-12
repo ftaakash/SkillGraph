@@ -1,6 +1,7 @@
 import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
 import { AiError, aiErrorResponse } from '@/lib/ai'
+import { JobSourceError } from '@/lib/jobs/types'
 
 export type AuthSession = Awaited<ReturnType<typeof auth>>
 
@@ -32,6 +33,13 @@ export function aiFailure(err: unknown) {
   console.error('[ai]', err.message)
   const { status, error } = aiErrorResponse(err)
   return NextResponse.json({ error }, { status })
+}
+
+/** Converts a JobSourceError into a 4xx with its user-facing message; null for any other error. */
+export function jobSourceFailure(err: unknown) {
+  if (!(err instanceof JobSourceError)) return null
+  const status = err.code === 'not_found' ? 404 : err.code === 'fetch_failed' ? 502 : 422
+  return NextResponse.json({ error: err.message, code: err.code }, { status })
 }
 
 export function ok(data: unknown) {
