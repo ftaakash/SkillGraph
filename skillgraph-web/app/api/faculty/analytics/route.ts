@@ -1,20 +1,22 @@
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { ok, unauthorized, serverError } from '@/lib/api'
+import { facultyContext, collegeStudents } from '@/lib/tenant'
 
 export async function GET() {
   try {
     const session = await auth()
     if (!session?.user) return unauthorized()
-    const user = session.user as { role?: string; collegeId?: string }
-    if (user.role !== 'FACULTY') return unauthorized()
+    const ctx = await facultyContext(session.user.id)
+    if (!ctx) return unauthorized()
+    const { collegeId } = ctx
 
-    const collegeId = user.collegeId || ''
-
-    const totalStudents = await prisma.user.count({ where: { role: 'STUDENT', college: { not: null } } })
+    // Every figure is scoped to this college's students (tenant isolation)
+    const students = collegeStudents(collegeId)
+    const totalStudents = await prisma.user.count({ where: students })
 
     const avgReadiness = await prisma.user.aggregate({
-      where: { role: 'STUDENT' },
+      where: students,
       _avg: { readinessScore: true },
     })
 
@@ -35,7 +37,7 @@ export async function GET() {
     // Top skill gaps across students
     const topGaps = await prisma.skillGap.groupBy({
       by: ['missingSkill'],
-      where: { closed: false },
+      where: { closed: false, user: students },
       _count: { missingSkill: true },
       orderBy: { _count: { missingSkill: 'desc' } },
       take: 5,

@@ -14,7 +14,9 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "worker": "tsx workers/index.ts",
-    "test": "node --import tsx --import ./tests/setup.ts --test \"tests/**/*.test.ts\""
+    "test": "node --import tsx --import ./tests/setup.ts --test \"tests/*.test.ts\"",
+    "loadtest": "node scripts/loadtest.mjs",
+    "test:integration": "node --import tsx --import ./tests/setup.ts --test --test-concurrency=1 \"tests/integration/*.test.ts\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

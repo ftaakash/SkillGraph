@@ -45,3 +45,49 @@ jobs:
 
       - name: Unit tests
         run: npm test
+
+  integration:
+    name: Integration tests (Postgres)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: skillgraph-web
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: skillgraph_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/skillgraph_test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/skillgraph_test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: skillgraph-web/package-lock.json
+
+      - name: Install dependencies (also runs prisma generate)
+        run: npm ci
+
+      # Proves the migration history builds the current schema from an empty database
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+
+      - name: Check schema matches migrations
+        run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
+
+      - name: Integration tests
+        run: npm run test:integration

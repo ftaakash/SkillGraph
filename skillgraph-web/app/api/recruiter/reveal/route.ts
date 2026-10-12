@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { ok, serverError, badRequest } from '@/lib/api'
 import { logger } from '@/lib/log'
 import { DECLINE_COOLDOWN_MS, findDiscoverableStudent, listShortlist } from '@/lib/talent'
+import { getEntitlements, revealRequestsThisMonth } from '@/lib/billing'
 
 async function recruiterId() {
   const session = await auth()
@@ -32,6 +33,15 @@ export async function POST(req: NextRequest) {
     if (existing?.revealStatus === 'requested') return ok({ revealStatus: 'requested', message: 'Request already pending' })
     if (existing?.revealStatus === 'declined' && existing.respondedAt && Date.now() - existing.respondedAt.getTime() < DECLINE_COOLDOWN_MS) {
       return NextResponse.json({ error: 'The candidate declined recently. You can ask again after 30 days.' }, { status: 409 })
+    }
+
+    // Plan limit on new contact requests per calendar month
+    const { limits, plan } = await getEntitlements(id)
+    if ((await revealRequestsThisMonth(id)) >= limits.revealRequestsPerMonth) {
+      return NextResponse.json(
+        { error: plan === 'recruiter_free' ? "You have used this month's free contact requests. Upgrade to Team on the Billing page to send more." : 'Monthly contact-request limit reached.', code: 'plan_limit' },
+        { status: 402 }
+      )
     }
 
     const now = new Date()

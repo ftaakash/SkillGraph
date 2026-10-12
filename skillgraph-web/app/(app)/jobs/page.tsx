@@ -61,6 +61,7 @@ export default function StudentJobsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [now, setNow] = useState<number | null>(null);
+  const [joinedCollege, setJoinedCollege] = useState(true);
 
   useEffect(() => {
     Promise.all([
@@ -68,6 +69,7 @@ export default function StudentJobsPage() {
       fetch("/api/users/me").then(r => r.json()).catch(() => null),
     ]).then(([jobsData, profileData]) => {
       setJobs(jobsData.jobs ?? []);
+      setJoinedCollege(jobsData.joinedCollege !== false);
       setNow(Date.now());
       const me = profileData?.user;
       if (me) {
@@ -125,7 +127,11 @@ export default function StudentJobsPage() {
           <div className="bg-card border border-border rounded-lg p-12 text-center">
             <Briefcase size={40} className="mx-auto text-muted-foreground mb-4" />
             <p className="text-lg font-heading font-semibold text-foreground mb-2">No Open Positions</p>
-            <p className="text-muted-foreground text-sm">Your placement cell hasn&apos;t posted any jobs yet. Check back soon.</p>
+            <p className="text-muted-foreground text-sm">
+              {joinedCollege
+                ? <>Your placement cell hasn&apos;t posted any jobs yet. Check back soon.</>
+                : <>Join your college workspace with the code from your placement cell on your <Link href="/profile" className="text-primary hover:underline">Profile</Link> to see campus jobs.</>}
+            </p>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 gap-4">

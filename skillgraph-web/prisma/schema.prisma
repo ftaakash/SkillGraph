@@ -35,7 +35,9 @@ model User {
   optimizerSessions   Int       @default(0)
 
   // Faculty fields
-  collegeId         String?
+  collegeId         String?   // faculty: their workspace; student: the college they joined with a join code
+  collegeJoinedAt   DateTime? // students: orders seat coverage under a college licence
+  isCollegeAdmin    Boolean   @default(false) // faculty who manage the workspace, codes and licence
   College           CollegeInstitution? @relation(fields: [collegeId], references: [id])
 
   // Recruiter fields
@@ -168,6 +170,10 @@ model CollegeInstitution {
   tier           String
   naacGrade      String?
   tpContactEmail String
+  // Workspace access (ADR-001 Phase 4): students join with joinCode, faculty with facultyInviteCode
+  joinCode          String?  @unique
+  facultyInviteCode String?  @unique
+  createdAt         DateTime @default(now())
   facultyUsers   User[]
 }
 
@@ -428,4 +434,53 @@ model AuthToken {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, type])
+}
+
+// -------------------------------------------------------------
+// BILLING (ADR-001 Phase 4) — prepaid plan periods paid through Razorpay
+// -------------------------------------------------------------
+
+// One paid period (or pending checkout) of a plan for a user, college or company
+model Subscription {
+  id                 String    @id @default(cuid())
+  ownerType          String    // user | college | company
+  ownerId            String
+  plan               String    // see lib/billing/plans.ts
+  status             String    @default("pending") // pending | active | expired | failed
+  seats              Int?      // college licences
+  amountPaise        Int
+  currency           String    @default("INR")
+  provider           String    @default("razorpay")
+  providerOrderId    String    @unique
+  periodStart        DateTime?
+  periodEnd          DateTime?
+  purchasedByUserId  String
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  payments           Payment[]
+
+  @@index([ownerType, ownerId, status])
+  @@index([status, periodEnd])
+}
+
+model Payment {
+  id                String       @id @default(cuid())
+  subscriptionId    String
+  providerPaymentId String       @unique
+  amountPaise       Int
+  currency          String       @default("INR")
+  status            String       // captured | failed
+  method            String?
+  createdAt         DateTime     @default(now())
+
+  subscription      Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+}
+
+// Processed provider webhook ids, so retries are handled exactly once
+model WebhookEvent {
+  id          String   @id // provider event id
+  provider    String
+  type        String
+  receivedAt  DateTime @default(now())
 }

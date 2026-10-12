@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { cached } from '@/lib/cache'
 
 export async function GET() {
   try {
     // Fetch all records, assuming the seeder populates fresh data per week
-    const marketData = await prisma.indiaMarketData.findMany({
-      orderBy: { weekOf: 'desc' },
-      take: 200,
-    })
+    const marketData = await cached('market:india', 10 * 60 * 1000, () =>
+      prisma.indiaMarketData.findMany({ orderBy: { weekOf: 'desc' }, take: 200 })
+    )
 
     // Prepare aggregated structure
     const topSkills = new Map<string, number>()

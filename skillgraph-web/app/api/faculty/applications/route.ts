@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { ok, unauthorized, serverError, badRequest } from '@/lib/api'
+import { facultyContext, facultyCanManageApplication } from '@/lib/tenant'
 
 export async function GET() {
   try {
@@ -32,14 +33,17 @@ export async function PATCH(req: NextRequest) {
   try {
     const session = await auth()
     if (!session?.user) return unauthorized()
-    const user = session.user as { role?: string }
-    if (user.role !== 'FACULTY') return unauthorized()
+    const ctx = await facultyContext(session.user.id)
+    if (!ctx) return unauthorized()
 
     const { applicationId, status } = await req.json()
     if (!applicationId || !status) return badRequest('applicationId and status required')
 
     const validStatuses = ['Applied', 'Shortlisted', 'OA', 'Interview', 'Offered', 'Placed', 'Rejected']
     if (!validStatuses.includes(status)) return badRequest('Invalid status')
+
+    // Only applications to this college's own job postings (tenant isolation)
+    if (!(await facultyCanManageApplication(ctx, applicationId))) return badRequest('Application not found')
 
     const application = await prisma.jobApplication.update({
       where: { id: applicationId },

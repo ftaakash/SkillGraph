@@ -15,6 +15,7 @@ import { generateResumePDFBuffer } from '@/lib/resume/exporter'
 import { putPrivateFile } from '@/lib/storage'
 import { scoreJobMatch } from './matcher'
 import { OPEN_STATUSES } from './status'
+import { getEntitlements } from '@/lib/billing'
 
 const MIN_MATCH_SCORE = 65
 
@@ -101,7 +102,9 @@ export async function processOpenClawAgent(userId: string): Promise<AgentRunResu
   const preparedToday = await prisma.openClawApplication.count({
     where: { userId, status: 'ReadyToApply', appliedAt: { gte: startOfToday() } },
   })
-  const remaining = Math.max(0, config.dailyLimit - preparedToday)
+  // The student's own daily limit, capped by their plan (lib/billing/plans.ts)
+  const { limits } = await getEntitlements(userId)
+  const remaining = Math.max(0, Math.min(config.dailyLimit, limits.openclawPerDay) - preparedToday)
   if (remaining === 0) return { ...result, status: 'limit_reached' }
 
   const roles = asStringArray(config.targetRoles, ['Software Engineer'])
