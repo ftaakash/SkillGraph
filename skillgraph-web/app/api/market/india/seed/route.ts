@@ -29,6 +29,11 @@ const CTC_BY_TIER: Record<string, number> = {
 // POST /api/market/india/seed — inserts demo data into IndiaMarketData
 export async function POST(req: NextRequest) {
   try {
+    // Demo data must never be mixed into a live production database by accident
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEMO_SEED !== 'true') {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
     const session = await auth()
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

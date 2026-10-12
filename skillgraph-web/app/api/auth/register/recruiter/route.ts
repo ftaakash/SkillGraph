@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
+import { recruiterRegisterSchema, firstIssue } from '@/lib/validation/auth'
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
-    const { name, email, password, companyName, companyWebsite, tier, hrEmail } = body
-
-    if (!name || !email || !password || !companyName) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    const parsed = recruiterRegisterSchema.safeParse(await req.json())
+    if (!parsed.success) {
+      return NextResponse.json({ error: firstIssue(parsed.error) }, { status: 400 })
     }
+    const { name, email, password, companyName, companyWebsite, tier, hrEmail } = parsed.data
 
     // Check if user already exists
     const existing = await prisma.user.findUnique({ where: { email } })

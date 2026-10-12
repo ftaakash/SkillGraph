@@ -91,7 +91,7 @@ export default function FacultyRegisterPage() {
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 text-muted-foreground" size={18} />
-                <Input type="password" placeholder="Password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
+                <Input type="password" placeholder="Password (min. 8 characters)" minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
                   className="pl-10 bg-muted border-border text-foreground placeholder:text-muted-foreground" required />
               </div>
 

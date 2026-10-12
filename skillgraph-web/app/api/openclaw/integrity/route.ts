@@ -1,14 +1,13 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ok, serverError } from '@/lib/api'
+import { requireCronSecret } from '@/lib/cron'
 
 // POST /api/openclaw/integrity — daily dedup cron
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get('x-cron-secret')
-    if (authHeader !== process.env.CRON_SECRET && process.env.NODE_ENV === 'production') {
-      return ok({ message: 'Unauthorized cron call' })
-    }
+    const denied = requireCronSecret(req)
+    if (denied) return denied
 
     // Fetch all active apps with their listing data
     const apps = await prisma.openClawApplication.findMany({

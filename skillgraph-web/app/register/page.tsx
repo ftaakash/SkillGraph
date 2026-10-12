@@ -143,7 +143,8 @@ export default function RegisterPage() {
                 <Lock className="absolute left-3 top-3 text-muted-foreground" size={18} />
                 <Input
                   type="password"
-                  placeholder="Password"
+                  minLength={8}
+                  placeholder="Password (min. 8 characters)"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                   className="pl-10 bg-muted border-border text-foreground placeholder:text-muted-foreground transition-colors focus:border-primary"

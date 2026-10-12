@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
+import { facultyRegisterSchema, firstIssue } from '@/lib/validation/auth'
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
-    const { name, email, password, collegeName, city, state, tier, tpContactEmail } = body
-
-    if (!name || !email || !password || !collegeName) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    const parsed = facultyRegisterSchema.safeParse(await req.json())
+    if (!parsed.success) {
+      return NextResponse.json({ error: firstIssue(parsed.error) }, { status: 400 })
     }
+    const { name, email, password, collegeName, city, state, tier, tpContactEmail } = parsed.data
 
     // Check if user already exists
     const existing = await prisma.user.findUnique({ where: { email } })

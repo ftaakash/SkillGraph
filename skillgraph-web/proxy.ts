@@ -2,6 +2,7 @@
 import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { checkRateLimit, clientIp } from '@/lib/rateLimit'
 
 export default async function proxy(req: NextRequest) {
   const session = await auth()
@@ -10,8 +11,20 @@ export default async function proxy(req: NextRequest) {
 
   const { pathname } = req.nextUrl;
 
-  const isPublic = pathname === '/' || ['/login', '/register', '/logout', '/api/auth'].some(p => pathname.startsWith(p));
-  
+  if (pathname.startsWith('/api/')) {
+    const clientKey = session?.user?.id ?? `ip:${clientIp(req.headers)}`
+    const limit = await checkRateLimit(req.method, pathname, clientKey)
+    if (limit.limited) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(limit.retryAfterSec) } }
+      )
+    }
+  }
+
+  const isPublic = pathname === '/' || ['/login', '/register', '/logout', '/api/auth', '/api/health', '/api/stats', '/api/openclaw/integrity'].some(p => pathname.startsWith(p));
+  // Note: /api/openclaw/integrity is a cron target — it authenticates via x-cron-secret, not a session.
+
   if (!isLoggedIn) {
     if (isPublic) return NextResponse.next();
     const loginUrl = new URL('/login', req.url)

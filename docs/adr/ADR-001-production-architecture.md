@@ -136,16 +136,17 @@ both more reliable and defensible to colleges and recruiters who are the paying 
 
 ### Phase 0 — Launch blockers (this change set)
 1. [x] Stop tracking user résumés/screenshots; gitignore `public/resumes`, `public/proofs` (C1). *Purging them from git history requires a force-push — pending owner approval.*
-2. [x] Cron endpoints fail closed when `CRON_SECRET` is missing (C2).
+2. [x] Cron endpoints fail closed when `CRON_SECRET` is missing (C2). The cron route is now reachable without a session (it was previously redirected to `/login` by `proxy.ts`, so a real scheduler could never call it) and authenticates by constant-time secret comparison (`lib/cron.ts`).
 3. [x] Security headers + disable `X-Powered-By` (H7).
-4. [x] Rate limiting on auth/registration and LLM endpoints with a pluggable store (H1).
+4. [x] Rate limiting on auth/registration and LLM endpoints with a pluggable store (H1). Default store is in-memory (per instance); swap in Redis/Upstash in Phase 1 for multi-instance accuracy.
 5. [x] Consistent zod validation + 8-char password minimum on all register routes (H5).
 6. [x] Disable demo seed endpoint in production unless explicitly enabled (H6).
-7. [x] `/api/health` liveness/readiness endpoint.
+7. [x] `/api/health` liveness/readiness endpoint (public). `/api/stats`, documented as the public landing-page counter, is now actually public.
 8. [x] `.env.example` documenting every variable.
 9. [x] CI (GitHub Actions): install, Prisma generate, typecheck, lint (lint non-blocking until existing debt is cleared).
 
 ### Phase 1 — Data & storage (week 1–2)
+0. [ ] Redis-backed `RateLimitStore` (Upstash) so limits hold across serverless instances.
 1. [ ] Baseline Prisma migrations (`prisma migrate diff` from current DB) and switch deploys to `prisma migrate deploy`.
 2. [ ] Add `@@index([userId])` on user-owned tables, `@@unique([recruiterId, studentId])`, enums for status fields.
 3. [ ] `lib/storage` abstraction → private bucket + short-lived signed URLs; migrate existing `/resumes/*` references (C1, C4).
@@ -159,7 +160,7 @@ both more reliable and defensible to colleges and recruiters who are the paying 
 4. [ ] Deploy `workers/` as a container service with its own health check and queue dashboards.
 
 ### Phase 3 — Trust, compliance, operations (week 4–6)
-1. [ ] Email verification, password reset, optional Google OAuth.
+1. [ ] Email verification, password reset, optional Google OAuth; normalise emails to lower case (with a one-off migration of existing accounts).
 2. [ ] Mutual-consent recruiter reveal (student accepts before PII is shared) (H4).
 3. [ ] DPDP/GDPR: consent records, account deletion, data export endpoint, privacy policy & ToS pages.
 4. [ ] Sentry + structured logging + request IDs; uptime monitor on `/api/health`.

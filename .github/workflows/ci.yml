@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Typecheck & lint (skillgraph-web)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: skillgraph-web
+    env:
+      # Playwright browsers are not needed for typecheck/lint
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: skillgraph-web/package-lock.json
+
+      - name: Install dependencies (also runs prisma generate)
+        run: npm ci
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      # Non-blocking until the existing lint backlog is cleared (ADR-001, Phase 3)
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true

@@ -2,24 +2,13 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { ok, created, badRequest, serverError } from '@/lib/api'
-import { z } from 'zod'
-
-const schema = z.object({
-  name: z.string().min(2),
-  email: z.string().email(),
-  password: z.string().min(6),
-  role: z.enum(['STUDENT']).optional().default('STUDENT'),
-  college: z.string().optional(),
-  branch: z.string().optional(),
-  year: z.string().optional(),
-  targetRole: z.string().optional(),
-})
+import { studentRegisterSchema, firstIssue } from '@/lib/validation/auth'
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const parsed = schema.safeParse(body)
-    if (!parsed.success) return badRequest(parsed.error.message)
+    const parsed = studentRegisterSchema.safeParse(body)
+    if (!parsed.success) return badRequest(firstIssue(parsed.error))
 
     const { name, email, password, role, college, branch, year, targetRole } = parsed.data
 
