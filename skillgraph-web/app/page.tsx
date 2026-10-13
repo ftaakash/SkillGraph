@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkles, Target, TrendingUp, Zap, BarChart3, Users, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,11 +9,23 @@ import SkillGraphLogo from "@/components/SkillGraphLogo";
 import WallStreetVideo from "@/components/WallStreetVideo";
 import PageTransition from "@/components/PageTransition";
 
-const stats = [
-  { value: "12,400+", label: "Skills Mapped", icon: Sparkles },
-  { value: "3,200+", label: "Gaps Closed", icon: Target },
-  { value: "850+", label: "Active Employees", icon: Users },
-];
+// Live counts from /api/stats (cached at the CDN); nothing is shown until real numbers arrive
+type LandingStats = { studentsAnalyzed: number; skillGapsFound: number; sprintsCompleted: number };
+const STAT_CARDS = [
+  { key: "studentsAnalyzed", label: "Students", icon: Users },
+  { key: "skillGapsFound", label: "Skill Gaps Found", icon: Target },
+  { key: "sprintsCompleted", label: "Sprints Completed", icon: Sparkles },
+] as const;
+
+function useLandingStats() {
+  const [stats, setStats] = useState<LandingStats | null>(null);
+  useEffect(() => {
+    fetch("/api/stats").then(r => (r.ok ? r.json() : null)).then(setStats).catch(() => {});
+  }, []);
+  return stats;
+}
+
+const TICKER_SKILLS = ["REACT", "TYPESCRIPT", "KUBERNETES", "AI/ML", "RUST", "AWS", "GRAPHQL", "DOCKER", "SYSTEM DESIGN", "NODE.JS"];
 
 const features = [
   {
@@ -32,7 +45,9 @@ const features = [
   },
 ];
 
-const LandingPage = () => (
+const LandingPage = () => {
+  const stats = useLandingStats();
+  return (
   <PageTransition>
     <div className="min-h-screen bg-background relative overflow-hidden">
       <WallStreetVideo />
@@ -40,16 +55,7 @@ const LandingPage = () => (
       {/* Ticker tape */}
       <div className="relative z-10 bg-card/80 border-b border-border overflow-hidden">
         <div className="animate-ticker whitespace-nowrap py-1.5 text-xs font-body text-muted-foreground">
-          <span className="mx-8">REACT ▲ +12.4%</span>
-          <span className="mx-8">TYPESCRIPT ▲ +8.2%</span>
-          <span className="mx-8">KUBERNETES ▲ +15.1%</span>
-          <span className="mx-8">AI/ML ▲ +22.7%</span>
-          <span className="mx-8">RUST ▲ +18.3%</span>
-          <span className="mx-8">AWS ▲ +9.6%</span>
-          <span className="mx-8">GRAPHQL ▼ -4.1%</span>
-          <span className="mx-8">DOCKER ▲ +6.8%</span>
-          <span className="mx-8">SYSTEM DESIGN ▲ +11.2%</span>
-          <span className="mx-8">NODE.JS ▲ +5.4%</span>
+          {TICKER_SKILLS.map(skill => <span key={skill} className="mx-8">{skill}</span>)}
         </div>
       </div>
 
@@ -106,9 +112,10 @@ const LandingPage = () => (
       </section>
 
       {/* Stats */}
+      {stats && (
       <section className="relative z-10 max-w-4xl mx-auto px-8 pb-20">
-        <div className="grid grid-cols-3 gap-6">
-          {stats.map((s, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {STAT_CARDS.map((s, i) => (
             <motion.div
               key={s.label}
               initial={{ opacity: 0, y: 20 }}
@@ -117,12 +124,13 @@ const LandingPage = () => (
               className="bg-card/60 backdrop-blur-sm border border-border rounded-lg p-6 text-center hover:gold-border transition-colors"
             >
               <s.icon className="mx-auto text-primary mb-3" size={24} />
-              <p className="font-heading text-3xl font-bold text-foreground">{s.value}</p>
+              <p className="font-heading text-3xl font-bold text-foreground">{(stats[s.key] ?? 0).toLocaleString("en-IN")}</p>
               <p className="text-sm text-muted-foreground mt-1">{s.label}</p>
             </motion.div>
           ))}
         </div>
       </section>
+      )}
 
       {/* Features */}
       <section className="relative z-10 max-w-5xl mx-auto px-8 pb-24">
@@ -158,6 +166,7 @@ const LandingPage = () => (
       </footer>
     </div>
   </PageTransition>
-);
+  );
+};
 
 export default LandingPage;

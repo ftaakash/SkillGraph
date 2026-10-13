@@ -57,6 +57,17 @@ test('rate limiter blocks the 11th auth attempt per client only', async () => {
   assert.equal(clientIp(new Headers({ 'x-forwarded-for': '1.2.3.4, 10.0.0.1' })), '1.2.3.4')
 })
 
+test('bulk AI runs and paid job-search lookups are rate limited', async () => {
+  let last
+  for (let i = 0; i < 7; i++) last = await checkRateLimit('POST', '/api/openclaw/batch', 'user:bulk')
+  assert.equal(last?.limited, true)
+  // batch and trigger share one bucket
+  assert.equal((await checkRateLimit('POST', '/api/openclaw/trigger', 'user:bulk')).limited, true)
+  for (let i = 0; i < 61; i++) last = await checkRateLimit('GET', '/api/market/search', 'user:market')
+  assert.equal(last?.limited, true)
+  assert.equal((await checkRateLimit('GET', '/api/market/india', 'user:market')).limited, false)
+})
+
 // ─── Consent-based identity reveal ───────────────────────────────────────────
 
 const student = {

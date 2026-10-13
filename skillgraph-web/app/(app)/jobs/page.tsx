@@ -149,7 +149,7 @@ export default function StudentJobsPage() {
           ? { method: "DELETE" }
           : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobPostingId: job.id }) },
       );
-      await loadJobs();
+      await loadJobs().catch(() => {});
     } finally {
       setBusy(null);
     }

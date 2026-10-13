@@ -185,7 +185,27 @@ export const RATE_LIMIT_RULES: RateLimitRule[] = [
       p.startsWith('/api/gaps') ||
       p.startsWith('/api/sprints') ||
       p.startsWith('/api/openclaw/negotiate') ||
-      p.startsWith('/api/openclaw/stories'),
+      p.startsWith('/api/openclaw/stories') ||
+      p.startsWith('/api/openclaw/pipeline'),
+  },
+  {
+    // One request fans out to many LLM calls (a batch of up to 10 links, or a full agent run)
+    name: 'ai_bulk',
+    limit: 6,
+    windowMs: 60 * MINUTE,
+    methods: ['POST'],
+    match: (p) => p.startsWith('/api/openclaw/batch') || p.startsWith('/api/openclaw/trigger'),
+  },
+  {
+    // Live job search and salary lookups — each call spends the paid RapidAPI quota
+    name: 'market_api',
+    limit: 60,
+    windowMs: 60 * MINUTE,
+    methods: ['GET'],
+    match: (p) =>
+      p.startsWith('/api/market/search') ||
+      p.startsWith('/api/market/job-details') ||
+      p.startsWith('/api/market/company-salary'),
   },
 ]
 

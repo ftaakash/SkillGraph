@@ -1,13 +1,13 @@
 import { NextRequest } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { serverError, ok } from '@/lib/api'
-import { getUserId, unauthorized } from '@/lib/api'
+import { serverError, ok, getUserId } from '@/lib/api'
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    const role = searchParams.get('role')
-    const year = searchParams.get('year')
+    const role = searchParams.get('role')?.trim().slice(0, 100) || null
+    const year = searchParams.get('year')?.trim().slice(0, 20) || null
 
     const userId = await getUserId()
     let userCollegeId: string | null = null
@@ -27,11 +27,11 @@ export async function GET(req: NextRequest) {
       take: 500,
     })
 
-    const cohortWhere: any = { role: 'STUDENT', readinessScore: { not: null } }
+    const cohortWhere: Prisma.UserWhereInput = { role: 'STUDENT', readinessScore: { not: null } }
     if (userCollegeId) cohortWhere.collegeId = userCollegeId
     if (role) cohortWhere.targetRole = role
     if (year) cohortWhere.year = year
-    const cohortUsers = await prisma.user.findMany({ where: cohortWhere, select: { readinessScore: true } })
+    const cohortUsers = await prisma.user.findMany({ where: cohortWhere, select: { readinessScore: true }, take: 5000 })
 
     const buckets: Record<string, number> = {}
     const cohortBuckets: Record<string, number> = {}
@@ -67,33 +67,6 @@ export async function GET(req: NextRequest) {
     })
   } catch (err) {
     console.error('[benchmarks GET]', err)
-    return serverError()
-  }
-}
-
-export async function POST(req: NextRequest) {
-  try {
-    const userId = await getUserId()
-    if (!userId) return unauthorized()
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { targetRole: true, year: true, readinessScore: true },
-    })
-    if (!user?.readinessScore || !user.targetRole) return ok({ skipped: true })
-
-    await prisma.benchmark.create({
-      data: {
-        role: user.targetRole,
-        year: user.year ?? 'Unknown',
-        readinessScore: user.readinessScore,
-        collegeTier: 'Tier-2',
-      },
-    })
-
-    return ok({ success: true })
-  } catch (err) {
-    console.error('[benchmarks POST]', err)
     return serverError()
   }
 }

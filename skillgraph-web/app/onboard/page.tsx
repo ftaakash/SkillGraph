@@ -61,11 +61,11 @@ export default function OnboardPage() {
 
           <h3 className="font-heading text-xs font-black tracking-[0.3em] text-primary uppercase mb-6">The Future of Engineering</h3>
           <h1 className="font-heading text-5xl lg:text-7xl font-bold tracking-tight mb-8 leading-[1.1]">
-            Prime your <span className="italic text-primary">Neural Profile.</span>
+            Upload your <span className="italic text-primary">résumé.</span>
           </h1>
           <p className="text-muted-foreground text-lg max-w-lg leading-relaxed mb-12">
-            Upload your academic or professional curriculum. Our AI will instantly decode your experience 
-            and cross-reference it against 1,420 high-stakes industrial roles.
+            Upload your résumé as a PDF. We extract your skills and compare them
+            with what employers ask for in your target role.
           </p>
 
           <div className="space-y-6 max-w-lg">
@@ -129,7 +129,7 @@ export default function OnboardPage() {
           {step === 3 && (
             <div className="bg-muted/30 border border-border rounded-2xl p-8 text-center pt-12 shadow-lg">
               <Loader2 className="w-16 h-16 text-primary animate-spin mx-auto mb-6 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
-              <h2 className="font-heading font-bold text-xl mb-6 text-foreground tracking-wide">Analyzing Neural Profile</h2>
+              <h2 className="font-heading font-bold text-xl mb-6 text-foreground tracking-wide">Reading your résumé</h2>
               
               <div className="space-y-4 mt-6 text-left max-w-xs mx-auto">
                 <div className="flex items-center gap-3">

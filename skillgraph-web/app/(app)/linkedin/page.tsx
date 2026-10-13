@@ -86,7 +86,7 @@ export default function LinkedInPage() {
                 <Button onClick={handleOptimize} disabled={loading || !headline || !about || !skillsList}
                   className="w-full mt-4 gradient-primary text-primary-foreground font-semibold glow-primary">
                   {loading ? (
-                    <div className="flex items-center gap-2"><Sparkles className="w-4 h-4 animate-spin" /> Initializing Engine...</div>
+                    <div className="flex items-center gap-2"><Sparkles className="w-4 h-4 animate-spin" /> Optimizing…</div>
                   ) : (
                     <div className="flex items-center gap-2"><Sparkles className="w-4 h-4" /> Rewrite my profile</div>
                   )}

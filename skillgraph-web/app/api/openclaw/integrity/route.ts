@@ -10,23 +10,18 @@ export async function POST(req: NextRequest) {
     const denied = requireCronSecret(req)
     if (denied) return denied
 
-    // Fetch all active apps with their listing data
+    // All open applications with their listing's company and role, in one query
     const apps = await prisma.openClawApplication.findMany({
       where: { status: { in: [...OPEN_STATUSES] } },
       orderBy: { appliedAt: 'asc' }, // keep the earliest entry, mark later ones as duplicates
+      select: { id: true, userId: true, listing: { select: { company: true, role: true } } },
     })
 
-    // For each app, look up the listing by listingId to get company+role
     const seen = new Map<string, string>()
     const toMarkDup: string[] = []
 
     for (const app of apps) {
-      const listing = await prisma.openClawListing.findUnique({
-        where: { id: app.listingId },
-        select: { company: true, role: true },
-      })
-      if (!listing) continue
-
+      const { listing } = app
       const key = `${app.userId}::${listing.company.toLowerCase()}::${listing.role.toLowerCase()}`
       if (seen.has(key)) {
         toMarkDup.push(app.id)

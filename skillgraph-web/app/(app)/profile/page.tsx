@@ -38,11 +38,11 @@ export default function ProfilePage() {
   const [togglingVisibility, setTogglingVisibility] = useState(false);
 
   useEffect(() => {
-    fetch('/api/users/me').then(r => r.json()).then(d => {
+    fetch('/api/users/me').then(r => (r.ok ? r.json() : Promise.reject(new Error()))).then(d => {
       setUser(d.user);
       setIsVisible(d.user?.isProfileVisible ?? false);
       setForm({ name: d.user?.name ?? '', college: d.user?.college ?? '', branch: d.user?.branch ?? '', year: d.user?.year ?? '', targetRole: d.user?.targetRole ?? '', cgpa: d.user?.cgpa?.toString() ?? '' });
-    });
+    }).catch(() => setSettingsError('Could not load your profile. Refresh the page before saving changes.'));
   }, []);
 
   const toggleVisibility = async () => {
@@ -50,11 +50,12 @@ export default function ProfilePage() {
     const next = !isVisible;
     setIsVisible(next);
     try {
-      await fetch('/api/users/me', {
+      const res = await fetch('/api/users/me', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isProfileVisible: next }),
       });
+      if (!res.ok) throw new Error();
     } catch {
       setIsVisible(!next); // revert on failure
     }
@@ -130,7 +131,7 @@ export default function ProfilePage() {
          body: JSON.stringify({ targetRole: form.targetRole || 'Software Engineer' }),
       });
       
-      setUploadSuccess('Neural profile updated with new curriculum.');
+      setUploadSuccess('Résumé uploaded. Your skills have been updated.');
       setTimeout(() => window.location.reload(), 2000);
     } catch { setUploadError('Upload failed. Please try again.'); }
     finally { setUploading(false); }

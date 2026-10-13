@@ -24,6 +24,7 @@ export async function GET() {
           select: { body: true, deletedAt: true, createdAt: true, user: { select: { name: true } } },
         },
       },
+      orderBy: { createdAt: 'desc' },
       take: 200,
     })
     const chats = jobs
