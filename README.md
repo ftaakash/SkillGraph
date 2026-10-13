@@ -136,12 +136,21 @@ npm run dev
 ```
 Navigate to `http://localhost:3000`.
 
-### 4. Background Workers
-Requires `REDIS_URL`. Runs market-data refresh, sprint generation, monthly reports and the nightly OpenClaw preparation; exposes `GET /health` on `PORT` (default 8080).
-```bash
-npm run worker
-```
-In production, deploy it as its own container: `docker build -f Dockerfile.worker -t skillgraph-worker .`
+### 4. Scheduled jobs
+In production these run on **Vercel Cron** (`skillgraph-web/vercel.json` → `GET /api/cron/<job>`, authenticated with `CRON_SECRET`), no Redis or extra server needed. Times are IST; on the Hobby plan each job runs once a day within its hour.
+
+| Job | When | What it does |
+|-----|------|--------------|
+| `market` | daily 01:30 | Loads this week's job postings and their skills, a few roles per run until all are done |
+| `billing` | daily 06:00 | Expires lapsed plans, removes abandoned checkouts, sends renewal reminders |
+| `openclaw` | daily 06:30 | OpenClaw run for students with the agent switched on |
+| `sprints` | daily 07:00 | Creates a sprint for students with new high-urgency gaps |
+| `openclaw-dedupe` | daily 08:30 | Marks duplicate OpenClaw applications |
+| `reports` | 1st of month 08:00 | Monthly readiness emails (needs SendGrid) |
+
+Each run stops starting new work after 4½ minutes and the next run continues. To run one by hand: `curl -H "Authorization: Bearer $CRON_SECRET" https://<host>/api/cron/<job>`.
+
+Alternatively, host the same jobs as a long-running worker (needs `REDIS_URL`, exposes `GET /health` on `PORT`): `npm run worker`, or `docker build -f Dockerfile.worker -t skillgraph-worker .`. Use one or the other, never both.
 
 ### 5. Tests
 ```bash
