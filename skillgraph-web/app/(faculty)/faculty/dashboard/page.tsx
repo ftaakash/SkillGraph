@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Users, BarChart3, Briefcase, Building2, TrendingUp, CheckCircle2 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import PageTransition from "@/components/PageTransition";
@@ -90,9 +91,9 @@ export default function FacultyDashboardPage() {
             ) : (
               <p className="text-sm text-muted-foreground">No job postings yet. Create your first campus drive posting to get started.</p>
             )}
-            <a href="/faculty/jobs/new" className="inline-block mt-4 px-4 py-2 text-sm font-semibold rounded-lg gradient-primary text-primary-foreground glow-primary">
+            <Link href="/faculty/jobs/new" className="inline-block mt-4 px-4 py-2 text-sm font-semibold rounded-lg gradient-primary text-primary-foreground glow-primary">
               Post New Job
-            </a>
+            </Link>
           </div>
 
           <div className="bg-card border border-border rounded-lg p-6 shadow-sm">

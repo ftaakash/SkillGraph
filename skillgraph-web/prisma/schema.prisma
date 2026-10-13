@@ -73,6 +73,9 @@ model User {
   AcademicProfile      AcademicProfile?
   AcademicCourses      AcademicCourse[]
   AttendanceLeaves     AttendanceLeave[]
+  NoticesAuthored      Notice[]
+  NoticeReads          NoticeRead[]
+  DriveMessages        DriveMessage[]
 }
 
 model SkillProfile {
@@ -180,6 +183,7 @@ model CollegeInstitution {
   createdAt         DateTime @default(now())
   facultyUsers   User[]
   calendarDays   CollegeCalendarDay[]
+  notices        Notice[]
 }
 
 model Company {
@@ -216,8 +220,15 @@ model FacultyJobPosting {
   source           String   @default("on_campus") // on_campus | off_campus | pool
   externalRef      String?  // the drive's id on the college's placement portal, for re-imports
   applyUrl         String?  // where students apply when the drive is run on another portal
+  // Placement workflow (ADR-003 Phase 6)
+  category         String?  // the college's own tier, e.g. Dream | Super Dream | Regular
+  batchYear        Int?     // graduating batch the drive is for
   applicationCount Int      @default(0)
   createdAt        DateTime @default(now())
+
+  rounds           DriveRound[]
+  notices          Notice[]
+  messages         DriveMessage[]
 
   @@unique([collegeId, externalRef])
   @@index([collegeId])
@@ -234,6 +245,7 @@ model JobApplication {
   appliedAt       DateTime @default(now())
 
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roundResults    RoundResult[]
 
   @@index([userId])
   @@index([jobPostingId])
@@ -590,4 +602,97 @@ model CollegeCalendarDay {
   college   CollegeInstitution @relation(fields: [collegeId], references: [id], onDelete: Cascade)
 
   @@unique([collegeId, date])
+}
+
+// -------------------------------------------------------------
+// PLACEMENT WORKFLOW (ADR-003 Phase 6) — hiring rounds, notices, drive chat
+// -------------------------------------------------------------
+
+// One stage of a drive's hiring process (screening, test, interviews…), in order
+model DriveRound {
+  id              String            @id @default(cuid())
+  jobPostingId    String
+  position        Int               // 1-based order within the drive
+  name            String
+  kind            String            @default("other") // screening | ppt | test | gd | technical | hr | other
+  startsAt        DateTime?
+  endsAt          DateTime?
+  mode            String?           // physical | virtual
+  venue           String?           // room or meeting link
+  // Check-in: faculty open a short window and show a code at the venue; students enter it
+  attendanceCode  String?
+  attendanceUntil DateTime?
+  createdAt       DateTime          @default(now())
+
+  jobPosting      FacultyJobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  results         RoundResult[]
+
+  @@index([jobPostingId, position])
+  @@index([startsAt])
+}
+
+// A student's participation in one round: confirmation, attendance and outcome
+model RoundResult {
+  id               String         @id @default(cuid())
+  roundId          String
+  applicationId    String
+  confirmation     String         @default("pending") // pending | confirmed | declined
+  respondedAt      DateTime?
+  attendedAt       DateTime?
+  attendanceMethod String?        // code | manual
+  outcome          String         @default("pending") // pending | cleared | rejected | absent
+  updatedAt        DateTime       @updatedAt
+
+  round            DriveRound     @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  application      JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, applicationId])
+  @@index([applicationId])
+}
+
+// An announcement from a college's placement cell to its students
+model Notice {
+  id           String             @id @default(cuid())
+  collegeId    String
+  authorId     String?
+  title        String
+  body         String             @db.Text
+  category     String             @default("general") // general | announcement | shortlist | result
+  jobPostingId String?
+  createdAt    DateTime           @default(now())
+
+  college      CollegeInstitution @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  author       User?              @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  jobPosting   FacultyJobPosting? @relation(fields: [jobPostingId], references: [id], onDelete: SetNull)
+  reads        NoticeRead[]
+
+  @@index([collegeId, createdAt])
+}
+
+model NoticeRead {
+  noticeId String
+  userId   String
+  readAt   DateTime @default(now())
+
+  notice   Notice   @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([noticeId, userId])
+  @@index([userId])
+}
+
+// Group chat for a drive: its applicants and the college's faculty
+model DriveMessage {
+  id           String            @id @default(cuid())
+  jobPostingId String
+  userId       String
+  body         String            @db.VarChar(1000)
+  replyToId    String?
+  deletedAt    DateTime?         // soft delete keeps reply threads intact
+  createdAt    DateTime          @default(now())
+
+  jobPosting   FacultyJobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([jobPostingId, createdAt])
 }

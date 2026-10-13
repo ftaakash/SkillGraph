@@ -42,11 +42,16 @@ OpenClaw does the research and preparation; **the student always submits**.
 - **Marks, timetable and academic calendar** with today's day order and a next-class countdown.
 - **Placement drives** with CTC, stipend, apply-by countdowns, visit details, and "Mark applied" for drives run on another portal (e.g. Haveloc). Placement cells import drives, attendance, marks and the calendar from CSV; university sync is built behind a provider interface ([ADR-002](docs/adr/ADR-002-academics-and-placement-drives.md)).
 
-### 6. Topic-Aware Dynamic Sprints
+### 6. Placement Workflow
+- **Hiring process per drive**: rounds with times and venues; every student sees where they stand in each round.
+- **Job Tracker**, **Participation** (confirm or decline rounds until 15 minutes before, check in with a code shown at the venue), **Placement Calendar** (week, month, agenda), **Notice board** and **Drive chats**.
+- **Placement cell tools**: manage rounds, open check-in, record outcomes and attendance in bulk, publish notices ([ADR-003](docs/adr/ADR-003-placement-workflow.md)).
+
+### 7. Topic-Aware Dynamic Sprints
 - **Mission Overrides**: Pivot focus to specific topics (e.g., "System Design") on the fly.
 - **Learning Resilience**: Integrated YouTube fallbacks ensure resources are always available.
 
-### 7. Production Environment Guardrails
+### 8. Production Environment Guardrails
 - **Environment Gateway**: Startup fast-fail validation prevents obscure deployment crashes.
 - **Dynamic Database Ties**: Elements like `collegeTier` extract real schema relations rather than static fallbacks.
 
@@ -79,6 +84,7 @@ and long-running jobs into a *separate worker service*, and make OpenClaw *compl
 | **3 — Trust & operations** | Email verification, password reset, mutual-consent recruiter reveal, DPDP/GDPR data rights, observability, tests | ✅ Done |
 | **4 — Commercial** | Razorpay billing & plan limits, college workspaces with tenant isolation, caching, load testing | ✅ Done (Razorpay keys pending) |
 | **5 — Academics & drives** ([ADR-002](docs/adr/ADR-002-academics-and-placement-drives.md)) | Attendance, Smart Adjust, marks, timetable; Haveloc-style drives; college CSV imports; university sync providers | 🟡 In review — SRM API key and Academia connector pending |
+| **6 — Placement workflow** ([ADR-003](docs/adr/ADR-003-placement-workflow.md)) | Hiring rounds, job tracker, round confirmation & check-in, placement calendar, notice board, drive chats | 🟡 In review — migration pending |
 
 ```
  Browser ──► Next.js (Vercel, stateless) ──► lib/services ──► Postgres (migrations, backups)

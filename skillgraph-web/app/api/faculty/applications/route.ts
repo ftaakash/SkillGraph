@@ -8,11 +8,12 @@ export async function GET() {
   try {
     const session = await auth()
     if (!session?.user) return unauthorized()
-    const user = session.user as { role?: string; collegeId?: string }
-    if (user.role !== 'FACULTY') return unauthorized()
+    // College membership comes from the database, not the session (lib/tenant.ts)
+    const ctx = await facultyContext(session.user.id)
+    if (!ctx) return unauthorized()
 
     const jobs = await prisma.facultyJobPosting.findMany({
-      where: { collegeId: user.collegeId || '' },
+      where: { collegeId: ctx.collegeId },
       select: { id: true },
     })
     const jobIds = jobs.map(j => j.id)
