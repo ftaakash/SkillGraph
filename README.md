@@ -15,15 +15,20 @@ SkillGraph is an end-to-end AI career mentor and assisted job-application platfo
 
 ## 🚀 Features
 
-### 1. OpenClaw — Assisted Apply
-OpenClaw does the research and preparation; **the student always submits**.
-- **Compliant job sources**: official public ATS APIs (Greenhouse, Lever, Ashby), licensed aggregators (JSearch, optional Adzuna) and company career pages. For LinkedIn, Naukri, Indeed and Glassdoor, students paste the job description — SkillGraph never logs into, scrapes or automates those sites, and never stores third-party credentials.
+### 1. OpenClaw — Auto-Apply ([ADR-004](docs/adr/ADR-004-openclaw-auto-apply.md))
+OpenClaw finds jobs inside the student's filters, tailors a résumé to each, and applies where that's allowed.
+- **Student filters**: target roles, cities/remote, minimum CTC, blocked companies, must-mention and skip keywords. Nothing outside them is prepared or submitted automatically.
+- **Résumé tailored per job**, rebuilt from the student's own uploaded résumé (no invented experience).
+- **Auto-submit (opt-in)** through the employer's own Greenhouse or Lever API for employers that have connected to SkillGraph (`ATS_PARTNER_KEYS`). If a form asks a question only the student can answer, it waits for them.
+- **Browser extension** ([`extension/`](extension/README.md)) for LinkedIn, Naukri, Glassdoor and Superset: checks the job against the filters, tailors the résumé and fills the application form in the student's own browser. The student presses Submit.
+- **Never** logs into, scrapes or automates job sites from our servers, and never stores students' passwords, cookies or session tokens for them (ADR-001 C3).
+- **Compliant job sources**: official public ATS APIs (Greenhouse, Lever, Ashby), licensed aggregators (JSearch, optional Adzuna) and company career pages.
 - **10-dimension fit evaluation** with strengths, gaps and negotiation leverage for any job link or pasted description.
-- **Nightly preparation**: for active students the worker discovers roles, scores fit, and queues strong matches as *Ready to apply* with a tailored résumé.
+- **Nightly run**: for active students the worker discovers roles, applies the filters, scores fit, and submits (partner employers, opt-in) or queues strong matches as *Ready to apply*.
 - **Interview prep**: STAR story bank and salary-negotiation scripts per role.
 
 ### 2. Resume-First Engine
-- **Authenticity by design**: the student's real uploaded résumé is the source of truth; AI tailors *only* the 2–3 sentence summary for each posting — no fabricated experience or contact details.
+- **Authenticity by design**: the student's real uploaded résumé is the source of truth; AI reorders and rewords it for each posting and may not add employers, projects, numbers or skills.
 - **ATS-friendly PDF export**, stored privately and downloaded through short-lived signed links.
 
 ### 3. Faculty & Recruiter Operating Systems
@@ -84,7 +89,8 @@ and long-running jobs into a *separate worker service*, and make OpenClaw *compl
 | **3 — Trust & operations** | Email verification, password reset, mutual-consent recruiter reveal, DPDP/GDPR data rights, observability, tests | ✅ Done |
 | **4 — Commercial** | Razorpay billing & plan limits, college workspaces with tenant isolation, caching, load testing | ✅ Done (Razorpay keys pending) |
 | **5 — Academics & drives** ([ADR-002](docs/adr/ADR-002-academics-and-placement-drives.md)) | Attendance, Smart Adjust, marks, timetable; Haveloc-style drives; college CSV imports; university sync providers | 🟡 In review — SRM API key and Academia connector pending |
-| **6 — Placement workflow** ([ADR-003](docs/adr/ADR-003-placement-workflow.md)) | Hiring rounds, job tracker, round confirmation & check-in, placement calendar, notice board, drive chats | 🟡 In review — migration pending |
+| **6 — Placement workflow** ([ADR-003](docs/adr/ADR-003-placement-workflow.md)) | Hiring rounds, job tracker, round confirmation & check-in, placement calendar, notice board, drive chats | ✅ Done |
+| **7 — OpenClaw auto-apply** ([ADR-004](docs/adr/ADR-004-openclaw-auto-apply.md)) | Job filters, per-job tailored résumés, opt-in submission through partner employers' ATS APIs, browser extension for LinkedIn/Naukri/Glassdoor/Superset | 🟡 In review — partner keys and live-site checks pending |
 
 ```
  Browser ──► Next.js (Vercel, stateless) ──► lib/services ──► Postgres (migrations, backups)

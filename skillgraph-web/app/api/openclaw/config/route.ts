@@ -15,6 +15,10 @@ const configSchema = z.object({
   minCtcLpa: z.coerce.number().min(0).max(500).optional(),
   dailyLimit: z.coerce.number().int().min(1).max(25).optional(),
   isActive: z.boolean().optional(),
+  includeKeywords: list.optional(),
+  excludeKeywords: list.optional(),
+  // Consent to submit through employers' ATS APIs (partner employers only — lib/openclaw/submit.ts)
+  autoSubmit: z.boolean().optional(),
   applicationEmail: z.string().trim().email().max(254).optional().or(z.literal('')),
   phone: z.string().trim().max(30).optional().or(z.literal('')),
 }).strict()
@@ -22,6 +26,7 @@ const configSchema = z.object({
 const PUBLIC_FIELDS = {
   id: true, targetRoles: true, preferredCities: true, minCtcLpa: true, dailyLimit: true,
   blacklistedCompanies: true, isActive: true, applicationEmail: true, phone: true,
+  includeKeywords: true, excludeKeywords: true, autoSubmit: true,
 } as const
 
 // GET /api/openclaw/config
@@ -63,6 +68,9 @@ async function upsertConfig(req: NextRequest) {
         minCtcLpa: data.minCtcLpa ?? 3,
         dailyLimit: data.dailyLimit ?? 10,
         isActive: data.isActive ?? false,
+        includeKeywords: data.includeKeywords ?? [],
+        excludeKeywords: data.excludeKeywords ?? [],
+        autoSubmit: data.autoSubmit ?? false,
         applicationEmail: data.applicationEmail ?? null,
         phone: data.phone ?? null,
       },

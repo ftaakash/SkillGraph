@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "SkillGraph OpenClaw",
+  "version": "1.0.0",
+  "description": "Checks jobs against your OpenClaw filters, tailors your résumé to each one, and fills the application form for you to review and submit.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://skillgraphai.vercel.app/*",
+    "http://localhost:3000/*",
+    "http://localhost:3123/*",
+    "http://localhost:3125/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html", "default_title": "SkillGraph OpenClaw" },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.linkedin.com/jobs/*",
+        "https://*.linkedin.com/jobs/*",
+        "https://www.naukri.com/*",
+        "https://www.glassdoor.co.in/*",
+        "https://www.glassdoor.com/*",
+        "https://*.joinsuperset.com/*"
+      ],
+      "js": ["sites.js", "autofill.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

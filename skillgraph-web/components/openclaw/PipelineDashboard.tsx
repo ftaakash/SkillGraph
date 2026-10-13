@@ -221,7 +221,7 @@ export default function PipelineDashboard() {
           </>
         )}
         <p className="text-[10px] text-zinc-600">
-          OpenClaw evaluates and prepares — you always submit the application yourself on the employer’s site.
+          OpenClaw evaluates and prepares. You submit on the employer’s site (the browser extension can fill the form), unless you turned on auto-submit and the employer is connected to SkillGraph.
         </p>
       </div>
       {submitMsg && <p className={`text-xs px-1 ${submitMsg.startsWith('✓') ? 'text-green-400' : 'text-yellow-400'}`}>{submitMsg}</p>}

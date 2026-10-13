@@ -276,6 +276,10 @@ model OpenClawConfig {
   isActive             Boolean  @default(true)
   applicationEmail     String?
   phone                String?
+  // ADR-004: job filters beyond role/city/CTC, and opt-in submission through employer-authorised ATS APIs
+  includeKeywords      Json     @default("[]") // string[]: the JD must mention at least one
+  excludeKeywords      Json     @default("[]") // string[]: skip jobs whose title or JD mention any
+  autoSubmit           Boolean  @default(false)
 
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -304,6 +308,8 @@ model OpenClawApplication {
   screenshotUrl   String?
   tailoringNotes  String?  @db.Text
   appliedAt       DateTime @default(now())
+  submittedVia    String?  // ats_api | extension | manual (ADR-004)
+  externalRef     String?  // the employer ATS's application id, when submitted through its API
 
   user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   listing         OpenClawListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
@@ -454,7 +460,7 @@ model AiUsage {
 model AuthToken {
   id        String    @id @default(cuid())
   userId    String
-  type      String    // email_verify | password_reset
+  type      String    // email_verify | password_reset | extension (ADR-004: browser-extension access, revocable)
   tokenHash String    @unique // SHA-256 of the token sent by email; the raw token is never stored
   expiresAt DateTime
   usedAt    DateTime?
