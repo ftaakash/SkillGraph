@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SkillGraph OpenClaw</title>
+  <style>
+    body { font: 13px/1.45 system-ui, -apple-system, Segoe UI, sans-serif; width: 300px; margin: 0; padding: 14px; color: #111827 }
+    h1 { font-size: 15px; margin: 0 0 8px }
+    label { display: block; font-weight: 600; margin: 10px 0 4px }
+    input, select { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; font: inherit }
+    button { margin-top: 10px; padding: 7px 12px; border-radius: 6px; border: 1px solid #2563eb; background: #2563eb; color: #fff; font: inherit; cursor: pointer }
+    button.secondary { background: #fff; color: #111827; border-color: #d1d5db }
+    .muted { color: #6b7280; font-size: 12px }
+    .ok { color: #15803d } .bad { color: #b91c1c }
+  </style>
+</head>
+<body>
+  <h1>SkillGraph OpenClaw</h1>
+  <div id="status" class="muted">Checking connection…</div>
+
+  <form id="connect">
+    <label for="baseUrl">SkillGraph address</label>
+    <input id="baseUrl" type="url" value="https://skillgraphai.vercel.app" required>
+    <label for="token">Extension token</label>
+    <input id="token" type="password" placeholder="sgx_…" autocomplete="off" required>
+    <div class="muted">Create one in SkillGraph → OpenClaw → Browser extension.</div>
+    <button type="submit">Connect</button>
+  </form>
+
+  <button id="disconnect" class="secondary" hidden>Disconnect</button>
+  <p class="muted">Works on LinkedIn, Naukri, Glassdoor and Superset job pages. The extension fills forms in your browser; you always press Submit. It never reads your passwords or cookies for those sites.</p>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -44,7 +44,18 @@ export default function PrivacyPage() {
       <h2>OpenClaw and job sites</h2>
       <p>
         OpenClaw never logs into job boards on your behalf and never stores your credentials or cookies for third-party sites. It reads
-        public job listings from official APIs and licensed job-data providers, prepares a tailored résumé, and you submit applications yourself.
+        public job listings from official APIs and licensed job-data providers, and prepares a résumé tailored to each job from your own résumé.
+      </p>
+      <p>
+        If you turn on <em>Submit for me where the employer allows it</em>, OpenClaw sends your name, contact details, LinkedIn/GitHub links,
+        college and tailored résumé to the hiring system of an employer that has connected it to SkillGraph, for jobs that pass your filters.
+        It is off by default and you can turn it off at any time. Every other application is submitted by you.
+      </p>
+      <p>
+        The optional browser extension runs in your own browser on LinkedIn, Naukri, Glassdoor and Superset. It sends the job you are viewing
+        (title, company, location, pay and description) to SkillGraph to check your filters and tailor your résumé, then fills the application
+        form on that page. It does not read or send your passwords, cookies or messages on those sites, and it never submits a form for you.
+        Its access token expires after 30 days and stops working as soon as you disconnect it.
       </p>
 
       <h2>Service providers</h2>

@@ -11,9 +11,19 @@ const PUBLIC_PREFIXES = [
   '/api/openclaw/integrity',
   // Payment provider callbacks — authenticated by HMAC signature, not a session
   '/api/billing/webhook',
+  // OpenClaw browser extension — authenticated by its bearer token (lib/extension.ts)
+  '/api/extension/me', '/api/extension/prepare', '/api/extension/applied',
 ]
 
 const REQUEST_ID = /^[\w-]{8,64}$/
+
+/** Rate-limit key for extension calls: a hash of the bearer token, so students sharing a campus IP don't share a limit. */
+async function extensionClientKey(req: NextRequest): Promise<string | null> {
+  const header = req.headers.get('authorization') ?? ''
+  if (!req.nextUrl.pathname.startsWith('/api/extension/') || !header.startsWith('Bearer ')) return null
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(header.slice(7)))
+  return 'ext:' + Array.from(new Uint8Array(digest).slice(0, 16), b => b.toString(16).padStart(2, '0')).join('')
+}
 
 export default async function proxy(req: NextRequest) {
   // Correlates a request across logs and error reports; returned to the client as x-request-id
@@ -37,7 +47,7 @@ export default async function proxy(req: NextRequest) {
   const isApi = pathname.startsWith('/api/')
 
   if (isApi) {
-    const clientKey = session?.user?.id ?? `ip:${clientIp(req.headers)}`
+    const clientKey = session?.user?.id ?? (await extensionClientKey(req)) ?? `ip:${clientIp(req.headers)}`
     const limit = await checkRateLimit(req.method, pathname, clientKey)
     if (limit.limited) {
       return tag(NextResponse.json(

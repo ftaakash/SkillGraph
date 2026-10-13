@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Settings2, MapPin, Briefcase, Ban, Gauge, Save, RefreshCw } from "lucide-react";
+import { Settings2, MapPin, Briefcase, Ban, Gauge, Save, RefreshCw, Tags, Send } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import PageTransition from "@/components/PageTransition";
 import AgentStatusCard from "@/components/openclaw/AgentStatusCard";
@@ -9,6 +9,7 @@ import ApplicationFeed from "@/components/openclaw/ApplicationFeed";
 import AgentChatConsole from "@/components/openclaw/AgentChatConsole";
 import PipelineDashboard from "@/components/openclaw/PipelineDashboard";
 import StoryBankPanel from "@/components/openclaw/StoryBankPanel";
+import ExtensionConnect from "@/components/openclaw/ExtensionConnect";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,12 @@ interface OpenClawConfig {
   isActive: boolean;
   applicationEmail?: string | null;
   phone?: string | null;
+  includeKeywords?: string[];
+  excludeKeywords?: string[];
+  autoSubmit?: boolean;
 }
+
+const csv = (s: string) => s.split(",").map(x => x.trim()).filter(Boolean);
 
 interface AppStats {
   total: number;
@@ -49,6 +55,9 @@ export default function OpenClawPage() {
   const [blacklisted, setBlacklisted] = useState("");
   const [applicationEmail, setApplicationEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [includeKeywords, setIncludeKeywords] = useState("");
+  const [excludeKeywords, setExcludeKeywords] = useState("");
+  const [autoSubmit, setAutoSubmit] = useState(false);
 
   const loadData = useCallback(() => {
     Promise.all([
@@ -65,6 +74,9 @@ export default function OpenClawPage() {
         setBlacklisted((cfg.blacklistedCompanies as string[]).join(", "));
         setApplicationEmail(cfg.applicationEmail || "");
         setPhone(cfg.phone || "");
+        setIncludeKeywords((cfg.includeKeywords ?? []).join(", "));
+        setExcludeKeywords((cfg.excludeKeywords ?? []).join(", "));
+        setAutoSubmit(Boolean(cfg.autoSubmit));
       }
       setApplications(appData.applications ?? []);
       setStats(appData.stats ?? { total: 0, preparedToday: 0, readyToApply: 0, avgMatchScore: 0 });
@@ -82,29 +94,37 @@ export default function OpenClawPage() {
   const handleSave = async () => {
     setSaving(true);
     const payload = {
-      targetRoles: targetRoles.split(",").map(s => s.trim()).filter(Boolean),
-      preferredCities: preferredCities.split(",").map(s => s.trim()).filter(Boolean),
+      targetRoles: csv(targetRoles),
+      preferredCities: csv(preferredCities),
       minCtcLpa,
       dailyLimit,
-      blacklistedCompanies: blacklisted.split(",").map(s => s.trim()).filter(Boolean),
+      blacklistedCompanies: csv(blacklisted),
+      includeKeywords: csv(includeKeywords),
+      excludeKeywords: csv(excludeKeywords),
+      autoSubmit,
       isActive: config?.isActive ?? false,
       applicationEmail: applicationEmail.trim(),
       phone: phone.trim(),
     };
 
-    const res = await fetch("/api/openclaw/config", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setConfig(data.config);
-      setAgentMessage("Preferences saved.");
-    } else {
-      setAgentMessage(data.error ?? "Could not save preferences.");
+    try {
+      const res = await fetch("/api/openclaw/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setConfig(data.config);
+        setAgentMessage("Preferences saved.");
+      } else {
+        setAgentMessage(data.error ?? "Could not save preferences.");
+      }
+    } catch {
+      setAgentMessage("Network error. Your preferences were not saved.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const toggleAgent = async () => {
@@ -247,7 +267,7 @@ export default function OpenClawPage() {
                       value={dailyLimit}
                       onChange={e => setDailyLimit(parseInt(e.target.value) || 10)}
                       min={1}
-                      max={50}
+                      max={25}
                       className="bg-muted border-border text-sm"
                     />
                   </div>
@@ -265,6 +285,46 @@ export default function OpenClawPage() {
                   />
                 </div>
 
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1 mb-1.5">
+                    <Tags size={12} /> Must mention (any of)
+                  </label>
+                  <Input
+                    value={includeKeywords}
+                    onChange={e => setIncludeKeywords(e.target.value)}
+                    placeholder="Optional — e.g. React, Python, fresher"
+                    className="bg-muted border-border text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1 mb-1.5">
+                    <Ban size={12} /> Skip jobs mentioning
+                  </label>
+                  <Input
+                    value={excludeKeywords}
+                    onChange={e => setExcludeKeywords(e.target.value)}
+                    placeholder="Optional — e.g. 5+ years, bond, unpaid"
+                    className="bg-muted border-border text-sm"
+                  />
+                </div>
+
+                <label className="flex items-start gap-2.5 rounded-md border border-border bg-muted/40 p-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={autoSubmit}
+                    onChange={e => setAutoSubmit(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 accent-primary"
+                  />
+                  <span className="text-xs leading-relaxed">
+                    <span className="font-semibold text-foreground flex items-center gap-1"><Send size={12} /> Submit for me where the employer allows it</span>
+                    <span className="text-muted-foreground">
+                      For employers that have connected their hiring system to SkillGraph, OpenClaw submits your tailored résumé and profile for jobs that pass your filters.
+                      Everything else waits for you to submit, with the browser extension or by hand. If a form asks a question only you can answer, it waits for you.
+                    </span>
+                  </span>
+                </label>
+
                 <Button
                   onClick={handleSave}
                   disabled={saving}
@@ -275,6 +335,8 @@ export default function OpenClawPage() {
                 </Button>
               </div>
             </div>
+
+            <ExtensionConnect />
           </div>
 
           {/* Activity Feed, Chat, Pipeline & Stories — Right */}

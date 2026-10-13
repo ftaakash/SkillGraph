@@ -186,7 +186,8 @@ export const RATE_LIMIT_RULES: RateLimitRule[] = [
       p.startsWith('/api/sprints') ||
       p.startsWith('/api/openclaw/negotiate') ||
       p.startsWith('/api/openclaw/stories') ||
-      p.startsWith('/api/openclaw/pipeline'),
+      p.startsWith('/api/openclaw/pipeline') ||
+      p.startsWith('/api/extension/prepare'),
   },
   {
     // One request fans out to many LLM calls (a batch of up to 10 links, or a full agent run)
