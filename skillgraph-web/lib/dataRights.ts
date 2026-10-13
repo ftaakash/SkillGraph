@@ -22,7 +22,7 @@ export async function exportUserData(userId: string) {
       sprints: true,
       optimizerSessions_: true,
       ResumeVersions: true,
-      Applications: true,
+      Applications: { include: { roundResults: true } },
       OpenClawConfig: true,
       OpenClawApplications: { include: { listing: true } },
       InterviewStories: true,
@@ -35,6 +35,8 @@ export async function exportUserData(userId: string) {
       AcademicProfile: true,
       AcademicCourses: true,
       AttendanceLeaves: true,
+      DriveMessages: { where: { deletedAt: null }, select: { jobPostingId: true, body: true, createdAt: true } },
+      NoticeReads: { select: { noticeId: true, readAt: true } },
     },
   })
   if (!user) return null

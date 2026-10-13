@@ -42,7 +42,16 @@ interface UserProfile {
   targetRole: string | null;
 }
 
-type Filter = "open" | "all" | "applied";
+type View = "eligible" | "applied" | "not_applied" | "rejected" | "offered" | "all";
+const VIEWS: [View, string][] = [
+  ["eligible", "Eligible"],
+  ["applied", "Applied"],
+  ["not_applied", "Eligible, not applied"],
+  ["rejected", "Rejected"],
+  ["offered", "Offers"],
+  ["all", "All"],
+];
+const OFFER_STATUSES = new Set(["Offered", "Placed"]);
 
 const VISIT_MODE_LABEL: Record<string, string> = { physical: "In person", virtual: "Virtual", both: "In person or virtual", undecided: "Not decided" };
 
@@ -95,7 +104,10 @@ export default function StudentJobsPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<Filter>("open");
+  const [view, setView] = useState<View>("eligible");
+  const [showPrevious, setShowPrevious] = useState(false);
+  const [jobType, setJobType] = useState("");
+  const [sortDesc, setSortDesc] = useState(false);
   const [now, setNow] = useState<number | null>(null);
   const [joinedCollege, setJoinedCollege] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -142,24 +154,44 @@ export default function StudentJobsPage() {
     }
   };
 
-  const isEligible = (job: Job) => {
+  const isEligible = useCallback((job: Job) => {
     if (!profile) return true;
     if (job.minCgpa && profile.cgpa && profile.cgpa < job.minCgpa) return false;
     if (job.eligibleBranches?.length > 0 && profile.branch && !job.eligibleBranches.includes(profile.branch)) return false;
     return true;
-  };
+  }, [profile]);
+
+  const jobTypes = useMemo(() => [...new Set(jobs.map(j => j.jobType).filter((t): t is string => Boolean(t)))].sort(), [jobs]);
+
+  const inView = useCallback((j: Job) => {
+    const status = j.application?.status;
+    switch (view) {
+      case "eligible": return isEligible(j);
+      case "applied": return Boolean(j.application);
+      case "not_applied": return isEligible(j) && !j.application;
+      case "rejected": return status === "Rejected";
+      case "offered": return Boolean(status && OFFER_STATUSES.has(status));
+      default: return true;
+    }
+  }, [view, isEligible]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return jobs.filter(j =>
-      (filter === "all" || (filter === "open" ? j.isOpen : Boolean(j.application))) &&
-      (!q ||
-        j.title.toLowerCase().includes(q) ||
-        j.company.toLowerCase().includes(q) ||
-        (j.location ?? "").toLowerCase().includes(q) ||
-        j.description.toLowerCase().includes(q))
-    );
-  }, [jobs, search, filter]);
+    // Applications, rejections and offers are history: show them whether or not the drive is still open
+    const historyView = view === "applied" || view === "rejected" || view === "offered";
+    return jobs
+      .filter(j =>
+        (showPrevious || historyView || j.isOpen) &&
+        inView(j) &&
+        (!jobType || j.jobType === jobType) &&
+        (!q ||
+          j.title.toLowerCase().includes(q) ||
+          j.company.toLowerCase().includes(q) ||
+          (j.location ?? "").toLowerCase().includes(q) ||
+          j.description.toLowerCase().includes(q))
+      )
+      .sort((a, b) => (new Date(a.deadline).getTime() - new Date(b.deadline).getTime()) * (sortDesc ? -1 : 1));
+  }, [jobs, search, view, showPrevious, jobType, sortDesc, inView]);
 
   return (
     <PageTransition>
@@ -189,19 +221,44 @@ export default function StudentJobsPage() {
               className="pl-9 bg-muted border-border text-sm"
             />
           </div>
-          <div className="flex rounded-lg border border-border overflow-hidden text-sm" role="tablist" aria-label="Filter drives">
-            {(["open", "all", "applied"] as Filter[]).map(f => (
-              <button
-                key={f}
-                role="tab"
-                aria-selected={filter === f}
-                onClick={() => setFilter(f)}
-                className={`px-4 py-2 capitalize transition-colors ${filter === f ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted"}`}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSortDesc(d => !d)}
+              className="text-sm px-3 py-2 rounded-lg border border-border text-muted-foreground hover:text-foreground"
+            >
+              Apply by {sortDesc ? "(latest first)" : "(soonest first)"}
+            </button>
+            {jobTypes.length > 0 && (
+              <select
+                aria-label="Job type"
+                value={jobType}
+                onChange={e => setJobType(e.target.value)}
+                className="text-sm px-3 py-2 rounded-lg border border-border bg-muted text-foreground"
               >
-                {f}
-              </button>
-            ))}
+                <option value="">All job types</option>
+                {jobTypes.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            )}
+            <label className="flex items-center gap-2 text-sm text-muted-foreground px-1">
+              <input type="checkbox" checked={showPrevious} onChange={e => setShowPrevious(e.target.checked)} />
+              Previous drives
+            </label>
           </div>
+        </div>
+
+        <div className="mb-6 flex flex-wrap gap-2" role="tablist" aria-label="Filter drives">
+          {VIEWS.map(([v, label]) => (
+            <button
+              key={v}
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => setView(v)}
+              className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${view === v ? "border-primary/50 bg-primary/15 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         {loading ? (
@@ -212,12 +269,12 @@ export default function StudentJobsPage() {
           <div className="bg-card border border-border rounded-lg p-12 text-center">
             <Briefcase size={40} className="mx-auto text-muted-foreground mb-4" />
             <p className="text-lg font-heading font-semibold text-foreground mb-2">
-              {filter === "applied" ? "No applications yet" : "No Open Positions"}
+              {view === "applied" ? "No applications yet" : view === "offered" ? "No offers yet" : view === "rejected" ? "Nothing here" : "No drives to show"}
             </p>
             <p className="text-muted-foreground text-sm">
               {!joinedCollege
                 ? <>Join your college workspace with the code from your placement cell on your <Link href="/profile" className="text-primary hover:underline">Profile</Link> to see campus jobs.</>
-                : filter === "applied"
+                : view === "applied"
                   ? <>Drives you apply to here, or mark as applied on your placement portal, show up in this list.</>
                   : <>Your placement cell hasn&apos;t posted any open drives. Check back soon.</>}
             </p>

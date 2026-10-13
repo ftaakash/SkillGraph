@@ -72,7 +72,7 @@ export default function FacultyJobsPage() {
               <div key={job.id} className="bg-card border border-border rounded-lg p-5 hover:border-primary/40 transition-colors">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="font-heading text-base font-semibold text-foreground">{job.title}</h3>
+                    <Link href={`/faculty/jobs/${job.id}`} className="font-heading text-base font-semibold text-foreground hover:text-primary">{job.title}</Link>
                     <p className="text-sm text-muted-foreground mt-0.5">{job.company}</p>
                   </div>
                   <div className="text-right">

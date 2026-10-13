@@ -154,6 +154,22 @@ export const RATE_LIMIT_RULES: RateLimitRule[] = [
       p.startsWith('/api/faculty/jobs/import'),
   },
   {
+    // Round confirmations and check-ins — bounds guessing of check-in codes
+    name: 'participation',
+    limit: 20,
+    windowMs: 15 * MINUTE,
+    methods: ['POST'],
+    match: (p) => p.startsWith('/api/participation'),
+  },
+  {
+    // Drive group chats and notice publishing — spam control
+    name: 'messages',
+    limit: 30,
+    windowMs: 5 * MINUTE,
+    methods: ['POST'],
+    match: (p) => (p.startsWith('/api/drives/') && p.endsWith('/messages')) || p.startsWith('/api/faculty/notices'),
+  },
+  {
     // Endpoints that call the LLM — bounds per-user AI spend
     name: 'ai',
     limit: 30,
