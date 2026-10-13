@@ -16,6 +16,7 @@
     {
       "matches": [
         "https://www.linkedin.com/jobs/*",
+        "https://*.linkedin.com/jobs/*",
         "https://www.naukri.com/*",
         "https://www.glassdoor.co.in/*",
         "https://www.glassdoor.com/*",

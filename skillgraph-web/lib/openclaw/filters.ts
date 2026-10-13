@@ -51,18 +51,23 @@ function roleMatches(title: string, target: string) {
 
 /**
  * Upper end of a CTC band in lakhs per annum, or null if it can't be read.
- * Understands "8-12 LPA", "₹10 LPA", "12 lakhs", "₹6,00,000 - ₹9,00,000" and "1200000-1800000 INR".
+ * Understands "8-12 LPA", "6.5-7 Lacs P.A.", "12 lakhs", "₹6,00,000 - ₹9,00,000", "1200000-1800000 INR"
+ * and monthly amounts ("₹40,000 - ₹50,000 per month"); hourly pay returns null.
  */
 export function maxCtcLpa(band: string | null): number | null {
   if (!band) return null
   const text = band.toLowerCase().replace(/,/g, '')
   // Foreign-currency bands can't be compared with a rupee minimum
   if (/[$€£]|\b(usd|eur|gbp|aud|cad|sgd)\b/.test(text)) return null
+  // Hourly pay (Glassdoor shows some roles this way) can't be compared with an annual CTC
+  if (/per hour|hourly|\/\s*h(ou)?r\b/.test(text)) return null
+  const monthly = /per month|monthly|\/\s*mo(nth)?\b|\bp\.?m\.?(\s|$)/.test(text)
   const nums = [...text.matchAll(/\d+(?:\.\d+)?/g)].map(m => Number(m[0])).filter(n => n > 0)
   if (nums.length === 0) return null
   const max = Math.max(...nums)
-  if (/lpa|lakh|lac|\bl\b/.test(text) || max < 200) return max
-  return max >= 10_000 ? max / 100_000 : null
+  if (/lpa|lakh|lac|\bl\b/.test(text) || max < 200) return monthly ? max * 12 : max
+  if (max < 10_000) return null
+  return Math.round(((monthly ? max * 12 : max) / 100_000) * 100) / 100
 }
 
 export function checkFilters(job: Pick<JobListing, 'company' | 'role' | 'location' | 'ctcBand' | 'jdText'>, f: JobFilters): FilterVerdict {

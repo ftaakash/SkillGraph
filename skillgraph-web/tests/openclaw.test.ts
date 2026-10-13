@@ -55,6 +55,11 @@ test('pay bands are read in lakhs per annum', () => {
   assert.equal(maxCtcLpa('12 lakhs'), 12)
   assert.equal(maxCtcLpa('$120,000 - $150,000'), null)
   assert.equal(maxCtcLpa('Not disclosed'), null)
+  // As shown on live Naukri and Glassdoor pages
+  assert.equal(maxCtcLpa('6.5-7 Lacs P.A.'), 7)
+  assert.equal(maxCtcLpa('₹7,195.34 - ₹14,390.68 Per hour (Employer provided)'), null)
+  assert.equal(maxCtcLpa('₹40,000 - ₹50,000 per month'), 6)
+  assert.equal(maxCtcLpa('₹500,000.00/yr - ₹1,000,000.00/yr'), 10)
   assert.equal(maxCtcLpa(null), null)
 })
 
