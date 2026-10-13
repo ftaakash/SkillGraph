@@ -61,11 +61,11 @@ export default function ProjectsPage() {
       <div className="flex justify-between items-start">
         <div className="max-w-2xl">
           <h1 className="text-4xl font-bold tracking-tight text-white mb-2">
-            Architectural <span className="italic text-[#B1C5FF]">Prompts</span>
+            Project <span className="italic text-[#B1C5FF]">Ideas</span>
           </h1>
           <p className="text-gray-400 text-sm leading-relaxed">
-            Precision-engineered project ideas curated by our neural network to match 
-            your industrial readiness profile. Choose a blueprint and start building.
+            Project ideas generated from your skills and open skill gaps.
+            Pick one and start building.
           </p>
         </div>
 
@@ -214,10 +214,10 @@ export default function ProjectsPage() {
                  <svg className="w-6 h-6 text-[#B1C5FF]" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7.5-6.3-4.7-6.3 4.7 2.3-7.5-6-4.6h7.6L12 2z" /></svg>
               </div>
               <div>
-                 <h4 className="text-[10px] font-black tracking-widest text-[#B1C5FF] uppercase mb-1">Architect Insight</h4>
+                 <h4 className="text-[10px] font-black tracking-widest text-[#B1C5FF] uppercase mb-1">Suggestion</h4>
                  <h3 className="text-lg font-bold text-white mb-1">Recommended for your Next Sprint</h3>
                  <p className="text-sm text-gray-400">
-                    Based on your recent Neural Architecture readiness, we suggest the 
+                    Based on your skill gaps, start with
                     <span className="text-white font-bold ml-1">{projects[0]?.title}</span>.
                  </p>
               </div>

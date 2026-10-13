@@ -7,9 +7,9 @@ import { getUserId, unauthorized, serverError, ok, badRequest, aiFailure } from 
 import { z } from 'zod'
 
 const schema = z.object({
-  headline: z.string().min(1),
-  about: z.string().min(1),
-  skillsList: z.string().min(1),
+  headline: z.string().trim().min(1).max(300),
+  about: z.string().trim().min(1).max(3000),
+  skillsList: z.string().trim().min(1).max(2000),
 })
 
 export async function POST(req: NextRequest) {
@@ -17,9 +17,8 @@ export async function POST(req: NextRequest) {
     const userId = await getUserId()
     if (!userId) return unauthorized()
 
-    const body = await req.json()
-    const parsed = schema.safeParse(body)
-    if (!parsed.success) return badRequest('headline, about, and skillsList are required')
+    const parsed = schema.safeParse(await req.json().catch(() => null))
+    if (!parsed.success) return badRequest('Fill in your headline (≤300 characters), About section (≤3000) and skills (≤2000)')
 
     const { headline, about, skillsList } = parsed.data
     const user = await prisma.user.findUnique({
@@ -46,11 +45,7 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Increment optimizer sessions count
-    await prisma.user.update({
-      where: { id: userId },
-      data: { optimizerSessions: { increment: 1 } },
-    })
+    await prisma.user.update({ where: { id: userId }, data: { optimizerSessions: { increment: 1 } } })
 
     return ok({ result })
   } catch (err) {

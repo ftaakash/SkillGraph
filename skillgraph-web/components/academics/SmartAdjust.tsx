@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { AcademicOverview } from "@/lib/academics/sync";
-import { projectAttendance, classKey, type CourseProjection } from "@/lib/academics/calc";
+import { projectAttendance, classKey, istMinutes, type CourseProjection } from "@/lib/academics/calc";
 
 type Mode = "predict" | "leave";
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -56,6 +56,7 @@ export default function SmartAdjust({
       absent,
       leaves: data.leaves.map(l => l.date),
       threshold: data.threshold,
+      nowMinutes: istMinutes(new Date()),
     });
     return new Map(result.map(r => [classKey(r.code, r.category), r]));
   }, [absent, until, today, data]);

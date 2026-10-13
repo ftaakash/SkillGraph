@@ -43,6 +43,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         // Progress only means something once the student has applied
         state: application ? s.state : null,
         confirmation: s.result?.confirmation ?? null,
+        attendedAt: s.result?.attendedAt ?? null,
       })),
       noticeCount: await prisma.notice.count({ where: { jobPostingId: job.id } }),
     })

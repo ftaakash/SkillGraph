@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 interface SectionEditorProps {
   sections: Record<string, string>;
   onChange: (sections: Record<string, string>) => void;
+  /** Used to tailor "AI Enhance" rewrites to the job */
+  targetJd?: string;
 }
 
 const SECTION_CONFIG = [
@@ -18,8 +20,33 @@ const SECTION_CONFIG = [
   { key: "certifications", label: "Certifications & Achievements", placeholder: "AWS Certified Cloud Practitioner\nSmart India Hackathon — 1st Place", icon: "🏆" },
 ];
 
-export default function SectionEditor({ sections, onChange }: SectionEditorProps) {
+export default function SectionEditor({ sections, onChange, targetJd }: SectionEditorProps) {
   const [expanded, setExpanded] = useState<string | null>("summary");
+  const [enhancing, setEnhancing] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Rewrites one section with the AI; facts are kept as written (see /api/resume-builder/enhance)
+  const enhance = async (key: string) => {
+    setEnhancing(key);
+    setErrors(e => ({ ...e, [key]: "" }));
+    try {
+      const res = await fetch("/api/resume-builder/enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section: key, text: sections[key] ?? "", targetJd: targetJd?.trim() || undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || typeof data.text !== "string") {
+        setErrors(e => ({ ...e, [key]: data.error ?? "Could not enhance this section. Try again." }));
+        return;
+      }
+      onChange({ ...sections, [key]: data.text });
+    } catch {
+      setErrors(e => ({ ...e, [key]: "Network error. Try again." }));
+    } finally {
+      setEnhancing(null);
+    }
+  };
 
   const updateSection = (key: string, value: string) => {
     onChange({ ...sections, [key]: value });
@@ -56,9 +83,18 @@ export default function SectionEditor({ sections, onChange }: SectionEditorProps
                   rows={5}
                   className="w-full mt-3 p-3 bg-muted border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground resize-y focus:outline-none focus:ring-1 focus:ring-primary"
                 />
-                <div className="flex justify-end mt-2">
-                  <Button variant="ghost" size="sm" className="text-xs text-primary hover:text-primary/80">
-                    <Sparkles size={12} className="mr-1" /> AI Enhance
+                <div className="flex items-center justify-end gap-3 mt-2">
+                  {errors[sec.key] && <span className="text-xs text-destructive" role="alert">{errors[sec.key]}</span>}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-primary hover:text-primary/80"
+                    onClick={() => enhance(sec.key)}
+                    disabled={enhancing !== null || !hasContent}
+                    title={hasContent ? "Rewrite this section without changing its facts" : "Write something first"}
+                  >
+                    <Sparkles size={12} className={`mr-1 ${enhancing === sec.key ? "animate-spin" : ""}`} />
+                    {enhancing === sec.key ? "Enhancing…" : "AI Enhance"}
                   </Button>
                 </div>
               </div>

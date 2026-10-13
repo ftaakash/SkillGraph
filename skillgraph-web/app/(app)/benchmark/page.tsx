@@ -19,10 +19,19 @@ export default function BenchmarkPage() {
   const [skills, setSkills] = useState<Skill[]>([]);
   const roles = ['Industrial AI Engineer', 'Data Analyst', 'ML Engineer', 'DevOps Engineer', 'Full Stack Dev'];
 
+  // Profile data loads once; start on the student's own target role when it has benchmarks
   useEffect(() => {
-    fetch(`/api/benchmarks?role=${role}`).then(r => r.json()).then(setData);
-    fetch('/api/users/me').then(r => r.json()).then(d => setUserScore(d.user?.readinessScore ?? null));
-    fetch('/api/skills').then(r => r.json()).then(sk => setSkills(sk.skills ?? []));
+    fetch('/api/users/me').then(r => (r.ok ? r.json() : null)).then(d => {
+      setUserScore(d?.user?.readinessScore ?? null);
+      if (d?.user?.targetRole && roles.includes(d.user.targetRole)) setRole(d.user.targetRole);
+    }).catch(() => {});
+    fetch('/api/skills').then(r => (r.ok ? r.json() : null)).then(sk => setSkills(sk?.skills ?? [])).catch(() => {});
+    // roles is a constant list
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    fetch(`/api/benchmarks?role=${encodeURIComponent(role)}`).then(r => (r.ok ? r.json() : null)).then(setData).catch(() => setData(null));
   }, [role]);
 
   const activeBuckets = viewMode === 'global' ? data?.buckets : data?.cohortBuckets;

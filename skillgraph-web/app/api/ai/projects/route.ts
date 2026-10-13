@@ -11,18 +11,16 @@ export async function POST(req: NextRequest) {
     const userId = await getUserId()
     if (!userId) return unauthorized()
 
-    const skills = await prisma.skillProfile.findMany({ where: { userId } })
-    const gaps = await prisma.skillGap.findMany({
-      where: { userId, closed: false },
-      orderBy: { urgency: 'asc' },
-      take: 5,
-    })
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { targetRole: true },
-    })
-
+    const [skills, openGaps, user] = await Promise.all([
+      prisma.skillProfile.findMany({ where: { userId }, select: { skillName: true } }),
+      prisma.skillGap.findMany({ where: { userId, closed: false }, select: { missingSkill: true, urgency: true } }),
+      prisma.user.findUnique({ where: { id: userId }, select: { targetRole: true } }),
+    ])
     if (!skills.length) return badRequest('No skills found. Please upload your resume first.')
+
+    // Most urgent first (urgency is a word, so the database's alphabetical order would put "low" before "medium")
+    const rank: Record<string, number> = { high: 0, medium: 1, low: 2 }
+    const gaps = openGaps.sort((a, b) => (rank[a.urgency] ?? 3) - (rank[b.urgency] ?? 3)).slice(0, 5)
 
     const currentSkills = skills.map(s => s.skillName).join(', ')
     const gapSkills = gaps.map(g => g.missingSkill).join(', ')

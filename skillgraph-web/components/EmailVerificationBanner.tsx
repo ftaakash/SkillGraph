@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { MailWarning } from "lucide-react";
 
 const DISMISS_KEY = "sg-verify-banner-dismissed";
+// Verification never reverts, so once seen verified this tab skips the profile request on every page
+const VERIFIED_KEY = "sg-email-verified";
 
 /** Reminds signed-in users with an unverified email address and lets them resend the link. */
 export default function EmailVerificationBanner() {
@@ -12,11 +14,18 @@ export default function EmailVerificationBanner() {
 
   useEffect(() => {
     try {
-      if (sessionStorage.getItem(DISMISS_KEY)) return;
+      if (sessionStorage.getItem(DISMISS_KEY) || sessionStorage.getItem(VERIFIED_KEY)) return;
     } catch { /* storage unavailable */ }
     fetch("/api/users/me")
       .then(r => (r.ok ? r.json() : null))
-      .then(d => { if (d?.user && !d.user.emailVerifiedAt) setEmail(d.user.email); })
+      .then(d => {
+        if (!d?.user) return;
+        if (d.user.emailVerifiedAt) {
+          try { sessionStorage.setItem(VERIFIED_KEY, "1"); } catch { /* storage unavailable */ }
+        } else {
+          setEmail(d.user.email);
+        }
+      })
       .catch(() => {});
   }, []);
 

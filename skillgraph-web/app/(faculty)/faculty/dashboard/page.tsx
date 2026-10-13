@@ -20,11 +20,12 @@ export default function FacultyDashboardPage() {
   const [stats, setStats] = useState<FacultyStats | null>(null);
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/faculty/analytics").then((r) => r.json()),
-      fetch("/api/faculty/jobs").then((r) => r.json())
+      fetch("/api/faculty/analytics").then((r) => (r.ok ? r.json() : Promise.reject(new Error()))),
+      fetch("/api/faculty/jobs").then((r) => (r.ok ? r.json() : Promise.reject(new Error())))
     ])
       .then(([statsData, jobsData]) => {
         setStats(statsData ?? {
@@ -48,6 +49,7 @@ export default function FacultyDashboardPage() {
           topGaps: [],
         });
         setJobs([]);
+        setLoadError(true);
         setLoading(false);
       });
   }, []);
@@ -65,6 +67,11 @@ export default function FacultyDashboardPage() {
   return (
     <PageTransition>
       <DashboardLayout title="Placement Cell">
+        {loadError && (
+          <p className="mb-6 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm" role="alert">
+            Could not load your college&apos;s numbers. Refresh to try again.
+          </p>
+        )}
         {/* Stats Row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard icon={<Users size={20} />} label="Registered Students" value={String(stats?.totalStudents ?? 0)} trend="College-wide" trendUp />

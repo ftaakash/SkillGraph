@@ -134,3 +134,20 @@ export const interviewStoriesSchema = z.object({
 })
 
 export const jdSkillsSchema = z.array(z.coerce.string()).max(40)
+
+/** Résumé Builder "Generate from Profile" (app/api/resume-builder/build) */
+export const resumeDraftSchema = z.object({
+  summary: str.catch(''),
+  skills: z.object({ technical: strList, tools: strList }).catch({ technical: [], tools: [] }),
+  experience: z
+    .array(z.object({ company: str.catch(''), role: str.catch(''), duration: str.catch(''), bullets: strList }))
+    .catch([]),
+  projects: z
+    .array(z.object({ name: str.catch(''), techStack: strList, impact: str.catch(''), bullets: strList }))
+    .catch([]),
+  education: z
+    .object({ degree: str.catch(''), college: str.catch(''), cgpa: str.catch(''), year: str.catch('') })
+    .catch({ degree: '', college: '', cgpa: '', year: '' }),
+  certifications: strList,
+})
+export type ResumeDraft = z.infer<typeof resumeDraftSchema>

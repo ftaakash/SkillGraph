@@ -19,14 +19,19 @@ interface Job {
   createdAt: string;
 }
 
+const istDate = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" });
+const lpa = (min: number | null, max: number | null) =>
+  min && max && min !== max ? `₹${min}–${max} LPA` : min || max ? `₹${min || max} LPA` : null;
+
 export default function FacultyJobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState(0);
 
   const load = useCallback(() => {
     fetch("/api/faculty/jobs")
       .then(r => r.json())
-      .then(d => { setJobs(d.jobs ?? []); setLoading(false); })
+      .then(d => { setJobs(d.jobs ?? []); setNow(Date.now()); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
@@ -38,7 +43,7 @@ export default function FacultyJobsPage() {
     <PageTransition>
       <DashboardLayout title="Job Postings">
         <div className="flex items-center justify-between mb-6">
-          <p className="text-muted-foreground text-sm">{jobs.length} active postings</p>
+          <p className="text-muted-foreground text-sm">{jobs.length} drive{jobs.length === 1 ? "" : "s"} · {jobs.filter(j => new Date(j.deadline).getTime() >= now).length} open</p>
           <Link href="/faculty/jobs/new">
             <Button className="gradient-primary text-primary-foreground font-semibold glow-primary">
               <Plus className="mr-2" size={16} /> Post New Job
@@ -78,14 +83,14 @@ export default function FacultyJobsPage() {
                   <div className="text-right">
                     {(job.ctcMin || job.ctcMax) && (
                       <p className="text-sm font-semibold text-primary">
-                        ₹{job.ctcMin ?? "—"} – {job.ctcMax ?? "—"} LPA
+                        {lpa(job.ctcMin, job.ctcMax)}
                       </p>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center gap-6 mt-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1"><Calendar size={12} /> Deadline: {new Date(job.deadline).toLocaleDateString()}</span>
-                  <span className="flex items-center gap-1"><Users size={12} /> {job.applicationCount} applications</span>
+                  <span className="flex items-center gap-1"><Calendar size={12} /> {new Date(job.deadline).getTime() < now ? "Closed" : "Apply by"} {istDate.format(new Date(job.deadline))}</span>
+                  <span className="flex items-center gap-1"><Users size={12} /> {job.applicationCount} application{job.applicationCount === 1 ? "" : "s"}</span>
                 </div>
               </div>
             ))}

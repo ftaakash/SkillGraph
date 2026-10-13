@@ -41,8 +41,14 @@ export default function NotificationBell() {
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000); // poll every 30s
-    return () => clearInterval(interval);
+    // Poll every 30s while the tab is visible, and catch up as soon as it becomes visible again
+    const interval = setInterval(() => { if (!document.hidden) fetchNotifications(); }, 30000);
+    const onVisible = () => { if (!document.hidden) fetchNotifications(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   // Close when clicking outside

@@ -38,6 +38,7 @@ export default function MarketPage() {
   const [salaryLocation, setSalaryLocation] = useState('India');
   const [salaries, setSalaries] = useState<any[]>([]);
   const [searchingSalary, setSearchingSalary] = useState(false);
+  const [lookupError, setLookupError] = useState('');
 
   useEffect(() => {
     if (activeTab === 'Skill Demand') {
@@ -49,28 +50,39 @@ export default function MarketPage() {
   const loading = loadedKey !== role;
   const maxCount = data?.topSkills?.[0]?.count ?? 1;
 
+  /** GETs a market lookup; on failure shows the server's message and returns null. */
+  const lookup = async (url: string) => {
+    setLookupError('');
+    try {
+      const res = await fetch(url);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error);
+      return body.data ?? null;
+    } catch (err) {
+      setLookupError((err as Error).message || 'Network error. Try again.');
+      return null;
+    }
+  };
+
   const handleSearchJobs = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!jobQuery) return;
+    if (!jobQuery.trim()) return;
     setSearchingJobs(true); setSelectedJob(null);
-    const res = await fetch(`/api/market/search?query=${encodeURIComponent(jobQuery)}`).then(r => r.json());
-    setJobs(res.data ?? []);
+    setJobs((await lookup(`/api/market/search?query=${encodeURIComponent(jobQuery.trim())}`)) ?? []);
     setSearchingJobs(false);
   };
 
   const handleGetJobDetails = async (jobId: string) => {
     setJobDetailsLoading(true);
-    const res = await fetch(`/api/market/job-details?job_id=${encodeURIComponent(jobId)}`).then(r => r.json());
-    setSelectedJob(res.data);
+    setSelectedJob(await lookup(`/api/market/job-details?job_id=${encodeURIComponent(jobId)}`));
     setJobDetailsLoading(false);
   };
 
   const handleSearchSalary = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!salaryTitle) return;
+    if (!salaryTitle.trim()) return;
     setSearchingSalary(true);
-    const res = await fetch(`/api/market/company-salary?job_title=${encodeURIComponent(salaryTitle)}&location=${encodeURIComponent(salaryLocation)}`).then(r => r.json());
-    setSalaries(res.data ?? []);
+    setSalaries((await lookup(`/api/market/company-salary?job_title=${encodeURIComponent(salaryTitle.trim())}&location=${encodeURIComponent(salaryLocation)}`)) ?? []);
     setSearchingSalary(false);
   };
 
@@ -79,6 +91,10 @@ export default function MarketPage() {
       <DashboardLayout title="Market Intelligence">
         <p className="text-muted-foreground mb-6 font-body">Real-time skill demand index and job market insights.</p>
         
+        {lookupError && activeTab !== 'Skill Demand' && (
+          <p className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm" role="alert">{lookupError}</p>
+        )}
+
         {/* TABS */}
         <div className="flex border-b border-border/50 mb-8 overflow-x-auto hide-scrollbar">
           {tabs.map(t => (
@@ -112,9 +128,9 @@ export default function MarketPage() {
               </div>
               
               {loading ? (
-                <div className="p-12 text-center text-muted-foreground font-bold tracking-widest text-sm animate-pulse">EXTRACTING METADATA...</div>
+                <div className="p-12 text-center text-muted-foreground font-bold tracking-widest text-sm animate-pulse">Loading job details…</div>
               ) : data?.topSkills?.length === 0 ? (
-                <div className="p-12 text-center text-muted-foreground font-medium">No data indexed for this architecture.</div>
+                <div className="p-12 text-center text-muted-foreground font-medium">No demand data for this role yet.</div>
               ) : (
                 data?.topSkills?.map(({ skill, count }, i) => {
                   const demandPct = Math.min(100, Math.round((count / maxCount) * 100));
@@ -158,7 +174,7 @@ export default function MarketPage() {
                      className="w-full bg-background border border-border rounded-lg pl-9 pr-4 py-2.5 text-sm text-foreground focus:border-primary outline-none transition" />
                   </div>
                   <Button type="submit" disabled={searchingJobs} className="gradient-primary text-primary-foreground font-semibold glow-primary">
-                    {searchingJobs ? '...' : 'Query'}
+                    {searchingJobs ? 'Searching…' : 'Search'}
                   </Button>
                 </form>
               </div>
@@ -172,14 +188,14 @@ export default function MarketPage() {
                     </p>
                   </button>
                 ))}
-                {!searchingJobs && jobs.length === 0 && <p className="text-xs font-semibold tracking-widest text-center text-muted-foreground mt-10 uppercase">Awaiting Query Parameters</p>}
+                {!searchingJobs && jobs.length === 0 && <p className="text-xs font-semibold tracking-widest text-center text-muted-foreground mt-10 uppercase">Search for a role to see live openings</p>}
               </div>
             </div>
 
             <div className="col-span-12 lg:col-span-7 bg-card border border-border rounded-lg p-8 overflow-y-auto h-[70vh] custom-scrollbar">
               {jobDetailsLoading ? (
                 <div className="flex items-center justify-center h-full">
-                  <div className="text-primary font-bold tracking-widest text-sm uppercase animate-pulse">Initializing Data Stream...</div>
+                  <div className="text-primary font-bold tracking-widest text-sm uppercase animate-pulse">Loading…</div>
                 </div>
               ) : selectedJob ? (
                 <div className="animate-in fade-in">
@@ -228,7 +244,7 @@ export default function MarketPage() {
                      className="w-full bg-background border border-border rounded-lg pl-9 pr-4 py-2.5 text-sm focus:border-primary outline-none transition text-foreground" />
                 </div>
                 <Button type="submit" disabled={searchingSalary} className="gradient-primary text-primary-foreground font-semibold px-8 glow-primary whitespace-nowrap">
-                  {searchingSalary ? 'Mining...' : 'Execute Scan'}
+                  {searchingSalary ? 'Searching…' : 'Get salaries'}
                 </Button>
               </form>
             </div>

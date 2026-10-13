@@ -6,14 +6,15 @@
  * Import this at the top of app/layout.tsx (server component) so it runs at startup.
  */
 
-const REQUIRED_ENV_VARS: { key: string; description: string }[] = [
+// productionOnly: development falls back without it (private storage writes to .data/uploads)
+const REQUIRED_ENV_VARS: { key: string; description: string; productionOnly?: boolean }[] = [
   { key: 'DATABASE_URL',          description: 'PostgreSQL connection string' },
   { key: 'NEXTAUTH_SECRET',       description: 'NextAuth JWT secret (generate with openssl rand -base64 32)' },
   { key: 'NEXTAUTH_URL',          description: 'Base URL of the application (e.g. http://localhost:3000)' },
   { key: 'OPENAI_API_KEY',        description: 'OpenAI / Groq API key for AI features' },
-  { key: 'CLOUDINARY_CLOUD_NAME', description: 'Cloudinary cloud name for file storage' },
-  { key: 'CLOUDINARY_API_KEY',    description: 'Cloudinary API key' },
-  { key: 'CLOUDINARY_API_SECRET', description: 'Cloudinary API secret' },
+  { key: 'CLOUDINARY_CLOUD_NAME', description: 'Cloudinary cloud name for file storage', productionOnly: true },
+  { key: 'CLOUDINARY_API_KEY',    description: 'Cloudinary API key', productionOnly: true },
+  { key: 'CLOUDINARY_API_SECRET', description: 'Cloudinary API secret', productionOnly: true },
 ];
 
 const OPTIONAL_ENV_VARS: { key: string; description: string }[] = [
@@ -29,7 +30,9 @@ export function validateEnv(): void {
 
   const missing: string[] = [];
 
-  for (const { key, description } of REQUIRED_ENV_VARS) {
+  const production = process.env.NODE_ENV === 'production'
+  for (const { key, description, productionOnly } of REQUIRED_ENV_VARS) {
+    if (productionOnly && !production) continue
     if (!process.env[key]) {
       missing.push(`  ❌  ${key.padEnd(28)} — ${description}`);
     }

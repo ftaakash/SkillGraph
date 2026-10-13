@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     // Cached per instance and at the CDN — landing-page traffic must not fan out to the database
     const stats = await cached('stats:landing', 5 * 60 * 1000, async () => {
       const [userCount, gapCount, completedSprints, optimizerCount] = await Promise.all([
-        prisma.user.count(),
+        prisma.user.count({ where: { role: 'STUDENT' } }),
         prisma.skillGap.count(),
         prisma.sprint.count({ where: { status: 'completed' } }),
         prisma.optimizerSession.count(),

@@ -24,6 +24,7 @@ interface Job {
   visitMode: string | null;
   source: string;
   applyUrl: string | null;
+  externalRef: string | null;
   minCgpa: number | null;
   eligibleBranches: string[];
   deadline: string;
@@ -148,7 +149,7 @@ export default function StudentJobsPage() {
           ? { method: "DELETE" }
           : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobPostingId: job.id }) },
       );
-      await loadJobs();
+      await loadJobs().catch(() => {});
     } finally {
       setBusy(null);
     }
@@ -385,6 +386,9 @@ export default function StudentJobsPage() {
                         )}
                         {job.application?.channel === "skillgraph" ? (
                           <span className="flex items-center gap-1 text-xs text-emerald-400"><Check size={12} /> {job.application.status}</span>
+                        ) : !job.application && !(job.applyUrl || job.externalRef) ? (
+                          // Drives run on SkillGraph are applied to from the job page, not self-marked
+                          job.isOpen && <span className="text-xs text-primary">Apply →</span>
                         ) : (
                           <button
                             type="button"

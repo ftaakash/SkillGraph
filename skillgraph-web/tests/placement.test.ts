@@ -92,3 +92,13 @@ test('faculty inputs are validated', () => {
   assert.equal(noticeSchema.safeParse({ title: 'Hi', body: 'x' }).success, false, 'title too short')
   assert.equal(noticeSchema.safeParse({ title: 'Shortlist', body: 'PFA', category: 'shortlist' }).success, true)
 })
+
+test('clearing a later round implies the earlier unmarked ones were passed', () => {
+  const p = applicationProgress(rounds, [result('r2', 'cleared')], 'Applied')
+  assert.deepEqual(p.steps.map(s => s.state), ['cleared', 'cleared', 'pending'])
+  assert.equal(p.currentRoundId, 'r3')
+  // An explicit rejection earlier still wins
+  const q = applicationProgress(rounds, [result('r1', 'rejected'), result('r2', 'cleared')], 'Applied')
+  assert.equal(q.steps[0].state, 'rejected')
+  assert.equal(q.eliminated, true)
+})

@@ -85,7 +85,8 @@ export default function PipelineDashboard() {
 
   useEffect(() => {
     loadApps()
-    const interval = setInterval(loadApps, 5000)
+    // Refresh while preparation runs, but not in background tabs
+    const interval = setInterval(() => { if (!document.hidden) loadApps() }, 5000)
     return () => clearInterval(interval)
   }, [loadApps])
 

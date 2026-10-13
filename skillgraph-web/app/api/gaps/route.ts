@@ -1,39 +1,39 @@
 import { NextRequest } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { PROMPTS } from '@/lib/openai'
 import { generateJson } from '@/lib/ai'
 import { gapAnalysisSchema } from '@/lib/ai/schemas'
 import { getUserId, unauthorized, serverError, ok, badRequest, aiFailure } from '@/lib/api'
 
+const bodySchema = z.object({ targetRole: z.string().trim().min(2).max(100) })
+
 export async function POST(req: NextRequest) {
   try {
     const userId = await getUserId()
     if (!userId) return unauthorized()
 
-    const body = await req.json()
-    const { targetRole } = body
-
-    if (!targetRole) return badRequest('targetRole is required')
-
+    const parsed = bodySchema.safeParse(await req.json().catch(() => null))
+    if (!parsed.success) return badRequest('Choose a target role (2–100 characters)')
+    const { targetRole } = parsed.data
 
     // Get user's current skills
     const skills = await prisma.skillProfile.findMany({ where: { userId } })
     const userSkillsJson = JSON.stringify(skills.map(s => s.skillName))
 
-    // Get top required skills from job postings this week
-    const currentWeek = Math.ceil(
-      (new Date().getTime() - new Date(new Date().getFullYear(), 0, 1).getTime()) /
-      (7 * 24 * 60 * 60 * 1000)
-    )
+    // Skills the latest postings for this role ask for. Market data is refreshed in weekly batches,
+    // so take the newest postings rather than only the current calendar week, which may not be loaded yet.
     const recentJobs = await prisma.jobPosting.findMany({
-      where: { role: { contains: targetRole, mode: 'insensitive' }, demandWeek: currentWeek },
+      where: { role: { contains: targetRole, mode: 'insensitive' } },
+      orderBy: { scrapedAt: 'desc' },
+      select: { requiredSkills: true },
       take: 50,
     })
 
     // Aggregate skill frequencies
     const skillFreq: Record<string, number> = {}
     for (const job of recentJobs) {
-      const jobSkills = job.requiredSkills as string[]
+      const jobSkills = Array.isArray(job.requiredSkills) ? (job.requiredSkills as string[]) : []
       for (const s of jobSkills) {
         skillFreq[s] = (skillFreq[s] || 0) + 1
       }

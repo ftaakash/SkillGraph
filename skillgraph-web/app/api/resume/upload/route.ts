@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { PROMPTS } from '@/lib/openai'
 import { generateJson } from '@/lib/ai'
 import { resumeParseSchema } from '@/lib/ai/schemas'
-import { putPrivateFile } from '@/lib/storage'
+import { putPrivateFile, deletePrivateFile } from '@/lib/storage'
 import { getUserId, unauthorized, badRequest, serverError, ok, aiFailure } from '@/lib/api'
 import { extractText } from 'unpdf'
 
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
     })
 
     // 2. Store the original privately
+    const previous = await prisma.user.findUnique({ where: { id: userId }, select: { resumeUrl: true } })
     const resumeUrl = await putPrivateFile('resumes', `upload_${userId}_${Date.now()}.pdf`, bytes)
 
     type SkillInput = { userId: string; skillName: string; category: string }
@@ -67,6 +68,12 @@ export async function POST(req: NextRequest) {
       prisma.skillProfile.deleteMany({ where: { userId } }),
       prisma.skillProfile.createMany({ data: allSkills }),
     ])
+
+    // The replaced résumé is no longer referenced anywhere; don't keep personal documents we don't use
+    if (previous?.resumeUrl && previous.resumeUrl !== resumeUrl) {
+      const removed = await deletePrivateFile(previous.resumeUrl)
+      if (!removed) console.warn('[resume/upload] could not delete the replaced résumé file')
+    }
 
     return ok({ skillsExtracted: allSkills.length, parsed })
   } catch (err) {

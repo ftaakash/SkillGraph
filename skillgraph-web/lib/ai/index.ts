@@ -9,11 +9,11 @@
  * applied) the call still proceeds and a warning is logged.
  */
 import { z } from 'zod'
-import { openai, type GPTModel } from '@/lib/openai'
+import { openai, AI_MODEL, modelOptions, type GPTModel } from '@/lib/openai'
 import { prisma } from '@/lib/prisma'
 import { getEntitlements } from '@/lib/billing'
 
-export const DEFAULT_MODEL: GPTModel = 'llama-3.3-70b-versatile'
+export const DEFAULT_MODEL: GPTModel = AI_MODEL
 const REQUEST_TIMEOUT_MS = 45_000
 const SDK_MAX_RETRIES = 2
 
@@ -118,7 +118,7 @@ export async function generateText(opts: {
           { role: 'system', content: opts.system },
           { role: 'user', content: opts.prompt },
         ],
-        max_tokens: opts.maxTokens ?? 300,
+        ...modelOptions(model, opts.maxTokens ?? 300),
         temperature: opts.temperature ?? 0.4,
       },
       { timeout: REQUEST_TIMEOUT_MS, maxRetries: SDK_MAX_RETRIES }
@@ -177,7 +177,7 @@ export async function generateJson<S extends z.ZodType>(opts: GenerateJsonOption
         {
           model,
           messages,
-          max_tokens: opts.maxTokens ?? 2000,
+          ...modelOptions(model, opts.maxTokens ?? 2000),
           temperature: opts.temperature ?? 0.2,
           ...(expectsObject ? { response_format: { type: 'json_object' as const } } : {}),
         },

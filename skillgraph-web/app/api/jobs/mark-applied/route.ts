@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { ok, unauthorized, badRequest, serverError } from '@/lib/api'
@@ -26,14 +27,19 @@ export async function POST(req: NextRequest) {
   try {
     const ctx = await context(req, await req.json().catch(() => null))
     if ('error' in ctx) return ctx.error
-    const existing = await prisma.jobApplication.findFirst({ where: { userId: ctx.userId, jobPostingId: ctx.jobId } })
-    if (existing) return ok({ application: existing })
-    const application = await prisma.jobApplication.create({
-      data: { userId: ctx.userId, jobPostingId: ctx.jobId, channel: 'external' },
-    })
-    await prisma.facultyJobPosting.update({ where: { id: ctx.jobId }, data: { applicationCount: { increment: 1 } } })
+    const { userId, jobId } = ctx
+    // Serializable so a double-click can't create two applications or count one twice
+    const application = await prisma.$transaction(async tx => {
+      const existing = await tx.jobApplication.findFirst({ where: { userId, jobPostingId: jobId } })
+      if (existing) return existing
+      const row = await tx.jobApplication.create({ data: { userId, jobPostingId: jobId, channel: 'external' } })
+      await tx.facultyJobPosting.update({ where: { id: jobId }, data: { applicationCount: { increment: 1 } } })
+      return row
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
     return ok({ application })
   } catch (err) {
+    // P2034: a concurrent duplicate lost the serialization race; the winner's row stands
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2034') return ok({ duplicate: true })
     console.error('[jobs/mark-applied POST]', err)
     return serverError()
   }
@@ -47,7 +53,8 @@ export async function DELETE(req: NextRequest) {
     const { count } = await prisma.jobApplication.deleteMany({
       where: { userId: ctx.userId, jobPostingId: ctx.jobId, channel: 'external', status: 'Applied' },
     })
-    if (count) await prisma.facultyJobPosting.update({ where: { id: ctx.jobId }, data: { applicationCount: { decrement: count } } })
+    // Never below zero, even if the count drifted before applications were counted transactionally
+    if (count) await prisma.facultyJobPosting.updateMany({ where: { id: ctx.jobId, applicationCount: { gte: count } }, data: { applicationCount: { decrement: count } } })
     return ok({ removed: count > 0 })
   } catch (err) {
     console.error('[jobs/mark-applied DELETE]', err)

@@ -7,8 +7,17 @@ import PageTransition from "@/components/PageTransition";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 
-interface DayTask { day: number; focus: string; topic: string; resource_type: string; resource_title: string; resource_url: string; time_minutes: number; mini_task: string; checkpoint: string }
+interface DayTask { day: number; done?: boolean; focus: string; topic: string; resource_type: string; resource_title: string; resource_url: string; time_minutes: number; mini_task: string; checkpoint: string }
 interface Sprint { id: string; dayTasks: DayTask[]; completionPercentage: number; skillsTargeted: string[]; status: string }
+
+/** Days marked done; sprints saved before per-day tracking only stored a percentage. */
+function checkedDays(sprint: Sprint | null): boolean[] {
+  if (!sprint) return Array(7).fill(false);
+  const tasks = Array.isArray(sprint.dayTasks) ? sprint.dayTasks : [];
+  if (tasks.some(t => typeof t.done === 'boolean')) return Array.from({ length: 7 }, (_, i) => Boolean(tasks[i]?.done));
+  const completedDays = Math.round((sprint.completionPercentage / 100) * 7);
+  return Array.from({ length: 7 }, (_, i) => i < completedDays);
+}
 
 export default function SprintPage() {
   const [sprint, setSprint] = useState<Sprint | null>(null);
@@ -22,16 +31,12 @@ export default function SprintPage() {
 
   const loadSprint = () => {
     setLoading(true);
-    fetch('/api/sprints').then(r => r.json()).then(d => {
+    fetch('/api/sprints').then(r => (r.ok ? r.json() : Promise.reject(new Error()))).then(d => {
       setSprint(d.sprint);
-      if (d.sprint) {
-        const completedDays = Math.round((d.sprint.completionPercentage / 100) * 7);
-        setChecked(Array(7).fill(false).map(((_, i) => i < completedDays)));
-      } else {
-        setChecked(Array(7).fill(false));
-      }
-      setLoading(false);
-    });
+      setChecked(checkedDays(d.sprint));
+    }).catch(() => {
+      setErrorMsg('Could not load your sprint. Refresh to try again.');
+    }).finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -57,7 +62,7 @@ export default function SprintPage() {
         setCustomTopics('');
       }
     } catch {
-      setErrorMsg('Failed to initialize mission. System bypass required.');
+      setErrorMsg('Could not generate a sprint. Check your connection and try again.');
     } finally {
       setGenerating(false);
     }
@@ -66,17 +71,23 @@ export default function SprintPage() {
     if (!sprint) return;
     const newChecked = [...checked];
     newChecked[index] = !newChecked[index];
+    const previous = checked;
     setChecked(newChecked);
-    const completedCount = newChecked.filter(Boolean).length;
-    const res = await fetch(`/api/sprints/${sprint.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ completedCount }),
-    });
-    const data = await res.json();
-    if (data.sprint) {
+    setErrorMsg('');
+    try {
+      const res = await fetch(`/api/sprints/${sprint.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ days: newChecked.flatMap((done, i) => (done ? [i] : [])) }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.sprint) throw new Error(data.error);
+      const wasCompleted = sprint.status === 'completed';
       setSprint(s => s ? { ...s, completionPercentage: data.sprint.completionPercentage, status: data.sprint.status } : s);
-      if (data.sprint.status === 'completed') setShowConfetti(true);
+      if (data.sprint.status === 'completed' && !wasCompleted) setShowConfetti(true);
+    } catch (err) {
+      setChecked(previous);
+      setErrorMsg((err as Error).message || 'Could not save your progress. Try again.');
     }
   };
 
@@ -87,7 +98,7 @@ export default function SprintPage() {
   if (loading) return (
      <DashboardLayout title="7-Day Sprint">
        <div className="flex items-center justify-center min-h-[50vh]">
-          <div className="text-primary font-bold tracking-widest text-sm uppercase animate-pulse">Initializing Sprint Target...</div>
+          <div className="text-primary font-bold tracking-widest text-sm uppercase animate-pulse">Loading your sprint…</div>
        </div>
      </DashboardLayout>
   );
@@ -98,10 +109,10 @@ export default function SprintPage() {
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="bg-card border border-border rounded-lg p-12 max-w-md text-center shadow-lg">
             <Zap className="w-16 h-16 text-muted-foreground mx-auto mb-6" />
-            <h2 className="text-2xl font-heading font-bold text-foreground mb-2">Initialize New Sprint</h2>
-            <p className="text-muted-foreground mb-8 text-sm leading-relaxed">Your neural architecture lacks a scheduled sprint. Generate a dynamic 7-day technical mission based on your capability gaps.</p>
+            <h2 className="text-2xl font-heading font-bold text-foreground mb-2">Start a sprint</h2>
+            <p className="text-muted-foreground mb-8 text-sm leading-relaxed">You don’t have a sprint yet. Generate a 7-day learning plan built from your open skill gaps.</p>
             <Button onClick={handleRegenerate} disabled={generating} className="w-full gradient-primary text-primary-foreground font-semibold glow-primary">
-               {generating ? <RefreshCw className="w-5 h-5 animate-spin mx-auto" /> : 'Execute Sequence'}
+               {generating ? <RefreshCw className="w-5 h-5 animate-spin mx-auto" /> : 'Generate my sprint'}
             </Button>
             {errorMsg && <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 text-destructive text-sm font-semibold rounded-lg text-center">{errorMsg}</div>}
           </div>
@@ -118,9 +129,9 @@ export default function SprintPage() {
             <div className="bg-card border border-border rounded-lg p-12 text-center max-w-sm mx-4 shadow-2xl animate-in zoom-in slide-in-from-bottom-5">
               <div className="text-6xl mb-6">🎉</div>
               <h2 className="text-2xl font-heading font-bold mb-3 text-foreground">Sprint Complete!</h2>
-              <p className="text-muted-foreground mb-8 text-sm leading-relaxed">Your readiness score just increased. Let&apos;s keep the momentum going!</p>
+              <p className="text-muted-foreground mb-8 text-sm leading-relaxed">You finished all 7 days. Re-run your gap analysis to see how your readiness has moved, or start a new sprint.</p>
               <Button onClick={() => setShowConfetti(false)} className="w-full gradient-primary text-primary-foreground glow-primary">
-                Acknowledge
+                Nice
               </Button>
             </div>
           </div>
@@ -135,8 +146,8 @@ export default function SprintPage() {
                   <Zap className="text-primary w-6 h-6 glow-text" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-heading font-bold text-foreground">Mission Override</h3>
-                  <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">Customize Learning Vectors</p>
+                  <h3 className="text-xl font-heading font-bold text-foreground">Custom sprint</h3>
+                  <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">Choose what to focus on</p>
                 </div>
               </div>
 
@@ -148,7 +159,8 @@ export default function SprintPage() {
                   placeholder="e.g. Distributed Systems, Redis Internals, Performance Optimization..."
                   className="w-full h-32 bg-muted/30 border border-border rounded-xl p-4 text-sm text-foreground outline-none focus:border-primary/50 transition-all font-body resize-none"
                 />
-                <p className="text-[10px] text-zinc-500 italic">This will replace your active sprint with a new 7-day plan focused on these topics.</p>
+                <p className="text-[10px] text-zinc-500 italic">This will replace your active sprint with a new 7-day plan focused on these topics. Leave it empty to plan from your open skill gaps.</p>
+                {errorMsg && <p className="text-sm text-destructive" role="alert">{errorMsg}</p>}
               </div>
 
               <div className="flex gap-4">
@@ -156,7 +168,7 @@ export default function SprintPage() {
                   Cancel
                 </Button>
                 <Button onClick={handleRegenerate} disabled={generating} className="flex-1 gradient-primary text-primary-foreground font-bold glow-primary">
-                  {generating ? 'Re-generating...' : 'Execute Override'}
+                  {generating ? 'Generating…' : 'Generate sprint'}
                 </Button>
               </div>
             </div>
@@ -166,7 +178,7 @@ export default function SprintPage() {
         <div className="flex items-center justify-between mb-6">
            <div>
               <h2 className="text-xl font-heading font-bold text-foreground mb-2">{(sprint.skillsTargeted as string[]).join(' / ')}</h2>
-              <p className="text-muted-foreground font-body text-sm">Targeted learning vectors compiled from your capability gaps.</p>
+              <p className="text-muted-foreground font-body text-sm">A 7-day plan built from your open skill gaps.</p>
            </div>
            <Button 
              variant="outline" 
@@ -174,17 +186,21 @@ export default function SprintPage() {
              className="border-primary/20 text-primary hover:bg-primary/5 text-xs gap-2 group"
            >
               <RefreshCw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
-              Refactor Sprint
+              Regenerate sprint
            </Button>
         </div>
+
+        {errorMsg && !showCustomModal && (
+          <div className="mb-6 p-3 bg-destructive/10 border border-destructive/20 text-destructive text-sm font-semibold rounded-lg" role="alert">{errorMsg}</div>
+        )}
 
         <div className="bg-card border border-border rounded-lg p-6 mb-8 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2 text-primary">
               <Zap size={20} className="glow-text" />
-              <span className="font-heading font-semibold text-foreground">Sprint Momentum</span>
+              <span className="font-heading font-semibold text-foreground">Progress</span>
             </div>
-            <span className="text-sm font-semibold text-muted-foreground">{completedCount}/7 Execute Cycles</span>
+            <span className="text-sm font-semibold text-muted-foreground">{completedCount}/7 days done</span>
           </div>
           <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
             <div className="h-full gradient-primary rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(var(--primary),0.5)]" style={{ width: `${pct}%` }} />
@@ -242,7 +258,7 @@ export default function SprintPage() {
                            </a>
                          </div>
                          <div className="text-right">
-                            <span className="text-[10px] font-bold uppercase text-foreground tracking-widest bg-background border border-border shadow-sm px-2 py-1 rounded">~{day.time_minutes} min req.</span>
+                            <span className="text-[10px] font-bold uppercase text-foreground tracking-widest bg-background border border-border shadow-sm px-2 py-1 rounded">~{day.time_minutes} min</span>
                          </div>
                       </div>
 
@@ -251,7 +267,7 @@ export default function SprintPage() {
                             <div className="flex gap-2 items-start">
                                <span className="text-primary mt-0.5"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg></span>
                                <div>
-                                  <h5 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">Execution Task</h5>
+                                  <h5 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">Task</h5>
                                   <p className={`text-sm ${isDone ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{day.mini_task}</p>
                                </div>
                             </div>

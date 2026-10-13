@@ -1,17 +1,21 @@
 import { NextRequest } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { PROMPTS } from '@/lib/openai'
 import { generateJson } from '@/lib/ai'
 import { sprintSchema } from '@/lib/ai/schemas'
 import { getUserId, unauthorized, serverError, ok, badRequest, aiFailure } from '@/lib/api'
 
+const bodySchema = z.object({ customTopics: z.string().trim().max(300).optional() })
+
 export async function POST(req: NextRequest) {
   try {
     const userId = await getUserId()
     if (!userId) return unauthorized()
 
-    const body = await req.json()
-    const { skillIds, customTopics } = body
+    const parsed = bodySchema.safeParse(await req.json().catch(() => ({})))
+    if (!parsed.success) return badRequest('Custom topics must be under 300 characters')
+    const customTopics = parsed.data.customTopics || undefined
 
     // 1. Get up to 3 unclosed gaps as base
     const gaps = await prisma.skillGap.findMany({
@@ -24,6 +28,10 @@ export async function POST(req: NextRequest) {
       where: { id: userId },
       select: { targetRole: true },
     })
+
+    if (gaps.length === 0 && !customTopics) {
+      return badRequest('No open skill gaps yet. Run a gap analysis first, or enter custom topics.')
+    }
 
     const baseSkills = gaps.map(g => g.missingSkill).join(', ')
     const aiContext = `Target role: ${user?.targetRole ?? 'Software Engineer'}. Base gaps to address: ${baseSkills}.`
@@ -48,7 +56,7 @@ export async function POST(req: NextRequest) {
 
     const [, sprint] = await prisma.$transaction([
       prisma.sprint.updateMany({
-        where: { userId, status: 'active' },
+        where: { userId, status: 'active' }, // completed sprints keep their status
         data: { status: 'abandoned' },
       }),
       prisma.sprint.create({
@@ -82,8 +90,9 @@ export async function GET(req: NextRequest) {
     const userId = await getUserId()
     if (!userId) return unauthorized()
 
+    // The current sprint stays visible after it is completed, until a new one replaces it
     const sprint = await prisma.sprint.findFirst({
-      where: { userId: userId, status: 'active' },
+      where: { userId, status: { in: ['active', 'completed'] } },
       orderBy: { generatedAt: 'desc' },
     })
 

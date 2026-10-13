@@ -252,3 +252,12 @@ test('drive import parses portal exports and rejects unsafe or malformed rows', 
   assert.match(errors[1].message, /more than once/)
   assert.match(errors[2].message, /ctcMin/)
 })
+
+test('projections skip classes that already started today', () => {
+  const courses = [{ code: 'CS101', category: 'theory', attended: 6, conducted: 8 }]
+  // Day order 1 has CS101 at 08:00 and 08:50; at 08:30 only the 08:50 period is still ahead
+  const p = projectAttendance({ courses, timetable, calendar, from: '2026-10-13', until: '2026-10-13', absent: [], leaves: [], nowMinutes: 8 * 60 + 30 })
+  assert.deepEqual([p[0].attended, p[0].conducted], [7, 9])
+  const evening = projectAttendance({ courses, timetable, calendar, from: '2026-10-13', until: '2026-10-13', absent: [], leaves: [], nowMinutes: 18 * 60 })
+  assert.deepEqual([evening[0].attended, evening[0].conducted], [6, 8])
+})

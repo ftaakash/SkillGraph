@@ -14,7 +14,7 @@ import CollegeMembership from "@/components/profile/CollegeMembership";
 
 interface User { name: string; email: string; college: string; branch: string; year: string; targetRole: string; readinessScore: number; resumeUrl: string; sprintsCompleted: number; optimizerSessions: number; isProfileVisible: boolean }
 
-const roles = ['Industrial AI Engineer', 'Data Analyst', 'ML Engineer', 'DevOps Engineer', 'Full Stack Dev', 'Cloud Architect', 'Cybersecurity Analyst', 'Product Manager'];
+const roles = ['Software Engineer', 'Backend Developer', 'Frontend Developer', 'Full Stack Dev', 'Data Analyst', 'ML Engineer', 'Industrial AI Engineer', 'DevOps Engineer', 'Cloud Architect', 'Cybersecurity Analyst', 'Product Manager'];
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
@@ -38,11 +38,11 @@ export default function ProfilePage() {
   const [togglingVisibility, setTogglingVisibility] = useState(false);
 
   useEffect(() => {
-    fetch('/api/users/me').then(r => r.json()).then(d => {
+    fetch('/api/users/me').then(r => (r.ok ? r.json() : Promise.reject(new Error()))).then(d => {
       setUser(d.user);
       setIsVisible(d.user?.isProfileVisible ?? false);
       setForm({ name: d.user?.name ?? '', college: d.user?.college ?? '', branch: d.user?.branch ?? '', year: d.user?.year ?? '', targetRole: d.user?.targetRole ?? '', cgpa: d.user?.cgpa?.toString() ?? '' });
-    });
+    }).catch(() => setSettingsError('Could not load your profile. Refresh the page before saving changes.'));
   }, []);
 
   const toggleVisibility = async () => {
@@ -50,11 +50,12 @@ export default function ProfilePage() {
     const next = !isVisible;
     setIsVisible(next);
     try {
-      await fetch('/api/users/me', {
+      const res = await fetch('/api/users/me', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isProfileVisible: next }),
       });
+      if (!res.ok) throw new Error();
     } catch {
       setIsVisible(!next); // revert on failure
     }
@@ -127,10 +128,10 @@ export default function ProfilePage() {
       await fetch('/api/gaps', {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ targetRole: form.targetRole || 'Industrial AI Engineer' }),
+         body: JSON.stringify({ targetRole: form.targetRole || 'Software Engineer' }),
       });
       
-      setUploadSuccess('Neural profile updated with new curriculum.');
+      setUploadSuccess('Résumé uploaded. Your skills have been updated.');
       setTimeout(() => window.location.reload(), 2000);
     } catch { setUploadError('Upload failed. Please try again.'); }
     finally { setUploading(false); }
@@ -192,8 +193,11 @@ export default function ProfilePage() {
 
                 <div className="grid grid-cols-1 gap-4">
                   <div>
-                     <label className="text-sm text-foreground font-medium mb-1.5 block">Target Specialization</label>
+                     <label className="text-sm text-foreground font-medium mb-1.5 block">Target role</label>
                     <select value={form.targetRole} onChange={(e) => setForm(f => ({ ...f, targetRole: e.target.value }))} className="w-full bg-background border border-border rounded-lg px-4 py-2 text-sm text-foreground focus:border-primary outline-none transition-colors">
+                      {/* Keep a role set elsewhere (e.g. at sign-up) selectable, so saving never silently changes it */}
+                      {!form.targetRole && <option value="">Choose a target role</option>}
+                      {form.targetRole && !roles.includes(form.targetRole) && <option value={form.targetRole}>{form.targetRole}</option>}
                       {roles.map(r => <option key={r}>{r}</option>)}
                     </select>
                   </div>
@@ -245,7 +249,7 @@ export default function ProfilePage() {
 
             {/* Resume Upload */}
             <div className="bg-card border border-border rounded-lg p-6 flex-1 flex flex-col">
-              <h2 className="font-heading text-lg font-semibold text-foreground mb-2">Curriculum Analytics</h2>
+              <h2 className="font-heading text-lg font-semibold text-foreground mb-2">Résumé</h2>
               <p className="text-sm text-muted-foreground mb-6">Upload an updated resume to recalculate gap analysis.</p>
               
               <div {...getRootProps()} className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all flex flex-col justify-center flex-1 bg-background
@@ -271,7 +275,7 @@ export default function ProfilePage() {
               <Button onClick={handleResumeUpload} disabled={!file || uploading}
                 variant="outline"
                 className="w-full mt-4 text-sm font-semibold border-border hover:bg-muted transition-colors text-foreground">
-                {uploading ? <div className="flex items-center gap-2"><RefreshCw className="w-4 h-4 animate-spin"/> Processing...</div> : 'Re-initialize Network'}
+                {uploading ? <div className="flex items-center gap-2"><RefreshCw className="w-4 h-4 animate-spin"/> Processing...</div> : 'Upload new résumé'}
               </Button>
             </div>
 

@@ -37,14 +37,18 @@ export async function PATCH(req: NextRequest) {
     const ctx = await facultyContext(session.user.id)
     if (!ctx) return unauthorized()
 
-    const { applicationId, status } = await req.json()
-    if (!applicationId || !status) return badRequest('applicationId and status required')
+    const { applicationId, status } = await req.json().catch(() => ({}))
+    if (typeof applicationId !== 'string' || typeof status !== 'string') return badRequest('applicationId and status required')
 
     const validStatuses = ['Applied', 'Shortlisted', 'OA', 'Interview', 'Offered', 'Placed', 'Rejected']
     if (!validStatuses.includes(status)) return badRequest('Invalid status')
 
     // Only applications to this college's own job postings (tenant isolation)
     if (!(await facultyCanManageApplication(ctx, applicationId))) return badRequest('Application not found')
+
+    // Re-saving the same status must not notify the student again
+    const current = await prisma.jobApplication.findUnique({ where: { id: applicationId }, select: { status: true } })
+    if (current?.status === status) return ok({ application: current, unchanged: true })
 
     const application = await prisma.jobApplication.update({
       where: { id: applicationId },
