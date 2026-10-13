@@ -35,7 +35,8 @@ function startOfToday() {
   return d
 }
 
-export async function processOpenClawAgent(userId: string): Promise<AgentRunResult> {
+/** `deadline` (epoch ms): stop evaluating new jobs after it — scheduled runs have a time limit. */
+export async function processOpenClawAgent(userId: string, opts: { deadline?: number } = {}): Promise<AgentRunResult> {
   const result: AgentRunResult = {
     status: 'completed',
     discovered: 0,
@@ -86,6 +87,8 @@ export async function processOpenClawAgent(userId: string): Promise<AgentRunResu
 
   for (const listing of listings) {
     if (result.prepared + result.submitted >= remaining) break
+    // Scoring + tailoring one job takes up to ~30 s
+    if (opts.deadline && opts.deadline - Date.now() < 30_000) break
 
     // Filters first: they cost nothing and the student asked for exactly these jobs
     if (!checkFilters(listing, filters).ok) {

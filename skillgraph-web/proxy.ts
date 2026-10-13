@@ -7,8 +7,8 @@ import { checkRateLimit, clientIp } from '@/lib/rateLimit'
 const PUBLIC_PREFIXES = [
   '/login', '/register', '/logout', '/forgot-password', '/reset-password', '/verify-email', '/privacy', '/terms',
   '/api/auth', '/api/health', '/api/stats',
-  // Cron target — authenticates via x-cron-secret, not a session
-  '/api/openclaw/integrity',
+  // Cron targets — authenticate with CRON_SECRET (lib/cron.ts), not a session
+  '/api/openclaw/integrity', '/api/cron/',
   // Payment provider callbacks — authenticated by HMAC signature, not a session
   '/api/billing/webhook',
   // OpenClaw browser extension — authenticated by its bearer token (lib/extension.ts)
