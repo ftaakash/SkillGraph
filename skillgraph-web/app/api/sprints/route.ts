@@ -17,12 +17,13 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return badRequest('Custom topics must be under 300 characters')
     const customTopics = parsed.data.customTopics || undefined
 
-    // 1. Get up to 3 unclosed gaps as base
-    const gaps = await prisma.skillGap.findMany({
+    // 1. The 3 most urgent open gaps (urgency is a word, so rank it here rather than in SQL)
+    const rank: Record<string, number> = { high: 0, medium: 1, low: 2 }
+    const openGaps = await prisma.skillGap.findMany({
       where: { userId, closed: false },
-      orderBy: { identifiedAt: 'desc' },
-      take: 3,
+      orderBy: { identifiedAt: 'desc' }, // newest analysis first; the sort below is stable
     })
+    const gaps = openGaps.sort((a, b) => (rank[a.urgency] ?? 3) - (rank[b.urgency] ?? 3)).slice(0, 3)
 
     const user = await prisma.user.findUnique({
       where: { id: userId },

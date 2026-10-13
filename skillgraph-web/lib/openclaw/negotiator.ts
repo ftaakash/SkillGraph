@@ -2,7 +2,12 @@ import { generateJson } from '@/lib/ai'
 import { negotiationScriptSchema } from '@/lib/ai/schemas'
 import { prisma } from '@/lib/prisma'
 
-const BASE_CONTEXT = `You are a senior compensation negotiation coach specialising in Indian tech salaries. Generate a professional, confident, non-aggressive negotiation script for the given scenario. Return ONLY valid JSON: { "title": string, "openingLine": string, "mainArgument": string, "dataPoints": string[], "closingLine": string }`
+const BASE_CONTEXT = `You are a compensation negotiation coach for students and fresh graduates in Indian tech. Generate a professional, confident, non-aggressive negotiation script for the given scenario.
+Rules:
+- Use ONLY the candidate facts given. Never invent years of experience, past employers, titles, offers or achievements. A student has internship and project experience, not years of work experience.
+- Never cite named sources, surveys, reports or years (e.g. "Naukri 2024", "Payscale data") and never state specific market salary figures you were not given. Phrase market points as what the candidate should check and say, e.g. "Comparable fresher offers for this role in Bengaluru that I have seen are higher" or "[insert the range you found on 2-3 job boards]".
+- Keep the ask realistic for a fresher: a modest increase or a non-salary ask (joining bonus, relocation, start date, learning budget).
+Return ONLY valid JSON: { "title": string, "openingLine": string, "mainArgument": string, "dataPoints": string[], "closingLine": string }`
 
 export async function generateNegotiationScripts(
   userId: string,
@@ -15,6 +20,8 @@ export async function generateNegotiationScripts(
   location: string
 ) {
   const skillStr = skills.slice(0, 10).join(', ')
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { year: true, branch: true, college: true } })
+  const candidate = `Candidate: student / fresh graduate${user?.year ? `, year ${user.year}` : ''}${user?.branch ? `, ${user.branch}` : ''}${user?.college ? ` at ${user.college}` : ''}. No full-time work experience unless stated.`
   const script = (prompt: string) =>
     generateJson({
       feature: 'negotiation',
@@ -27,9 +34,9 @@ export async function generateNegotiationScripts(
     })
 
   const [s1, s2, s3] = await Promise.all([
-    script(`Scenario: Geographic discount push-back. Role: ${role} at ${company}. Location offered: ${location}. Offered CTC: ₹${offeredCtcLpa} LPA. Skills: ${skillStr}.`),
-    script(`Scenario: Competing offer leverage. Role: ${role} at ${company}. Offered CTC: ₹${offeredCtcLpa} LPA. ${competingOfferCtcLpa ? `Competing offer: ₹${competingOfferCtcLpa} LPA.` : 'No competing offer — use market data instead.'}`),
-    script(`Scenario: Skill premium argument. Role: ${role} at ${company}. Offered CTC: ₹${offeredCtcLpa} LPA. Rare/in-demand skills: ${skillStr}.`),
+    script(`${candidate} Scenario: Geographic discount push-back. Role: ${role} at ${company}. Location offered: ${location}. Offered CTC: ₹${offeredCtcLpa} LPA. Skills: ${skillStr}.`),
+    script(`${candidate} Scenario: Competing offer leverage. Role: ${role} at ${company}. Offered CTC: ₹${offeredCtcLpa} LPA. ${competingOfferCtcLpa ? `Competing offer: ₹${competingOfferCtcLpa} LPA.` : 'No competing offer — do not invent one; argue from the role, the skills and a range the candidate should look up.'}`),
+    script(`${candidate} Scenario: Skill premium argument. Role: ${role} at ${company}. Offered CTC: ₹${offeredCtcLpa} LPA. Rare/in-demand skills: ${skillStr}.`),
   ])
 
   return prisma.negotiationScript.create({
