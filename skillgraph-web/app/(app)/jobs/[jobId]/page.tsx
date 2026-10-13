@@ -18,6 +18,9 @@ interface Job {
   eligibleBranches: string[];
   deadline: string;
   driveDate: string | null;
+  isOpen: boolean;
+  applyUrl: string | null;
+  application: { status: string; channel: string } | null;
 }
 
 export default function JobDetailPage() {
@@ -38,6 +41,7 @@ export default function JobDetailPage() {
       .then(d => {
         const found = (d.jobs ?? []).find((j: Job) => j.id === jobId);
         setJob(found || null);
+        setApplied(Boolean(found?.application));
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -121,10 +125,23 @@ export default function JobDetailPage() {
             {/* Apply */}
             <div>
               <div className="bg-card border border-border rounded-lg p-6 sticky top-8">
-                {applied ? (
+                {!applied && !job.isOpen ? (
+                  <div className="text-center py-4">
+                    <p className="font-heading font-semibold text-foreground mb-1">Applications closed</p>
+                    <p className="text-sm text-muted-foreground">The deadline for this drive has passed.</p>
+                  </div>
+                ) : !applied && job.applyUrl ? (
+                  <div className="text-center py-4">
+                    <p className="font-heading font-semibold text-foreground mb-2">Apply on your placement portal</p>
+                    <p className="text-sm text-muted-foreground mb-4">This drive is run on another portal. Apply there, then mark it applied on the job board to track it.</p>
+                    <a href={job.applyUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+                      Open the portal
+                    </a>
+                  </div>
+                ) : applied ? (
                   <div className="text-center py-4">
                     <CheckCircle2 size={40} className="mx-auto text-green-400 mb-3" />
-                    <p className="font-heading font-semibold text-foreground mb-1">Application Sent!</p>
+                    <p className="font-heading font-semibold text-foreground mb-1">{job.application?.channel === "external" ? "Marked as applied" : "Application Sent!"}</p>
                     <p className="text-sm text-muted-foreground">Your placement cell will review your application.</p>
                   </div>
                 ) : (

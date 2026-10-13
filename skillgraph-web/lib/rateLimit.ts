@@ -142,6 +142,18 @@ export const RATE_LIMIT_RULES: RateLimitRule[] = [
       p.startsWith('/api/auth/verify-email'),
   },
   {
+    // University sign-ins and syncs (each one hits the university's systems) and CSV imports
+    name: 'academics',
+    limit: 12,
+    windowMs: 60 * MINUTE,
+    methods: ['POST'],
+    match: (p) =>
+      p.startsWith('/api/academics/connect') ||
+      p.startsWith('/api/academics/sync') ||
+      p.startsWith('/api/faculty/academics/import') ||
+      p.startsWith('/api/faculty/jobs/import'),
+  },
+  {
     // Endpoints that call the LLM — bounds per-user AI spend
     name: 'ai',
     limit: 30,

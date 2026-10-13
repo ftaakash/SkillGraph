@@ -36,11 +36,17 @@ OpenClaw does the research and preparation; **the student always submits**.
 - Self-service data export and account deletion; consent recorded at sign-up ([Privacy](skillgraph-web/app/privacy/page.tsx), [Terms](skillgraph-web/app/terms/page.tsx)).
 - Rate limiting, SSRF-guarded job fetching, private file storage, structured logs with request IDs.
 
-### 5. Topic-Aware Dynamic Sprints
+### 5. Academics & Placement Drives
+- **Attendance that tells you what to do**: per-course attendance with how many classes you must attend, or can still miss, to stay at 75%.
+- **Smart Adjust**: save on-duty / medical-leave days and preview your attendance if you miss specific future days, using the day-order timetable.
+- **Marks, timetable and academic calendar** with today's day order and a next-class countdown.
+- **Placement drives** with CTC, stipend, apply-by countdowns, visit details, and "Mark applied" for drives run on another portal (e.g. Haveloc). Placement cells import drives, attendance, marks and the calendar from CSV; university sync is built behind a provider interface ([ADR-002](docs/adr/ADR-002-academics-and-placement-drives.md)).
+
+### 6. Topic-Aware Dynamic Sprints
 - **Mission Overrides**: Pivot focus to specific topics (e.g., "System Design") on the fly.
 - **Learning Resilience**: Integrated YouTube fallbacks ensure resources are always available.
 
-### 6. Production Environment Guardrails
+### 7. Production Environment Guardrails
 - **Environment Gateway**: Startup fast-fail validation prevents obscure deployment crashes.
 - **Dynamic Database Ties**: Elements like `collegeTier` extract real schema relations rather than static fallbacks.
 
@@ -68,10 +74,11 @@ and long-running jobs into a *separate worker service*, and make OpenClaw *compl
 | Phase | Focus | Status |
 |-------|-------|--------|
 | **0 — Launch blockers** | Stop serving user résumés from `public/`, fail-closed cron auth, security headers, rate limiting, consistent validation, health check, `.env.example`, CI | ✅ Done (history purge pending) |
-| **1 — Data & storage** | Prisma migrations, indexes & constraints, private object storage with signed URLs, schema-validated AI layer with quotas | ✅ Code done — [migration rollout](docs/adr/ADR-001-production-architecture.md#phase-1--data--storage-week-12) pending |
-| **2 — OpenClaw compliance** | Remove stealth plugin & stored third-party cookies, official job sources, assisted apply, containerised workers | ✅ Code done — migration pending |
-| **3 — Trust & operations** | Email verification, password reset, mutual-consent recruiter reveal, DPDP/GDPR data rights, observability, tests | ✅ Code done — in review (migrate before merge) |
-| **4 — Commercial** | Razorpay billing & plan limits, college workspaces with tenant isolation, caching, load testing | ✅ Code done — in review |
+| **1 — Data & storage** | Prisma migrations, indexes & constraints, private object storage with signed URLs, schema-validated AI layer with quotas | ✅ Done |
+| **2 — OpenClaw compliance** | Remove stealth plugin & stored third-party cookies, official job sources, assisted apply, containerised workers | ✅ Done |
+| **3 — Trust & operations** | Email verification, password reset, mutual-consent recruiter reveal, DPDP/GDPR data rights, observability, tests | ✅ Done |
+| **4 — Commercial** | Razorpay billing & plan limits, college workspaces with tenant isolation, caching, load testing | ✅ Done (Razorpay keys pending) |
+| **5 — Academics & drives** ([ADR-002](docs/adr/ADR-002-academics-and-placement-drives.md)) | Attendance, Smart Adjust, marks, timetable; Haveloc-style drives; college CSV imports; university sync providers | 🟡 In review — SRM API key and Academia connector pending |
 
 ```
  Browser ──► Next.js (Vercel, stateless) ──► lib/services ──► Postgres (migrations, backups)

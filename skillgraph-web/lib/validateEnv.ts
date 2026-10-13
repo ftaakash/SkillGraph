@@ -19,6 +19,8 @@ const REQUIRED_ENV_VARS: { key: string; description: string }[] = [
 const OPTIONAL_ENV_VARS: { key: string; description: string }[] = [
   { key: 'RAPIDAPI_KEY',  description: 'RapidAPI key for JSearch fallback scraping' },
   { key: 'RAPIDAPI_HOST', description: 'RapidAPI host (default: jsearch.p.rapidapi.com)' },
+  { key: 'ACADEMIC_ENCRYPTION_KEY', description: 'Encrypts university portal sessions (Academics connector)' },
+  { key: 'SRM_API_KEY', description: 'Official SRM API key for academic sync' },
 ];
 
 export function validateEnv(): void {

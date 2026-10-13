@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Briefcase, Plus, Calendar, Users } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import PageTransition from "@/components/PageTransition";
 import { Button } from "@/components/ui/button";
+import CsvImportCard from "@/components/faculty/CsvImportCard";
 
 interface Job {
   id: string;
@@ -22,12 +23,16 @@ export default function FacultyJobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     fetch("/api/faculty/jobs")
       .then(r => r.json())
       .then(d => { setJobs(d.jobs ?? []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return (
     <PageTransition>
@@ -39,6 +44,17 @@ export default function FacultyJobsPage() {
               <Plus className="mr-2" size={16} /> Post New Job
             </Button>
           </Link>
+        </div>
+
+        <div className="mb-6">
+          <CsvImportCard
+            title="Import drives from your placement portal"
+            description="Upload a CSV export of drives (for example from Haveloc). Rows with an external_ref update the matching drive on re-import, so you can upload the same export again as it changes."
+            endpoint="/api/faculty/jobs/import"
+            templateHref="/api/faculty/jobs/import"
+            summary={r => `${r.created ?? 0} new and ${r.updated ?? 0} updated drive${(Number(r.created ?? 0) + Number(r.updated ?? 0)) === 1 ? "" : "s"}.`}
+            onImported={load}
+          />
         </div>
 
         {loading ? (

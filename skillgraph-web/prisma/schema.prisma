@@ -69,6 +69,10 @@ model User {
   NegotiationScripts   NegotiationScript[]
   AiUsage              AiUsage[]
   AuthTokens           AuthToken[]
+  AcademicConnection   AcademicConnection?
+  AcademicProfile      AcademicProfile?
+  AcademicCourses      AcademicCourse[]
+  AttendanceLeaves     AttendanceLeave[]
 }
 
 model SkillProfile {
@@ -175,6 +179,7 @@ model CollegeInstitution {
   facultyInviteCode String?  @unique
   createdAt         DateTime @default(now())
   facultyUsers   User[]
+  calendarDays   CollegeCalendarDay[]
 }
 
 model Company {
@@ -201,9 +206,20 @@ model FacultyJobPosting {
   eligibleBranches Json?    // string[]
   deadline         DateTime
   driveDate        DateTime?
+  // Drive details (ADR-002 Phase 5), matching what placement portals such as Haveloc publish
+  jobType          String?  // e.g. Full Time | Regular Intern | Intern Leads To Full Time
+  location         String?
+  stipendMin       Int?     // INR per month
+  stipendMax       Int?
+  duration         String?  // free text, e.g. "6 months"
+  visitMode        String?  // physical | virtual | both | undecided
+  source           String   @default("on_campus") // on_campus | off_campus | pool
+  externalRef      String?  // the drive's id on the college's placement portal, for re-imports
+  applyUrl         String?  // where students apply when the drive is run on another portal
   applicationCount Int      @default(0)
   createdAt        DateTime @default(now())
 
+  @@unique([collegeId, externalRef])
   @@index([collegeId])
 }
 
@@ -214,6 +230,7 @@ model JobApplication {
   resumeVersionId String?
   coverLetter     String?  @db.Text
   status          String   @default("Applied") // Applied | Shortlisted | Rejected | Placed
+  channel         String   @default("skillgraph") // skillgraph | external (student marked it applied on another portal)
   appliedAt       DateTime @default(now())
 
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -483,4 +500,94 @@ model WebhookEvent {
   provider    String
   type        String
   receivedAt  DateTime @default(now())
+}
+
+// -------------------------------------------------------------
+// ACADEMICS (ADR-002 Phase 5) — attendance, marks, timetable and calendar
+// -------------------------------------------------------------
+
+// A student's link to their university's academic system (lib/academics). The password
+// connector never stores the password: only the portal session, encrypted at rest.
+model AcademicConnection {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  provider          String    // srm_api | srm_academia
+  externalId        String?   // university login id or register number
+  status            String    @default("active") // active | needs_reauth | error
+  sessionCiphertext String?   @db.Text
+  sessionExpiresAt  DateTime?
+  consentAt         DateTime
+  lastSyncAt        DateTime?
+  lastError         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Student details, timetable and calendar from the latest sync (JSON shapes: lib/academics/types.ts)
+model AcademicProfile {
+  userId     String   @id
+  regNo      String?
+  program    String?
+  department String?
+  semester   Int?
+  section    String?
+  batch      String?
+  timetable  Json?    // TimetableEntry[]
+  calendar   Json?    // CalendarDay[]
+  source     String   // srm_api | srm_academia | college
+  syncedAt   DateTime
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([regNo])
+}
+
+// One enrolled course with its attendance and marks, from a sync or a college import
+model AcademicCourse {
+  id        String   @id @default(cuid())
+  userId    String
+  code      String
+  title     String
+  category  String   // theory | practical
+  credits   Float?
+  faculty   String?
+  slot      String?
+  room      String?
+  attended  Int      @default(0)
+  conducted Int      @default(0)
+  marks     Json?    // MarkComponent[]
+  source    String   // srm_api | srm_academia | college
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, code, category])
+}
+
+// Dates a student marks as on-duty or medical leave; attendance projections exclude them
+model AttendanceLeave {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  kind      String   // OD | ML
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+// A college's academic calendar (day orders and holidays), imported by its faculty
+model CollegeCalendarDay {
+  id        String             @id @default(cuid())
+  collegeId String
+  date      DateTime           @db.Date
+  dayOrder  Int?               // null on holidays and weekends
+  label     String?            // e.g. "Diwali", "CAT-1 begins"
+
+  college   CollegeInstitution @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+
+  @@unique([collegeId, date])
 }

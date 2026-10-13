@@ -25,11 +25,13 @@ import {
   GitBranch,
   CreditCard,
   KeyRound,
+  GraduationCap,
 } from "lucide-react";
 import SkillGraphLogo from "./SkillGraphLogo";
 
 const studentNav = [
   { label: 'Dashboard',       path: '/dashboard',       icon: LayoutDashboard },
+  { label: 'Academics',       path: '/academics',       icon: GraduationCap },
   { label: 'My Sprint',       path: '/sprint',          icon: Zap },
   { label: 'Skill Gap',       path: '/market',          icon: Target },
   { label: 'OpenClaw Agent',  path: '/openclaw',        icon: Bot },       
@@ -45,6 +47,7 @@ const facultyNav = [
   { label: 'Placement Cell',  path: '/faculty/dashboard',   icon: Building2 },
   { label: 'Job Postings',    path: '/faculty/jobs',         icon: Briefcase },
   { label: 'Applications',    path: '/faculty/applications', icon: Users },
+  { label: 'Academics',       path: '/faculty/academics',    icon: GraduationCap },
   { label: 'Cohort Analytics',path: '/faculty/analytics',   icon: BarChart3 },
   { label: 'Reports',         path: '/faculty/reports',      icon: FileOutput },
   { label: 'Companies',       path: '/faculty/companies',    icon: Building },

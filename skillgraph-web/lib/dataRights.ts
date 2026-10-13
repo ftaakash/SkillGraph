@@ -30,6 +30,11 @@ export async function exportUserData(userId: string) {
       Notifications: true,
       AiUsage: { select: { feature: true, model: true, promptTokens: true, completionTokens: true, success: true, createdAt: true } },
       TalentViews: { select: { viewedAt: true, shortlisted: true, revealStatus: true, requestedAt: true, respondedAt: true } },
+      // The encrypted portal session is a credential, not personal data about the user — never exported
+      AcademicConnection: { select: { provider: true, externalId: true, status: true, consentAt: true, lastSyncAt: true, createdAt: true } },
+      AcademicProfile: true,
+      AcademicCourses: true,
+      AttendanceLeaves: true,
     },
   })
   if (!user) return null

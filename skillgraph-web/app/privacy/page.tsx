@@ -16,6 +16,7 @@ export default function PrivacyPage() {
         <li><strong>Account data</strong>: name, email, password (stored only as a salted hash), role, and the date and version of the terms you accepted.</li>
         <li><strong>Profile data you provide</strong>: college, branch, year, CGPA, target role, LinkedIn/GitHub links, and OpenClaw preferences such as target roles, cities, application email and phone number.</li>
         <li><strong>Résumé data</strong>: the PDF you upload and the skills, projects and education extracted from it; tailored résumés generated for job applications.</li>
+        <li><strong>Academic data</strong> (only if you or your college provide it): attendance, marks, timetable, academic calendar and your register number, from your university once you connect it, or imported by your college&apos;s placement cell. If you connect by signing in to your university portal, your university password is used once to sign in and is never stored; we keep only the encrypted portal session, which you can remove by disconnecting.</li>
         <li><strong>Activity data</strong>: skill gaps, learning sprints, job evaluations, applications you track, interview stories, notifications, and AI usage counts used to enforce fair-use limits.</li>
       </ul>
 
@@ -32,6 +33,12 @@ export default function PrivacyPage() {
         Recruiters only see students who turn on <em>Visible to Recruiters</em>, and only an anonymous profile (skills, readiness score,
         target role, year). A recruiter can ask to see your name and contact details; nothing is shared unless you accept that specific
         request, and you can revoke an acceptance at any time from your profile.
+      </p>
+
+      <h2>Your university and your placement cell</h2>
+      <p>
+        Attendance and marks you connect or that your college imports are visible to you and to the faculty of the college workspace you
+        joined. Placement drives your college imports may link to its placement portal; you apply there yourself.
       </p>
 
       <h2>OpenClaw and job sites</h2>

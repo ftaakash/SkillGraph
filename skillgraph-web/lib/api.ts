@@ -2,6 +2,7 @@ import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
 import { AiError, aiErrorResponse } from '@/lib/ai'
 import { JobSourceError } from '@/lib/jobs/types'
+import { AcademicProviderError } from '@/lib/academics/types'
 
 export type AuthSession = Awaited<ReturnType<typeof auth>>
 
@@ -48,4 +49,11 @@ export function ok(data: unknown) {
 
 export function created(data: unknown) {
   return NextResponse.json(data, { status: 201 })
+}
+
+/** Converts an AcademicProviderError into a 4xx/5xx with its user-facing message; null for any other error. */
+export function academicFailure(err: unknown) {
+  if (!(err instanceof AcademicProviderError)) return null
+  const status = err.code === 'not_configured' ? 503 : err.code === 'upstream' || err.code === 'invalid_data' ? 502 : 422
+  return NextResponse.json({ error: err.message, code: err.code }, { status })
 }
