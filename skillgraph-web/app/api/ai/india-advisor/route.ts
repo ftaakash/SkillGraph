@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { openai } from '@/lib/openai'
+import { generateText } from '@/lib/ai'
+import { aiFailure } from '@/lib/api'
 
 const INDIA_ADVISOR_PROMPT = `You are a Veteran Technical Recruiter operating intensely within the Indian Job Market. You are empathetic but brutally honest. You are advising a student targeting a tech role.
 
@@ -26,8 +27,9 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { question } = await req.json()
-  if (!question) return NextResponse.json({ error: 'Question required' }, { status: 400 })
+  const { question } = await req.json().catch(() => ({}))
+  if (typeof question !== 'string' || !question.trim()) return NextResponse.json({ error: 'Question required' }, { status: 400 })
+  if (question.length > 2000) return NextResponse.json({ error: 'Keep your question under 2000 characters' }, { status: 400 })
 
   try {
     // Fetch student context
@@ -47,19 +49,19 @@ export async function POST(req: NextRequest) {
       .replace('{TARGET_ROLE}', student.targetRole || 'Software Engineer')
       .replace('{COLLEGE_TIER}', student.College?.tier || 'Tier-3')
 
-    const completion = await openai.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+    const answer = await generateText({
+      feature: 'india_advisor',
+      system: systemPrompt,
+      prompt: question.trim(),
+      userId: session.user.id,
+      maxTokens: 700,
       temperature: 0.7,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: question }
-      ]
     })
 
-    const answer = completion.choices[0].message.content
-
     return NextResponse.json({ answer })
-  } catch (error: any) {
+  } catch (error) {
+    const failure = aiFailure(error)
+    if (failure) return failure
     console.error('Advisor error:', error)
     return NextResponse.json({ error: 'Failed to generate advice' }, { status: 500 })
   }

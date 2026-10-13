@@ -69,8 +69,12 @@ export default async function proxy(req: NextRequest) {
   }
 
   // Guard student routes from other roles
-  const studentRoutes = ['/sprint', '/market', '/openclaw', '/resume-builder', '/jobs', '/linkedin', '/benchmark'];
-  if (studentRoutes.some(route => pathname.startsWith(route)) && role !== 'STUDENT') {
+  const studentRoutes = [
+    '/dashboard', '/academics', '/tracker', '/participation',
+    '/sprint', '/market', '/openclaw', '/resume-builder', '/jobs', '/linkedin', '/benchmark',
+  ];
+  // Signed-out visitors are sent to /login by the (app) layout; only redirect other roles here
+  if (role && role !== 'STUDENT' && studentRoutes.some(route => pathname === route || pathname.startsWith(`${route}/`))) {
     const fallback = role ? `/${role.toLowerCase()}/dashboard` : '/dashboard';
     return tag(NextResponse.redirect(new URL(fallback, req.url)));
   }

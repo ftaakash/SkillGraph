@@ -59,7 +59,7 @@ export default function LinkedInPage() {
           <div className="lg:col-span-12 xl:col-span-5 flex flex-col gap-6">
             <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
               <h3 className="font-heading text-lg font-semibold text-foreground mb-6 flex items-center gap-2">
-                Source Architecture
+                Your current profile
               </h3>
               
               <div className="space-y-4">
@@ -76,7 +76,7 @@ export default function LinkedInPage() {
                 </div>
                 
                 <div>
-                  <label className="text-sm font-medium text-foreground mb-1.5 block">System Skills (Comma Separated)</label>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Skills (comma separated)</label>
                   <Input value={skillsList} onChange={e => setSkillsList(e.target.value)} placeholder="React, Node.js, Python, SQL..."
                     className="bg-background border-border text-foreground focus:border-primary transition-colors w-full" />
                 </div>
@@ -88,7 +88,7 @@ export default function LinkedInPage() {
                   {loading ? (
                     <div className="flex items-center gap-2"><Sparkles className="w-4 h-4 animate-spin" /> Initializing Engine...</div>
                   ) : (
-                    <div className="flex items-center gap-2"><Sparkles className="w-4 h-4" /> Initialize AI Rewrite</div>
+                    <div className="flex items-center gap-2"><Sparkles className="w-4 h-4" /> Rewrite my profile</div>
                   )}
                 </Button>
               </div>
@@ -107,7 +107,7 @@ export default function LinkedInPage() {
                   <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
                      <Sparkles className="w-8 h-8 text-muted-foreground opacity-50" />
                   </div>
-                  <p className="text-muted-foreground text-sm font-medium">Awaiting input to begin optimization protocol.</p>
+                  <p className="text-muted-foreground text-sm font-medium">Paste your headline, About section and skills, then rewrite.</p>
                 </div>
               ) : (
                 <div className="space-y-6 relative z-10 animate-in fade-in slide-in-from-bottom-4 flex-1">
@@ -150,7 +150,7 @@ export default function LinkedInPage() {
                     </div>
 
                     <div className="bg-background border border-border rounded-lg p-5">
-                      <div className="text-[10px] text-muted-foreground font-semibold tracking-widest uppercase mb-3 text-glow">Keywords Injected</div>
+                      <div className="text-[10px] text-muted-foreground font-semibold tracking-widest uppercase mb-3 text-glow">Keywords added</div>
                       <div className="flex flex-wrap gap-2">
                         {result.keywords_added.map(k => (
                            <span key={k} className="bg-primary/10 border border-primary/20 text-primary px-2.5 py-1 rounded text-xs font-semibold">{k}</span>

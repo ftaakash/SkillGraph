@@ -46,7 +46,7 @@ export default function RoundTimeline({ rounds, showProgress }: { rounds: Timeli
                 {state && <span className={`text-[10px] px-2 py-0.5 rounded-full border ${state.tone}`}>{state.label}</span>}
                 {showProgress && r.attendedAt && <span className="text-[10px] px-2 py-0.5 rounded-full border border-sky-500/30 text-sky-400">Attended</span>}
                 {showProgress && r.confirmation === "declined" && <span className="text-[10px] px-2 py-0.5 rounded-full border border-border text-muted-foreground">Declined</span>}
-                {r.attendanceOpen && <span className="text-[10px] px-2 py-0.5 rounded-full border border-primary/40 text-primary">Check-in open</span>}
+                {r.attendanceOpen && !r.attendedAt && <span className="text-[10px] px-2 py-0.5 rounded-full border border-primary/40 text-primary">Check-in open</span>}
               </div>
               {(r.startsAt || r.venue || r.mode) && (
                 <p className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-0.5">

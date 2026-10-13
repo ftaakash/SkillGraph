@@ -121,6 +121,17 @@ export async function getFileAccess(ref: string, ttlSec = DEFAULT_TTL_SEC): Prom
   return null
 }
 
+/** The bytes of a stored file, for server-side processing (e.g. re-reading an uploaded résumé). */
+export async function readPrivateFile(ref: string): Promise<Uint8Array | null> {
+  const access = await getFileAccess(ref, 60)
+  if (!access) return null
+  if (access.kind === 'buffer') return access.data
+  // Only our own Cloudinary assets are fetched server-side, never arbitrary URLs
+  if (!ref.startsWith(CLOUDINARY_PREFIX)) return null
+  const res = await fetch(access.url, { signal: AbortSignal.timeout(15_000) })
+  return res.ok ? new Uint8Array(await res.arrayBuffer()) : null
+}
+
 /**
  * Permanently deletes a stored file. Legacy public URLs are not managed by us and are skipped.
  * Returns false when the file could not be deleted (callers log and continue).

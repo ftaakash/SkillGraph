@@ -1,16 +1,34 @@
 import OpenAI from 'openai'
 
-export const openai = new OpenAI({ 
+export const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   baseURL: process.env.OPENAI_BASE_URL || 'https://api.groq.com/openai/v1'
 })
 
-export type GPTModel = 'llama-3.3-70b-versatile' | 'gpt-4o' | 'gpt-4o-mini' | 'llama-3.3-70b-versatile'
+export type GPTModel = string
+
+/**
+ * The model every AI feature uses. Override with AI_MODEL when the provider changes its lineup
+ * (Groq retired llama-3.3-70b-versatile; requests for it now fail with 404).
+ */
+export const AI_MODEL: GPTModel = process.env.AI_MODEL || 'openai/gpt-oss-120b'
+
+/**
+ * Provider-specific request options. gpt-oss models reason before answering and the reasoning
+ * counts against max_tokens, so short outputs get headroom and low reasoning effort (about 3x
+ * fewer tokens in testing with the same answer).
+ */
+export function modelOptions(model: GPTModel, maxTokens: number) {
+  if (model.startsWith('openai/gpt-oss')) {
+    return { max_tokens: maxTokens + 1024, reasoning_effort: 'low' as const }
+  }
+  return { max_tokens: maxTokens }
+}
 
 export async function callGPT(
   systemPrompt: string,
   userPrompt: string,
-  model: GPTModel = 'llama-3.3-70b-versatile',
+  model: GPTModel = AI_MODEL,
   maxTokens = 2000
 ): Promise<string> {
   const response = await openai.chat.completions.create({
@@ -19,7 +37,7 @@ export async function callGPT(
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    max_tokens: maxTokens,
+    ...modelOptions(model, maxTokens),
     temperature: 0,
     response_format: { type: 'json_object' },
   })
@@ -29,7 +47,7 @@ export async function callGPT(
 export async function callGPTText(
   systemPrompt: string,
   userPrompt: string,
-  model: GPTModel = 'llama-3.3-70b-versatile',
+  model: GPTModel = AI_MODEL,
   maxTokens = 300
 ): Promise<string> {
   const response = await openai.chat.completions.create({
@@ -38,17 +56,16 @@ export async function callGPTText(
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    max_tokens: maxTokens,
+    ...modelOptions(model, maxTokens),
     temperature: 0.4,
   })
   return (response.choices[0].message.content ?? '').trim()
 }
 
-
 export async function callGPTArray(
   systemPrompt: string,
   userPrompt: string,
-  model: GPTModel = 'llama-3.3-70b-versatile',
+  model: GPTModel = AI_MODEL,
   maxTokens = 3000
 ): Promise<string> {
   // For prompts that return a JSON array (not wrapped object)
@@ -58,7 +75,7 @@ export async function callGPTArray(
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    max_tokens: maxTokens,
+    ...modelOptions(model, maxTokens),
     temperature: 0.3,
   })
   return response.choices[0].message.content ?? '[]'

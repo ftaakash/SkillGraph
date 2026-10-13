@@ -1,4 +1,4 @@
-import { openai } from '../openai';
+import { openai, AI_MODEL, modelOptions } from '../openai';
 
 const RESUME_BUILD_PROMPT = `You are an expert ATS resume writer for the Indian tech job market.
 
@@ -20,7 +20,8 @@ Return ONLY a valid JSON object with this schema:
 
 export async function generateResumeJSON(studentProfile: any) {
   const res = await openai.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
+    model: AI_MODEL,
+    ...modelOptions(AI_MODEL, 3000),
     temperature: 0,
     messages: [
       { role: "system", content: RESUME_BUILD_PROMPT },

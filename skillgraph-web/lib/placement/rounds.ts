@@ -67,10 +67,13 @@ export function applicationProgress<R extends RoundLike>(rounds: R[], results: R
   const byRound = new Map(results.map(r => [r.roundId, r]))
   let eliminated = FINAL_REJECTED.has(applicationStatus)
   let current: string | null = null
+  // Clearing a later round implies the student passed every earlier one, even if those weren't marked
+  const lastCleared = sorted.reduce((idx, round, i) => (byRound.get(round.id)?.outcome === 'cleared' ? i : idx), -1)
 
-  const steps = sorted.map(round => {
+  const steps = sorted.map((round, i) => {
     const result = byRound.get(round.id) ?? null
-    const outcome = (result?.outcome ?? 'pending') as Outcome
+    const recorded = (result?.outcome ?? 'pending') as Outcome
+    const outcome: Outcome = recorded === 'pending' && i < lastCleared ? 'cleared' : recorded
     let state: RoundState
     if (outcome !== 'pending') {
       state = outcome

@@ -1,4 +1,4 @@
-import { openai } from '../openai';
+import { openai, AI_MODEL, modelOptions } from '../openai';
 
 const RESUME_ENHANCE_PROMPT = `You are an expert ATS resume enhancer for the Indian tech job market.
 You will receive a current resume JSON and a Target JD.
@@ -24,7 +24,8 @@ Return ONLY a valid JSON object with this schema:
 
 export async function enhanceResumeWithJD(currentResume: any, targetJd: string) {
   const res = await openai.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
+    model: AI_MODEL,
+    ...modelOptions(AI_MODEL, 3000),
     temperature: 0,
     messages: [
       { role: "system", content: RESUME_ENHANCE_PROMPT },

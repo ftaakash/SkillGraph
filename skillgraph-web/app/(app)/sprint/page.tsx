@@ -99,9 +99,9 @@ export default function SprintPage() {
           <div className="bg-card border border-border rounded-lg p-12 max-w-md text-center shadow-lg">
             <Zap className="w-16 h-16 text-muted-foreground mx-auto mb-6" />
             <h2 className="text-2xl font-heading font-bold text-foreground mb-2">Initialize New Sprint</h2>
-            <p className="text-muted-foreground mb-8 text-sm leading-relaxed">Your neural architecture lacks a scheduled sprint. Generate a dynamic 7-day technical mission based on your capability gaps.</p>
+            <p className="text-muted-foreground mb-8 text-sm leading-relaxed">You don’t have a sprint yet. Generate a 7-day learning plan built from your open skill gaps.</p>
             <Button onClick={handleRegenerate} disabled={generating} className="w-full gradient-primary text-primary-foreground font-semibold glow-primary">
-               {generating ? <RefreshCw className="w-5 h-5 animate-spin mx-auto" /> : 'Execute Sequence'}
+               {generating ? <RefreshCw className="w-5 h-5 animate-spin mx-auto" /> : 'Generate my sprint'}
             </Button>
             {errorMsg && <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 text-destructive text-sm font-semibold rounded-lg text-center">{errorMsg}</div>}
           </div>
@@ -166,7 +166,7 @@ export default function SprintPage() {
         <div className="flex items-center justify-between mb-6">
            <div>
               <h2 className="text-xl font-heading font-bold text-foreground mb-2">{(sprint.skillsTargeted as string[]).join(' / ')}</h2>
-              <p className="text-muted-foreground font-body text-sm">Targeted learning vectors compiled from your capability gaps.</p>
+              <p className="text-muted-foreground font-body text-sm">A 7-day plan built from your open skill gaps.</p>
            </div>
            <Button 
              variant="outline" 
@@ -174,7 +174,7 @@ export default function SprintPage() {
              className="border-primary/20 text-primary hover:bg-primary/5 text-xs gap-2 group"
            >
               <RefreshCw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
-              Refactor Sprint
+              Regenerate sprint
            </Button>
         </div>
 
@@ -184,7 +184,7 @@ export default function SprintPage() {
               <Zap size={20} className="glow-text" />
               <span className="font-heading font-semibold text-foreground">Sprint Momentum</span>
             </div>
-            <span className="text-sm font-semibold text-muted-foreground">{completedCount}/7 Execute Cycles</span>
+            <span className="text-sm font-semibold text-muted-foreground">{completedCount}/7 days done</span>
           </div>
           <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
             <div className="h-full gradient-primary rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(var(--primary),0.5)]" style={{ width: `${pct}%` }} />
@@ -242,7 +242,7 @@ export default function SprintPage() {
                            </a>
                          </div>
                          <div className="text-right">
-                            <span className="text-[10px] font-bold uppercase text-foreground tracking-widest bg-background border border-border shadow-sm px-2 py-1 rounded">~{day.time_minutes} min req.</span>
+                            <span className="text-[10px] font-bold uppercase text-foreground tracking-widest bg-background border border-border shadow-sm px-2 py-1 rounded">~{day.time_minutes} min</span>
                          </div>
                       </div>
 
@@ -251,7 +251,7 @@ export default function SprintPage() {
                             <div className="flex gap-2 items-start">
                                <span className="text-primary mt-0.5"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg></span>
                                <div>
-                                  <h5 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">Execution Task</h5>
+                                  <h5 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">Task</h5>
                                   <p className={`text-sm ${isDone ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{day.mini_task}</p>
                                </div>
                             </div>

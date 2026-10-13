@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -52,9 +52,10 @@ function Login() {
       setLoading(false);
       return;
     }
-    // Route based on selection (actual role is derived from DB, this is UX guidance)
-    if (selectedRole === "FACULTY") router.push("/faculty/dashboard");
-    else if (selectedRole === "RECRUITER") router.push("/recruiter/talent");
+    // Go to the home of the account's actual role; the role tabs only change the form's wording
+    const role = (await getSession())?.user?.role ?? selectedRole;
+    if (role === "FACULTY") router.push("/faculty/dashboard");
+    else if (role === "RECRUITER") router.push("/recruiter/talent");
     else router.push("/dashboard");
   };
 

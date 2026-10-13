@@ -159,7 +159,7 @@ export async function academicOverview(userId: string, now = new Date()) {
       select: { provider: true, externalId: true, status: true, lastSyncAt: true, lastError: true, consentAt: true },
     }),
     prisma.academicProfile.findUnique({ where: { userId } }),
-    prisma.academicCourse.findMany({ where: { userId }, orderBy: [{ category: 'asc' }, { title: 'asc' }] }),
+    prisma.academicCourse.findMany({ where: { userId }, orderBy: [{ category: 'desc' }, { title: 'asc' }] }), // theory before practical
     prisma.attendanceLeave.findMany({ where: { userId }, orderBy: { date: 'asc' } }),
   ])
 

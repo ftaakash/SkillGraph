@@ -33,39 +33,50 @@ export default function ResumeBuilderPage() {
   const [saved, setSaved] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
 
   const generateFromProfile = useCallback(async () => {
     if (!targetJd.trim()) {
-      alert('Please paste a target Job Description first.');
+      setNotice({ ok: false, text: 'Paste the target job description first.' });
       return;
     }
     setGenerating(true);
+    setNotice(null);
     try {
       const res = await fetch('/api/resume-builder/build', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetJd }),
       });
-      const data = await res.json();
-      if (data.resume) {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.resume) {
+        setNotice({ ok: false, text: data.error ?? 'Could not generate a draft. Try again.' });
+      } else {
         const r = data.resume;
+        const bullets = (list: string[] = []) => list.map(b => `• ${b}`);
         setSections({
           summary: r.summary || '',
           skills: [...(r.skills?.technical || []), ...(r.skills?.tools || [])].join(', '),
           experience: (r.experience || []).map((e: { role: string; company: string; duration: string; bullets: string[] }) =>
-            [e.role, e.company, e.duration, ...(e.bullets || [])].join('\n')
+            [[e.role, e.company].filter(Boolean).join(' — '), e.duration, ...bullets(e.bullets)].filter(Boolean).join('\n')
           ).join('\n\n'),
           projects: (r.projects || []).map((p: { name: string; techStack: string[]; impact: string; bullets: string[] }) =>
-            [p.name, (p.techStack || []).join(', '), p.impact, ...(p.bullets || [])].join('\n')
+            [[p.name, (p.techStack || []).join(', ')].filter(Boolean).join(' | '), p.impact, ...bullets(p.bullets)].filter(Boolean).join('\n')
           ).join('\n\n'),
           education: r.education
-            ? [r.education.degree, r.education.college, r.education.cgpa, r.education.year].join('\n')
+            ? [r.education.degree, r.education.college, r.education.cgpa && `CGPA: ${r.education.cgpa}`, r.education.year].filter(Boolean).join('\n')
             : '',
           certifications: (r.certifications || []).join('\n'),
         });
+        setNotice({
+          ok: true,
+          text: data.usedUploadedResume
+            ? 'Draft generated from your uploaded résumé. Review every line before exporting.'
+            : 'Draft generated from your profile. Upload your résumé on the Dashboard for a richer draft.',
+        });
       }
     } catch {
-      // ignore
+      setNotice({ ok: false, text: 'Network error. Try again.' });
     }
     setGenerating(false);
   }, [targetJd]);
@@ -78,7 +89,11 @@ export default function ResumeBuilderPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sections }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setNotice({ ok: false, text: data.error ?? 'Could not export the PDF. Try again.' });
+        return;
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -87,9 +102,10 @@ export default function ResumeBuilderPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      // ignore
+      setNotice({ ok: false, text: 'Network error while exporting. Try again.' });
+    } finally {
+      setExporting(false);
     }
-    setExporting(false);
   }, [sections]);
 
   const computeScore = useCallback(async () => {
@@ -100,29 +116,40 @@ export default function ResumeBuilderPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sections, targetJd }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || typeof data.score !== "number") {
+        setNotice({ ok: false, text: data.error ?? 'Could not score the résumé. Try again.' });
+        return;
+      }
       setScore(data.score);
       setBreakdown(data.breakdown);
     } catch {
-      // ignore
+      setNotice({ ok: false, text: 'Network error while scoring. Try again.' });
+    } finally {
+      setScoring(false);
     }
-    setScoring(false);
   }, [sections, targetJd]);
 
   const saveVersion = async () => {
     setSaving(true);
     try {
-      await fetch("/api/resume-builder/versions", {
+      const res = await fetch("/api/resume-builder/versions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sections, targetJd, atsScore: score }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setNotice({ ok: false, text: data.error ?? 'Could not save this version. Try again.' });
+        return;
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch {
-      // ignore
+      setNotice({ ok: false, text: 'Network error while saving. Try again.' });
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   return (
@@ -146,7 +173,10 @@ export default function ResumeBuilderPage() {
             </div>
 
             {/* Section Editor */}
-            <SectionEditor sections={sections} onChange={setSections} />
+            <SectionEditor sections={sections} onChange={setSections} targetJd={targetJd} />
+            {notice && (
+              <p className={`text-sm ${notice.ok ? "text-emerald-400" : "text-destructive"}`} role={notice.ok ? "status" : "alert"}>{notice.text}</p>
+            )}
 
             {/* Action Buttons */}
             <div className="flex flex-wrap gap-3">

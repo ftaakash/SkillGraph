@@ -180,6 +180,8 @@ export const RATE_LIMIT_RULES: RateLimitRule[] = [
       p.startsWith('/api/resume/upload') ||
       p.startsWith('/api/resume/generate') ||
       p.startsWith('/api/resume-builder/score') ||
+      p.startsWith('/api/resume-builder/build') ||
+      p.startsWith('/api/resume-builder/enhance') ||
       p.startsWith('/api/gaps') ||
       p.startsWith('/api/sprints') ||
       p.startsWith('/api/openclaw/negotiate') ||

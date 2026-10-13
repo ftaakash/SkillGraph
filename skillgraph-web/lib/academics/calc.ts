@@ -141,6 +141,11 @@ export type ProjectionInput = {
    */
   leaves: string[]
   threshold?: number
+  /**
+   * Minutes since midnight (India) right now. When set, classes on the `from` day that have
+   * already started are left out: the university record may already include them.
+   */
+  nowMinutes?: number
 }
 
 export type CourseProjection = AttendanceStatus & {
@@ -155,6 +160,9 @@ export type CourseProjection = AttendanceStatus & {
 export function projectAttendance(input: ProjectionInput): CourseProjection[] {
   const threshold = input.threshold ?? DEFAULT_THRESHOLD
   const periods = periodsByDayOrder(input.timetable)
+  const laterToday = input.nowMinutes === undefined
+    ? periods
+    : periodsByDayOrder(input.timetable.filter(e => toMinutes(e.start) > input.nowMinutes!))
   const absent = new Set(input.absent)
   const leaves = new Set(input.leaves)
   const calendar = new Map(input.calendar.map(d => [d.date, d.dayOrder]))
@@ -163,7 +171,8 @@ export function projectAttendance(input: ProjectionInput): CourseProjection[] {
   const credit = (date: string, attendedOnly: boolean) => {
     const dayOrder = calendar.get(date)
     if (!dayOrder) return
-    for (const [key, n] of periods.get(dayOrder) ?? []) {
+    const source = !attendedOnly && date === input.from ? laterToday : periods
+    for (const [key, n] of source.get(dayOrder) ?? []) {
       const t = totals.get(key)
       if (!t) continue
       if (attendedOnly) {
