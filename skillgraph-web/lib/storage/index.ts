@@ -126,8 +126,9 @@ export async function readPrivateFile(ref: string): Promise<Uint8Array | null> {
   const access = await getFileAccess(ref, 60)
   if (!access) return null
   if (access.kind === 'buffer') return access.data
-  // Only our own Cloudinary assets are fetched server-side, never arbitrary URLs
-  if (!ref.startsWith(CLOUDINARY_PREFIX)) return null
+  // Only Cloudinary assets are fetched server-side, never arbitrary URLs: private ones, or
+  // legacy public uploads (pre-ADR-001) on Cloudinary's delivery host
+  if (!ref.startsWith(CLOUDINARY_PREFIX) && !isLegacyCloudinaryUrl(ref)) return null
   const res = await fetch(access.url, { signal: AbortSignal.timeout(15_000) })
   return res.ok ? new Uint8Array(await res.arrayBuffer()) : null
 }
@@ -159,6 +160,15 @@ export async function deletePrivateFile(ref: string): Promise<boolean> {
       return true
     }
     return false
+  } catch {
+    return false
+  }
+}
+
+function isLegacyCloudinaryUrl(ref: string) {
+  try {
+    const url = new URL(ref)
+    return url.protocol === 'https:' && url.hostname === 'res.cloudinary.com'
   } catch {
     return false
   }
