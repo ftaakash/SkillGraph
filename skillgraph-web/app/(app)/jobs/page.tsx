@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
-import { Briefcase, Calendar, DollarSign, ChevronRight, CheckCircle2, XCircle, Zap, Search } from "lucide-react";
+import {
+  Briefcase, Calendar, IndianRupee, ChevronRight, CheckCircle2, XCircle, Zap, Search, MapPin, Clock, ExternalLink, Check,
+} from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import PageTransition from "@/components/PageTransition";
 import { Input } from "@/components/ui/input";
@@ -14,11 +16,23 @@ interface Job {
   description: string;
   ctcMin: number | null;
   ctcMax: number | null;
+  stipendMin: number | null;
+  stipendMax: number | null;
+  jobType: string | null;
+  location: string | null;
+  duration: string | null;
+  visitMode: string | null;
+  source: string;
+  applyUrl: string | null;
   minCgpa: number | null;
   eligibleBranches: string[];
   deadline: string;
   driveDate: string | null;
   applicationCount: number;
+  isOpen: boolean;
+  isNew: boolean;
+  closingSoon: boolean;
+  application: { status: string; channel: string } | null;
 }
 
 interface UserProfile {
@@ -26,6 +40,26 @@ interface UserProfile {
   branch: string | null;
   skills: { skillName: string }[];
   targetRole: string | null;
+}
+
+type Filter = "open" | "all" | "applied";
+
+const VISIT_MODE_LABEL: Record<string, string> = { physical: "In person", virtual: "Virtual", both: "In person or virtual", undecided: "Not decided" };
+
+const istDateTime = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
+const istDay = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" });
+
+const lpa = (min: number | null, max: number | null) =>
+  min && max && min !== max ? `${min}–${max} LPA` : min || max ? `${min || max} LPA` : null;
+const thousands = (n: number) => `${Math.round(n / 1000)}K`;
+const stipend = (min: number | null, max: number | null) =>
+  min && max && min !== max ? `${thousands(min)}–${thousands(max)}/mo` : min || max ? `${thousands((min || max)!)}/mo` : null;
+
+function timeLeft(deadline: string, now: number) {
+  const ms = new Date(deadline).getTime() - now;
+  if (ms < 0) return null;
+  const hours = Math.floor(ms / 3_600_000);
+  return hours < 24 ? `${hours}h ${Math.floor((ms % 3_600_000) / 60_000)}m left` : `${Math.floor(hours / 24)}d left`;
 }
 
 function computeMatchScore(job: Job, profile: UserProfile): number {
@@ -57,20 +91,28 @@ function computeMatchScore(job: Job, profile: UserProfile): number {
 
 export default function StudentJobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [stats, setStats] = useState({ total: 0, open: 0, closingSoon: 0 });
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<Filter>("open");
   const [now, setNow] = useState<number | null>(null);
   const [joinedCollege, setJoinedCollege] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const loadJobs = useCallback(() =>
+    fetch("/api/jobs").then(r => r.json()).then(data => {
+      setJobs(data.jobs ?? []);
+      setStats(data.stats ?? { total: 0, open: 0, closingSoon: 0 });
+      setJoinedCollege(data.joinedCollege !== false);
+      setNow(Date.now());
+    }), []);
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/jobs").then(r => r.json()),
+      loadJobs(),
       fetch("/api/users/me").then(r => r.json()).catch(() => null),
-    ]).then(([jobsData, profileData]) => {
-      setJobs(jobsData.jobs ?? []);
-      setJoinedCollege(jobsData.joinedCollege !== false);
-      setNow(Date.now());
+    ]).then(([, profileData]) => {
       const me = profileData?.user;
       if (me) {
         setProfile({
@@ -82,10 +124,22 @@ export default function StudentJobsPage() {
       }
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, []);
+  }, [loadJobs]);
 
-  const daysLeft = (deadline: string) => {
-    return Math.ceil((new Date(deadline).getTime() - (now ?? new Date(deadline).getTime())) / (1000 * 60 * 60 * 24));
+  const toggleApplied = async (job: Job) => {
+    setBusy(job.id);
+    try {
+      const marked = job.application?.channel === "external";
+      await fetch(
+        marked ? `/api/jobs/mark-applied?jobPostingId=${encodeURIComponent(job.id)}` : "/api/jobs/mark-applied",
+        marked
+          ? { method: "DELETE" }
+          : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobPostingId: job.id }) },
+      );
+      await loadJobs();
+    } finally {
+      setBusy(null);
+    }
   };
 
   const isEligible = (job: Job) => {
@@ -96,27 +150,58 @@ export default function StudentJobsPage() {
   };
 
   const filtered = useMemo(() => {
-    if (!search) return jobs;
     const q = search.toLowerCase();
     return jobs.filter(j =>
-      j.title.toLowerCase().includes(q) ||
-      j.company.toLowerCase().includes(q) ||
-      j.description.toLowerCase().includes(q)
+      (filter === "all" || (filter === "open" ? j.isOpen : Boolean(j.application))) &&
+      (!q ||
+        j.title.toLowerCase().includes(q) ||
+        j.company.toLowerCase().includes(q) ||
+        (j.location ?? "").toLowerCase().includes(q) ||
+        j.description.toLowerCase().includes(q))
     );
-  }, [jobs, search]);
+  }, [jobs, search, filter]);
 
   return (
     <PageTransition>
       <DashboardLayout title="Campus Job Board">
-        {/* Search */}
-        <div className="mb-6 relative">
-          <Search className="absolute left-3 top-2.5 text-muted-foreground" size={16} />
-          <Input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search by role, company, or keyword..."
-            className="pl-9 bg-muted border-border text-sm"
-          />
+        {joinedCollege && !loading && (
+          <div className="grid grid-cols-3 gap-3 mb-6">
+            {[
+              { label: "Drives this term", value: stats.total, tone: "text-foreground" },
+              { label: "Open now", value: stats.open, tone: "text-emerald-400" },
+              { label: "Closing in 24h", value: stats.closingSoon, tone: "text-amber-400" },
+            ].map(s => (
+              <div key={s.label} className="bg-card border border-border rounded-lg p-4">
+                <p className={`text-2xl font-heading font-bold ${s.tone}`}>{s.value}</p>
+                <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mb-6 flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-2.5 text-muted-foreground" size={16} />
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by role, company, location or keyword..."
+              className="pl-9 bg-muted border-border text-sm"
+            />
+          </div>
+          <div className="flex rounded-lg border border-border overflow-hidden text-sm" role="tablist" aria-label="Filter drives">
+            {(["open", "all", "applied"] as Filter[]).map(f => (
+              <button
+                key={f}
+                role="tab"
+                aria-selected={filter === f}
+                onClick={() => setFilter(f)}
+                className={`px-4 py-2 capitalize transition-colors ${filter === f ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted"}`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
         </div>
 
         {loading ? (
@@ -126,28 +211,43 @@ export default function StudentJobsPage() {
         ) : filtered.length === 0 ? (
           <div className="bg-card border border-border rounded-lg p-12 text-center">
             <Briefcase size={40} className="mx-auto text-muted-foreground mb-4" />
-            <p className="text-lg font-heading font-semibold text-foreground mb-2">No Open Positions</p>
+            <p className="text-lg font-heading font-semibold text-foreground mb-2">
+              {filter === "applied" ? "No applications yet" : "No Open Positions"}
+            </p>
             <p className="text-muted-foreground text-sm">
-              {joinedCollege
-                ? <>Your placement cell hasn&apos;t posted any jobs yet. Check back soon.</>
-                : <>Join your college workspace with the code from your placement cell on your <Link href="/profile" className="text-primary hover:underline">Profile</Link> to see campus jobs.</>}
+              {!joinedCollege
+                ? <>Join your college workspace with the code from your placement cell on your <Link href="/profile" className="text-primary hover:underline">Profile</Link> to see campus jobs.</>
+                : filter === "applied"
+                  ? <>Drives you apply to here, or mark as applied on your placement portal, show up in this list.</>
+                  : <>Your placement cell hasn&apos;t posted any open drives. Check back soon.</>}
             </p>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 gap-4">
             {filtered.map(job => {
-              const days = daysLeft(job.deadline);
+              const left = now !== null ? timeLeft(job.deadline, now) : null;
               const eligible = isEligible(job);
-              const matchScore = profile ? computeMatchScore(job, profile) : null;
+              const matchScore = profile && job.isOpen ? computeMatchScore(job, profile) : null;
               const matchColor = matchScore && matchScore >= 80 ? "text-green-500" : matchScore && matchScore >= 50 ? "text-primary" : "text-destructive";
+              const ctc = lpa(job.ctcMin, job.ctcMax);
+              const pay = stipend(job.stipendMin, job.stipendMax);
 
               return (
                 <Link key={job.id} href={`/jobs/${job.id}`}>
-                  <div className={`bg-card border rounded-lg p-5 hover:shadow-lg transition-all group cursor-pointer h-full ${
-                    eligible ? "border-border hover:border-primary/40" : "border-destructive/20 opacity-75"
+                  <div className={`bg-card border rounded-lg p-5 hover:shadow-lg transition-all group cursor-pointer h-full flex flex-col ${
+                    !job.isOpen ? "border-border opacity-70" : eligible ? "border-border hover:border-primary/40" : "border-destructive/20 opacity-75"
                   }`}>
-                    <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-start justify-between mb-2">
                       <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          {job.isOpen ? (
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5">Open</span>
+                          ) : (
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-muted border border-border rounded-full px-2 py-0.5">Closed</span>
+                          )}
+                          {job.isNew && <span className="text-[10px] font-semibold uppercase tracking-wide text-sky-400 bg-sky-500/10 border border-sky-500/20 rounded-full px-2 py-0.5">New</span>}
+                          {job.closingSoon && <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5">Closing soon</span>}
+                        </div>
                         <h3 className="font-heading text-base font-semibold text-foreground group-hover:text-primary transition-colors">{job.title}</h3>
                         <p className="text-sm text-muted-foreground">{job.company}</p>
                       </div>
@@ -162,10 +262,27 @@ export default function StudentJobsPage() {
                       </div>
                     </div>
 
-                    <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{job.description}</p>
+                    {(ctc || pay) && (
+                      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+                        {ctc && <span className="flex items-center gap-1 text-lg font-heading font-bold text-primary"><IndianRupee size={14} />{ctc}</span>}
+                        {pay && <span className="text-sm text-foreground">{pay} <span className="text-muted-foreground text-xs">stipend</span></span>}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
+                      {job.jobType && <Detail label="Type" value={job.jobType} />}
+                      {job.duration && <Detail label="Duration" value={job.duration} />}
+                      {job.driveDate && (
+                        <Detail
+                          label="Visit"
+                          value={`${istDay.format(new Date(job.driveDate))}${job.visitMode ? ` · ${VISIT_MODE_LABEL[job.visitMode] ?? job.visitMode}` : ""}`}
+                        />
+                      )}
+                      {job.location && <Detail label="Location" value={job.location} icon={<MapPin size={10} />} />}
+                    </div>
 
                     {/* Eligibility Badge */}
-                    <div className="flex items-center gap-2 mb-3">
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
                       {eligible ? (
                         <span className="flex items-center gap-1 text-[11px] font-semibold text-green-500 bg-green-500/10 border border-green-500/20 rounded-full px-2 py-0.5">
                           <CheckCircle2 size={10} /> Eligible
@@ -184,33 +301,50 @@ export default function StudentJobsPage() {
                           CGPA: {profile.cgpa} / {job.minCgpa} req
                         </span>
                       )}
-                    </div>
-
-                    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                      {(job.ctcMin || job.ctcMax) && (
-                        <span className="flex items-center gap-1 text-primary font-semibold">
-                          <DollarSign size={12} /> ₹{job.ctcMin ?? "—"} – {job.ctcMax ?? "—"} LPA
+                      {job.eligibleBranches?.map(b => (
+                        <span key={b} className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                          profile?.branch === b ? "bg-primary/10 text-primary border-primary/20" : "bg-muted border-border text-muted-foreground"
+                        }`}>
+                          {b}
                         </span>
-                      )}
-                      <span className={`flex items-center gap-1 ${days <= 3 && days > 0 ? "text-yellow-500 font-semibold" : days <= 0 ? "text-destructive" : ""}`}>
-                        <Calendar size={12} />
-                        {days > 0 ? `${days}d left` : "Deadline passed"}
-                      </span>
+                      ))}
                     </div>
 
-                    {job.eligibleBranches && job.eligibleBranches.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-3">
-                        {job.eligibleBranches.map(b => (
-                          <span key={b} className={`text-[10px] px-2 py-0.5 rounded-full border ${
-                            profile?.branch === b
-                              ? "bg-primary/10 text-primary border-primary/20"
-                              : "bg-muted border-border text-muted-foreground"
-                          }`}>
-                            {b}
-                          </span>
-                        ))}
+                    <div className="mt-auto pt-3 border-t border-border/60 flex flex-wrap items-center justify-between gap-2">
+                      <span className={`flex items-center gap-1 text-xs ${job.closingSoon ? "text-amber-400 font-semibold" : "text-muted-foreground"}`}>
+                        {job.isOpen ? <Clock size={12} /> : <Calendar size={12} />}
+                        {job.isOpen ? `Apply by ${istDateTime.format(new Date(job.deadline))}${left ? ` · ${left}` : ""}` : `Closed ${istDay.format(new Date(job.deadline))}`}
+                      </span>
+                      <div className="flex items-center gap-2" onClick={e => e.preventDefault()}>
+                        {job.applyUrl && job.isOpen && (
+                          // A button, not a link: the card itself is already a link
+                          <button
+                            type="button"
+                            onClick={() => window.open(job.applyUrl!, "_blank", "noopener,noreferrer")}
+                            className="flex items-center gap-1 text-xs text-primary hover:underline"
+                          >
+                            Apply on portal <ExternalLink size={11} />
+                          </button>
+                        )}
+                        {job.application?.channel === "skillgraph" ? (
+                          <span className="flex items-center gap-1 text-xs text-emerald-400"><Check size={12} /> {job.application.status}</span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={busy === job.id}
+                            onClick={() => toggleApplied(job)}
+                            className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-md border transition-colors disabled:opacity-50 ${
+                              job.application
+                                ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                                : "border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+                            }`}
+                            aria-pressed={Boolean(job.application)}
+                          >
+                            <Check size={12} /> {job.application ? "Applied" : "Mark applied"}
+                          </button>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 </Link>
               );
@@ -219,5 +353,14 @@ export default function StudentJobsPage() {
         )}
       </DashboardLayout>
     </PageTransition>
+  );
+}
+
+function Detail({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
+  return (
+    <div className="bg-muted/50 border border-border/60 rounded-md px-2.5 py-1.5 min-w-0">
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-foreground truncate flex items-center gap-1">{icon}{value}</p>
+    </div>
   );
 }
