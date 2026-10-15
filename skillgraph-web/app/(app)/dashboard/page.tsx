@@ -20,7 +20,7 @@ interface MyApplication {
 }
 interface Gap { id: string; missingSkill: string; urgency: string; weeksToLearn: number; whyImportant: string; closed: boolean }
 interface Sprint { id: string; dayTasks: DayTask[]; completionPercentage: number; skillsTargeted: string[] }
-interface DayTask { day: number; focus: string; topic: string; time_minutes: number }
+interface DayTask { day: number; done?: boolean; focus: string; topic: string; time_minutes: number }
 interface Skill { id: string; skillName: string; category: string; proficiency: string }
 interface Today {
   attendance: { percent: number; below: number; conducted: number } | null;
@@ -298,7 +298,9 @@ export default function DashboardPage() {
                   </p>
                   <div className="space-y-3">
                     {sprint.dayTasks.slice(0, 5).map((t, i) => {
-                      const done = (i * 100 / sprint.dayTasks.length) < sprint.completionPercentage;
+                      // Each day records whether it's done; older sprints only stored a percentage
+                      const tracked = sprint.dayTasks.some(d => typeof d.done === "boolean");
+                      const done = tracked ? Boolean(t.done) : i < Math.round((sprint.completionPercentage / 100) * sprint.dayTasks.length);
                       return (
                         <div key={i} className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
                           done ? "bg-success/5 border-success/20" : "bg-muted/30 border-border"
