@@ -22,7 +22,7 @@ export async function POST() {
         : result.skipped.filtered > 0 && result.evaluated === 0
           ? 'No new jobs matched your filters. Try widening your roles, cities or keywords.'
           : 'No new strong matches right now. Try widening your target roles or cities.',
-      inactive: 'Activate OpenClaw and save your preferences first.',
+      inactive: 'Turn on Smart Apply and save your preferences first.',
       no_sources: 'Job discovery is not configured on this server.',
       limit_reached: 'Daily limit reached — review your ready applications.',
     }

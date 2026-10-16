@@ -247,7 +247,7 @@ export default function PipelineDashboard() {
           </>
         )}
         <p className="text-[10px] text-zinc-600">
-          OpenClaw evaluates and prepares. You submit on the employer’s site (the browser extension can fill the form), unless you turned on auto-submit and the employer is connected to SkillGraph.
+          Smart Apply evaluates and prepares. You submit on the employer’s site (the browser extension can fill the form), unless you turned on auto-submit and the employer is connected to SkillGraph.
         </p>
       </div>
       {loadError && <p className="text-xs px-1 text-yellow-400" role="alert">{loadError}</p>}

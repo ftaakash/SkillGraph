@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     const config = await prisma.openClawConfig.findUnique({ where: { userId } })
     const verdict = config
       ? checkFilters({ ...job, location: job.location ?? null, ctcBand: job.ctcBand ?? null }, filtersFromConfig(config))
-      : { ok: true as const, reasons: ['No OpenClaw filters set yet'] }
+      : { ok: true as const, reasons: ['No Smart Apply filters set yet'] }
     if (!verdict.ok && !job.force) return ok({ verdict, prepared: false })
 
     // Same posting already in the pipeline with a tailored résumé: reuse it (no new AI call)

@@ -4,6 +4,11 @@
 **Date:** 2026-10-13
 **Deciders:** Product owner (Aakash), engineering
 
+> **Update 2026-10-17:** the feature is now called **Smart Apply** wherever users see it (app, landing page, extension,
+> README), because it is SkillGraph's own feature and not the OpenClaw agent project. The page moved to `/smart-apply`
+> (`/openclaw` redirects). Code modules, API routes (`/api/openclaw/*`), cron job names and database models keep the
+> `openclaw` names to avoid a migration.
+
 ## Context
 
 The product owner asked for OpenClaw to apply to jobs automatically on LinkedIn, Naukri, Glassdoor and

@@ -28,7 +28,7 @@ export async function extensionStudent(req: NextRequest): Promise<{ userId: stri
   }
   return {
     error: NextResponse.json(
-      { error: 'The extension is not connected. Open SkillGraph → OpenClaw and connect it again.' },
+      { error: 'The extension is not connected. Open SkillGraph → Smart Apply and connect it again.' },
       { status: 401 },
     ),
   }

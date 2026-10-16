@@ -22,7 +22,7 @@ const OPTIONAL_ENV_VARS: { key: string; description: string }[] = [
   { key: 'RAPIDAPI_HOST', description: 'RapidAPI host (default: jsearch.p.rapidapi.com)' },
   { key: 'ACADEMIC_ENCRYPTION_KEY', description: 'Encrypts university portal sessions (Academics connector)' },
   { key: 'SRM_API_KEY', description: 'Official SRM API key for academic sync' },
-  { key: 'ATS_PARTNER_KEYS', description: 'Employer-issued Greenhouse/Lever API keys (JSON) for OpenClaw auto-submit' },
+  { key: 'ATS_PARTNER_KEYS', description: 'Employer-issued Greenhouse/Lever API keys (JSON) for Smart Apply auto-submit' },
 ];
 
 export function validateEnv(): void {

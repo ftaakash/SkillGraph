@@ -18,6 +18,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },
+  async redirects() {
+    // The feature was renamed from OpenClaw to Smart Apply; keep old links and notifications working
+    return [{ source: '/openclaw', destination: '/smart-apply', permanent: true }];
+  },
 };
 
 export default nextConfig;

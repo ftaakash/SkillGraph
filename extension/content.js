@@ -31,7 +31,7 @@
       .min { background:none; border:none; padding:0 4px; color:#9ca3af }
     </style>
     <div class="box">
-      <div class="head"><span>OpenClaw</span><button class="min" id="toggle" title="Minimise">–</button></div>
+      <div class="head"><span>Smart Apply</span><button class="min" id="toggle" title="Minimise">–</button></div>
       <div class="body" id="body"></div>
     </div>`
   document.documentElement.appendChild(host)

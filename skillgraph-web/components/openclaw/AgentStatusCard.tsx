@@ -40,7 +40,7 @@ export default function AgentStatusCard({
               <Bot size={20} className={isActive ? "text-primary-foreground" : "text-muted-foreground"} />
             </div>
             <div>
-              <h2 className="font-heading text-lg font-bold text-foreground">OpenClaw Assistant</h2>
+              <h2 className="font-heading text-lg font-bold text-foreground">Smart Apply</h2>
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${
                   isActive ? "bg-green-500 animate-pulse" : "bg-muted-foreground"

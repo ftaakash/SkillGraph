@@ -56,7 +56,7 @@ export default function ApplicationFeed({ applications }: ApplicationFeedProps) 
       <div className="bg-card border border-border rounded-lg p-8 text-center">
         <Zap size={32} className="mx-auto text-muted-foreground mb-3" />
         <p className="text-sm text-muted-foreground">
-          No applications yet. Save your filters and switch OpenClaw on: it tailors a résumé for each strong match, and submits
+          No applications yet. Save your filters and switch Smart Apply on: it tailors a résumé for each strong match, and submits
           for you where the employer allows it and you turned on auto-submit.
         </p>
       </div>

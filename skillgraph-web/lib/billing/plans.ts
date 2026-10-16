@@ -45,12 +45,12 @@ export const PLANS: Record<PlanId, Plan> = {
   student_free: {
     id: 'student_free', name: 'Free', audience: 'student', ownerType: 'user',
     pricePaise: 0, perSeat: false, periodMonths: 0, limits: FREE_STUDENT_LIMITS,
-    highlights: ['Gap analysis & 7-day sprints', 'OpenClaw: 3 prepared applications / day', 'Résumé builder'],
+    highlights: ['Gap analysis & 7-day sprints', 'Smart Apply: 3 prepared applications / day', 'Résumé builder'],
   },
   student_pro: {
     id: 'student_pro', name: 'Pro', audience: 'student', ownerType: 'user',
     pricePaise: 199_00, perSeat: false, periodMonths: 1, limits: PRO_STUDENT_LIMITS,
-    highlights: ['6× daily AI usage', 'OpenClaw: up to 25 prepared applications / day', 'Priority evaluation & negotiation scripts'],
+    highlights: ['6× daily AI usage', 'Smart Apply: up to 25 prepared applications / day', 'Priority evaluation & negotiation scripts'],
   },
   college_licence: {
     id: 'college_licence', name: 'Campus Licence', audience: 'college', ownerType: 'college',
