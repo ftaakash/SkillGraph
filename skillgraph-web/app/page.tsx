@@ -28,7 +28,14 @@ function useLandingStats() {
   return stats;
 }
 
-const TICKER_SKILLS = ["REACT", "TYPESCRIPT", "KUBERNETES", "AI/ML", "RUST", "AWS", "GRAPHQL", "DOCKER", "SYSTEM DESIGN", "NODE.JS"];
+// Technologies Indian tech job postings ask for most often, across roles
+const TICKER_SKILLS = [
+  "PYTHON", "JAVA", "JAVASCRIPT", "TYPESCRIPT", "REACT", "NEXT.JS", "NODE.JS", "SPRING BOOT", "SQL", "POSTGRESQL",
+  "MONGODB", "AWS", "AZURE", "GOOGLE CLOUD", "DOCKER", "KUBERNETES", "TERRAFORM", "CI/CD", "LINUX", "GIT",
+  "GENERATIVE AI", "LLMS", "MACHINE LEARNING", "PYTORCH", "TENSORFLOW", "DATA ENGINEERING", "APACHE SPARK", "KAFKA",
+  "REDIS", "POWER BI", "GO", "RUST", "C++", "KOTLIN", "FLUTTER", "REACT NATIVE", "GRAPHQL", "MICROSERVICES",
+  "SYSTEM DESIGN", "CYBERSECURITY",
+];
 
 const FEATURES = [
   {
@@ -118,8 +125,17 @@ const LandingPage = () => {
 
       {/* Ticker tape */}
       <div className="relative z-10 bg-card/80 border-b border-border overflow-hidden">
-        <div className="animate-ticker whitespace-nowrap py-1.5 text-xs font-body text-muted-foreground">
-          {TICKER_SKILLS.map(skill => <span key={skill} className="mx-8">{skill}</span>)}
+        {/* Two copies of the list in one track: scrolling by half its width loops without a gap */}
+        <div className="flex w-max animate-ticker hover:[animation-play-state:paused] motion-reduce:animate-none py-1.5 text-xs font-body text-muted-foreground">
+          {[0, 1].map(copy => (
+            <div key={copy} className="flex shrink-0" aria-hidden={copy === 1 || undefined}>
+              {TICKER_SKILLS.map(skill => (
+                <span key={skill} className="mx-6 whitespace-nowrap">
+                  <span className="text-primary/70 mr-2" aria-hidden>◆</span>{skill}
+                </span>
+              ))}
+            </div>
+          ))}
         </div>
       </div>
 

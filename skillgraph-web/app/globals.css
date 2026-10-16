@@ -61,7 +61,7 @@
   --animate-accordion-up: accordion-up 0.2s ease-out;
   --animate-pulse-glow: pulse-glow 3s ease-in-out infinite;
   --animate-float: float 6s ease-in-out infinite;
-  --animate-ticker: ticker 20s linear infinite;
+  --animate-ticker: ticker 120s linear infinite;
 
   @keyframes accordion-down {
     from { height: 0; }
@@ -80,8 +80,9 @@
     50% { transform: translateY(-10px); }
   }
   @keyframes ticker {
-    0% { transform: translateX(100%); }
-    100% { transform: translateX(-100%); }
+    /* The track holds the list twice, so moving it by half its width loops seamlessly */
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
   }
 }
 
