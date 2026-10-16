@@ -34,6 +34,7 @@ const csv = (s: string) => s.split(",").map(x => x.trim()).filter(Boolean);
 interface AppStats {
   total: number;
   preparedToday: number;
+  handledToday?: number;
   readyToApply: number;
   avgMatchScore: number;
 }
@@ -87,7 +88,7 @@ export default function OpenClawPage() {
   useEffect(() => { 
     loadData();
     // Poll for updates every 15 seconds to reflect background agent applications
-    const interval = setInterval(loadData, 15000);
+    const interval = setInterval(() => { if (!document.hidden) loadData(); }, 15000);
     return () => clearInterval(interval);
   }, [loadData]);
 
@@ -178,7 +179,7 @@ export default function OpenClawPage() {
         <div className="mb-6">
           <AgentStatusCard
             isActive={config?.isActive ?? false}
-            preparedToday={stats.preparedToday}
+            preparedToday={stats.handledToday ?? stats.preparedToday}
             readyToApply={stats.readyToApply}
             dailyLimit={config?.dailyLimit ?? 10}
             totalApplications={stats.total}

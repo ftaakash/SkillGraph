@@ -21,7 +21,7 @@ export async function PATCH(
     if (!parsed.success) return badRequest(`status must be one of: ${USER_SETTABLE_STATUSES.join(', ')}`)
 
     const { id } = await params
-    const existing = await prisma.openClawApplication.findUnique({ where: { id }, select: { userId: true } })
+    const existing = await prisma.openClawApplication.findUnique({ where: { id }, select: { userId: true, status: true, submittedVia: true } })
     if (!existing || existing.userId !== userId) {
       return NextResponse.json({ error: 'Application not found' }, { status: 404 })
     }
@@ -30,8 +30,10 @@ export async function PATCH(
       where: { id },
       data: {
         status: parsed.data.status,
-        // appliedAt marks when the student actually applied
-        ...(parsed.data.status === 'Applied' ? { appliedAt: new Date() } : {}),
+        // appliedAt marks when the student actually applied; the student submitted it themselves
+        ...(parsed.data.status === 'Applied' && existing.status !== 'Applied'
+          ? { appliedAt: new Date(), submittedVia: existing.submittedVia ?? 'manual' }
+          : {}),
       },
     })
     return ok({ application: updated })

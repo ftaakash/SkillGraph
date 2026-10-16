@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Terminal, Plus, ChevronRight, BarChart2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import NegotiationModal from './NegotiationModal'
+import { statusLabel, recommendationLabel, submittedViaLabel, parseTailoringNotes } from './labels'
 
 interface Application {
   id: string
@@ -29,6 +30,7 @@ interface Application {
   }
   tailoringNotes?: string | null
   resumeVersionId?: string | null
+  submittedVia?: string | null
 }
 
 const GRADE_COLORS: Record<string, string> = {
@@ -55,13 +57,6 @@ const STATUS_COLORS: Record<string, string> = {
   Duplicate:      'text-zinc-500',
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  Pending:       'Evaluated',
-  ReadyToApply:  'Ready to apply',
-  UnableToApply: 'Not submitted',
-  Failed:        'Not submitted',
-}
-
 // Statuses where the student still has to apply on the employer's site
 const AWAITING_STUDENT = ['Pending', 'ReadyToApply']
 
@@ -75,12 +70,21 @@ export default function PipelineDashboard() {
   const [selected, setSelected] = useState<Application | null>(null)
   const [negListing, setNegListing] = useState<{ id: string; company: string; role: string } | null>(null)
   const [submitMsg, setSubmitMsg] = useState('')
+  const [tailoring, setTailoring] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState('')
 
   const loadApps = useCallback(async () => {
-    const res = await fetch('/api/openclaw/applications')
-    const data = await res.json()
-    setApplications(data.applications ?? [])
-    setLoading(false)
+    try {
+      const res = await fetch('/api/openclaw/applications')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error)
+      setApplications(data.applications ?? [])
+      setLoadError('')
+    } catch (err) {
+      setLoadError((err as Error).message || 'Could not load your pipeline. Retrying…')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -133,13 +137,35 @@ export default function PipelineDashboard() {
   }
 
   const markApplied = async (appId: string) => {
-    await fetch(`/api/openclaw/applications/${appId}`, {
+    const res = await fetch(`/api/openclaw/applications/${appId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'Applied' }),
-    })
+    }).catch(() => null)
+    if (!res?.ok) {
+      setSubmitMsg('✗ Could not update the application. Try again.')
+      return
+    }
     loadApps()
     setSelected(null)
+  }
+
+  // A résumé tailored to a job the student evaluated themselves
+  const tailor = async (appId: string) => {
+    setTailoring(appId)
+    setSubmitMsg('')
+    try {
+      const res = await fetch(`/api/openclaw/applications/${appId}/tailor`, { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error)
+      setSubmitMsg('✓ Résumé tailored to this job. Download it with the CV button.')
+      setSelected(s => (s && s.id === appId ? { ...s, ...data.application } : s))
+      loadApps()
+    } catch (err) {
+      setSubmitMsg(`✗ ${(err as Error).message || 'Could not tailor the résumé. Try again.'}`)
+    } finally {
+      setTailoring(null)
+    }
   }
 
   const calculateGrade = (s: number) => {
@@ -224,37 +250,36 @@ export default function PipelineDashboard() {
           OpenClaw evaluates and prepares. You submit on the employer’s site (the browser extension can fill the form), unless you turned on auto-submit and the employer is connected to SkillGraph.
         </p>
       </div>
+      {loadError && <p className="text-xs px-1 text-yellow-400" role="alert">{loadError}</p>}
       {submitMsg && <p className={`text-xs px-1 ${submitMsg.startsWith('✓') ? 'text-green-400' : 'text-yellow-400'}`}>{submitMsg}</p>}
 
       {/* Pipeline Table */}
       <div className="flex-1 bg-[#0A0D14] border border-zinc-800 rounded-xl overflow-hidden flex flex-col">
         {/* Table Header */}
-        <div className="grid grid-cols-[60px_1fr_1fr_80px_100px_120px] gap-3 px-4 py-2 border-b border-zinc-800 text-[10px] text-zinc-500 uppercase tracking-widest">
+        <div className="grid grid-cols-[48px_1fr_1fr_52px_104px_196px] gap-3 px-4 py-2 border-b border-zinc-800 text-[10px] text-zinc-500 uppercase tracking-widest">
           <span>Grade</span><span>Company</span><span>Role</span><span>Score</span><span>Status</span><span>Action</span>
         </div>
 
         {/* Rows */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="flex items-center justify-center py-16 text-cyan-500 text-xs tracking-widest animate-pulse">INITIALIZING PIPELINE...</div>
+            <div className="flex items-center justify-center py-16 text-cyan-500 text-xs tracking-widest animate-pulse">Loading your pipeline…</div>
           ) : applications.length === 0 ? (
-            <div className="flex items-center justify-center py-16 text-zinc-600 text-xs tracking-widest">NO ENTRIES — ADD A JOB LINK OR DESCRIPTION TO BEGIN</div>
+            <div className="flex items-center justify-center py-16 text-zinc-600 text-xs tracking-widest">Nothing here yet. Add a job link or paste a job description above.</div>
           ) : (
             applications.map(app => {
               let parsedEvals = app.EvaluationResult
-              if (!parsedEvals && app.tailoringNotes) {
-                try {
-                  const notes = JSON.parse(app.tailoringNotes)
-                  parsedEvals = {
-                    grade: notes.grade || '?',
-                    totalScore: notes.matchScore || app.matchScore || 0,
-                    recommendation: notes.recommendation || '',
-                    keyStrengths: notes.keyStrengths || [],
-                    keyWeaknesses: notes.keyWeaknesses || [],
-                    negotiationLeverage: '',
-                    dimensions: {}
-                  }
-                } catch(e) {}
+              const notes = parseTailoringNotes(app.tailoringNotes).evaluation
+              if (!parsedEvals && notes) {
+                parsedEvals = {
+                  grade: notes.grade || '?',
+                  totalScore: notes.matchScore || app.matchScore || 0,
+                  recommendation: notes.recommendation || '',
+                  keyStrengths: notes.keyStrengths || [],
+                  keyWeaknesses: notes.keyWeaknesses || [],
+                  negotiationLeverage: '',
+                  dimensions: {}
+                }
               }
 
               const score = parsedEvals?.totalScore ?? app.matchScore ?? 0
@@ -269,7 +294,7 @@ export default function PipelineDashboard() {
               return (
                 <div
                   key={app.id}
-                  className="grid grid-cols-[60px_1fr_1fr_80px_100px_120px] gap-3 px-4 py-3 border-b border-zinc-800/50 hover:bg-zinc-900/50 transition items-center cursor-pointer"
+                  className="grid grid-cols-[48px_1fr_1fr_52px_104px_196px] gap-3 px-4 py-3 border-b border-zinc-800/50 hover:bg-zinc-900/50 transition items-center cursor-pointer"
                   onClick={() => setSelected({ ...app, EvaluationResult: parsedEvals, Listing: listing })}
                 >
                   <span className={`text-xs font-black px-2 py-0.5 rounded text-center w-fit ${GRADE_COLORS[grade] ?? 'text-zinc-400'}`}>{grade}</span>
@@ -280,9 +305,15 @@ export default function PipelineDashboard() {
                     title={status === 'UnableToApply' || status === 'Failed' ? 'Created by the retired auto-apply agent — apply on the posting yourself' : status}
                     className={`text-xs font-semibold cursor-help ${STATUS_COLORS[status] ?? 'text-zinc-400'}`}
                   >
-                    {STATUS_LABELS[status] ?? status}
+                    {statusLabel(status)}
+                    {status === 'Applied' && submittedViaLabel(app.submittedVia) && (
+                      <span className="block text-[9px] font-normal text-zinc-500">{submittedViaLabel(app.submittedVia)}</span>
+                    )}
                   </span>
                   <div className="flex gap-1 items-center" onClick={e => e.stopPropagation()}>
+                    {AWAITING_STUDENT.includes(status) && !app.resumeVersionId && (
+                      <Button size="sm" variant="outline" onClick={() => tailor(app.id)} disabled={tailoring !== null} title="Build a résumé tailored to this job" className="border-primary/40 text-primary text-[10px] h-6 px-2">{tailoring === app.id ? '…' : 'Tailor CV'}</Button>
+                    )}
                     {AWAITING_STUDENT.includes(status) && (
                       <Button size="sm" onClick={() => markApplied(app.id)} title="I've submitted this application" className="bg-green-700 hover:bg-green-600 text-white text-[10px] h-6 px-2 font-bold">I applied</Button>
                     )}
@@ -337,7 +368,7 @@ export default function PipelineDashboard() {
               <>
                 <div>
                   <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-2">Recommendation</p>
-                  <p className="text-cyan-400 text-sm font-semibold">{selected.EvaluationResult.recommendation}</p>
+                  <p className="text-cyan-400 text-sm font-semibold">{recommendationLabel(selected.EvaluationResult.recommendation)}</p>
                 </div>
 
                 <div>
@@ -381,15 +412,41 @@ export default function PipelineDashboard() {
               </>
             )}
 
-            {!selected.EvaluationResult && selected.tailoringNotes && (
-              <div>
-                <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">What to emphasise</p>
-                <p className="text-zinc-300 text-xs leading-relaxed">{selected.tailoringNotes}</p>
-              </div>
+            {(() => {
+              const { advice, notSubmittedReason } = parseTailoringNotes(selected.tailoringNotes)
+              return (
+                <>
+                  {advice && (
+                    <div>
+                      <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">What to emphasise</p>
+                      <p className="text-zinc-300 text-xs leading-relaxed">{advice}</p>
+                    </div>
+                  )}
+                  {notSubmittedReason && (
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+                      <p className="text-amber-300 text-[10px] uppercase tracking-widest mb-1">Why it wasn’t submitted for you</p>
+                      <p className="text-amber-100 text-xs leading-relaxed">{notSubmittedReason}</p>
+                    </div>
+                  )}
+                </>
+              )
+            })()}
+
+            {selected.status === 'Applied' && submittedViaLabel(selected.submittedVia) && (
+              <p className="text-xs text-cyan-300">Applied · {submittedViaLabel(selected.submittedVia)}</p>
             )}
 
             {AWAITING_STUDENT.includes(selected.status) && (
               <div className="space-y-2 pt-2">
+                {selected.resumeVersionId ? (
+                  <Button asChild variant="outline" className="w-full border-primary/40 text-primary">
+                    <a href={`/api/resume/download/${selected.resumeVersionId}`} target="_blank" rel="noopener noreferrer">Download tailored résumé</a>
+                  </Button>
+                ) : (
+                  <Button onClick={() => tailor(selected.id)} disabled={tailoring !== null} variant="outline" className="w-full border-primary/40 text-primary">
+                    {tailoring === selected.id ? 'Tailoring…' : 'Tailor my résumé to this job'}
+                  </Button>
+                )}
                 {selected.Listing?.sourceUrl && (
                   <Button asChild className="w-full bg-cyan-600 hover:bg-cyan-500 text-black font-bold">
                     <a href={selected.Listing.sourceUrl} target="_blank" rel="noopener noreferrer">Open posting & apply ↗</a>

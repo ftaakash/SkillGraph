@@ -62,10 +62,31 @@ async function computeSkillDemand(role: string | null) {
     }
   }
 
+  // Change = shift in the share of postings that ask for the skill, versus the previous week with data
+  const roleFilter = role ? { role: { contains: role, mode: 'insensitive' as const } } : {}
+  const prev = await prisma.jobPosting.findFirst({
+    where: { demandWeek: { lt: weekToReport }, ...roleFilter },
+    orderBy: { demandWeek: 'desc' },
+    select: { demandWeek: true },
+  })
+  const prevJobs = prev
+    ? await prisma.jobPosting.findMany({ where: { demandWeek: prev.demandWeek, ...roleFilter }, select: { requiredSkills: true }, take: 500 })
+    : []
+  const prevFreq: Record<string, number> = {}
+  for (const job of prevJobs) {
+    for (const skill of (job.requiredSkills as string[]) || []) prevFreq[skill] = (prevFreq[skill] || 0) + 1
+  }
+  const share = (count: number, total: number) => (total > 0 ? (count / total) * 100 : 0)
+
   const topSkills = Object.entries(skillFreq)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 20)
-    .map(([skill, count]) => ({ skill, count }))
+    .map(([skill, count]) => ({
+      skill,
+      count,
+      // Percentage points; null when there is no earlier week to compare with
+      change: prevJobs.length > 0 ? Math.round(share(count, jobs.length) - share(prevFreq[skill] ?? 0, prevJobs.length)) : null,
+    }))
 
   const lastScraped = await prisma.jobPosting.findFirst({
     orderBy: { scrapedAt: 'desc' },

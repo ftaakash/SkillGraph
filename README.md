@@ -12,11 +12,11 @@ and apply with a résumé tailored to every job.
 ![Postgres](https://img.shields.io/badge/Postgres_·_Prisma-336791?style=for-the-badge&logo=postgresql&logoColor=white)
 ![Status](https://img.shields.io/badge/Status-Pre--launch-FFB020?style=for-the-badge)
 
-[Features](#-features) · [Architecture](#-architecture) · [Tech stack](#-tech-stack) · [Run locally](#-run-locally) · [Roadmap](#-roadmap) · [Decision records](#-decision-records)
+[Features](#-features) · [Gallery](#-gallery) · [Architecture](#-architecture) · [Tech stack](#-tech-stack) · [Run locally](#-run-locally) · [Roadmap](#-roadmap) · [Decision records](#-decision-records)
 
 <br/>
 
-<img src="skillgraph-web/public/screenshots/landing.png" width="860" alt="SkillGraph landing page"/>
+<img src="docs/screenshots/landing.webp" width="860" alt="SkillGraph landing page"/>
 
 </div>
 
@@ -44,7 +44,8 @@ and apply with a résumé tailored to every job.
 - **A full résumé tailored to each job,** rebuilt from your uploaded résumé. It never invents employers, projects, numbers or skills.
 - **Auto-submit (opt-in)** through the employer's own Greenhouse or Lever API, for employers who connect their hiring system to SkillGraph. If a form asks something only you can answer, it waits for you.
 - **Browser extension** for LinkedIn, Naukri, Glassdoor and Superset ([`extension/`](extension/README.md)). It checks the job against your filters, tailors the résumé and fills the application form in your own browser. You press Submit.
-- **10-dimension fit evaluation** for any job link or pasted description, plus a STAR story bank and salary-negotiation scripts that use placeholders instead of invented facts.
+- **10-dimension fit evaluation** for any job link or pasted description, with one click to tailor your résumé to it, plus a STAR story bank and salary-negotiation scripts that use placeholders instead of invented facts.
+- **A clear pipeline:** every application shows whether it was submitted for you, via the extension or by you, and why one wasn't auto-submitted (e.g. "the form asks your expected CTC").
 - **Never** logs in to job sites from our servers and never stores your passwords, cookies or session tokens for them.
 
 ### 📝 Résumé builder
@@ -284,13 +285,64 @@ CI runs the typecheck, lint, unit tests and Postgres integration tests on every 
 
 ## 🖼 Gallery
 
-<p align="center">
-  <img src="skillgraph-web/public/screenshots/dashboard.png" width="48%" alt="Student dashboard"/>
-  <img src="skillgraph-web/public/screenshots/agent.png" width="48%" alt="OpenClaw agent"/>
-</p>
-<p align="center">
-  <img src="skillgraph-web/public/screenshots/sprint.png" width="80%" alt="7-day sprint"/>
-</p>
+<sub>Screenshots use fictional demo data.</sub>
+
+### Student
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/dashboard.webp" alt="Student dashboard"/><br/><b>Dashboard</b> — skills, open gaps, this week's sprint, and a Today row with attendance, next class, next round and unread notices</td>
+    <td width="50%"><img src="docs/screenshots/skillgap.webp" alt="Market intelligence"/><br/><b>Market intelligence</b> — skill demand from this week's postings and the real change from last week</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/sprint.webp" alt="7-day sprint"/><br/><b>7-day sprint</b> — a resource, task and checkpoint for each day, with progress saved per day</td>
+    <td><img src="docs/screenshots/resume.webp" alt="Résumé builder"/><br/><b>Résumé builder</b> — drafts tailored to a job description, AI Enhance per section, ATS score and PDF export</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/benchmark.webp" alt="Benchmark"/><br/><b>Benchmark</b> — your readiness against students targeting the same role</td>
+    <td><img src="docs/screenshots/academics.webp" alt="Academics"/><br/><b>Academics</b> — attendance per course, with how many classes to attend or how many you can still miss</td>
+  </tr>
+</table>
+
+### OpenClaw
+
+<table>
+  <tr>
+    <td width="100%"><img src="docs/screenshots/openclaw.webp" alt="OpenClaw agent"/><br/><b>OpenClaw</b> — filters, opt-in auto-submit and the pipeline: graded matches, tailored résumés, and how each application was submitted (for you, via the extension, or by you)</td>
+  </tr>
+</table>
+
+### Placement workflow
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/jobs.webp" alt="Campus job board"/><br/><b>Campus job board</b> — eligibility, CTC and stipend, apply-by countdowns, and "Mark applied" for other portals</td>
+    <td width="50%"><img src="docs/screenshots/jobdetail.webp" alt="Job details"/><br/><b>Job details</b> — the hiring process, with where you stand in each round</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/tracker.webp" alt="Job tracker"/><br/><b>Job tracker</b> — every application, round by round</td>
+    <td><img src="docs/screenshots/participation.webp" alt="Participation"/><br/><b>Participation</b> — confirm or decline rounds, and check in with the venue code</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/calendar.webp" alt="Placement calendar"/><br/><b>Calendar</b> — rounds by week, month or agenda</td>
+    <td><img src="docs/screenshots/notices.webp" alt="Notice board"/><br/><b>Notices</b> — placement-cell announcements with read state</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/chat.webp" alt="Drive chats"/><br/><b>Drive chats</b> — one group chat per drive for applicants and the placement cell</td>
+  </tr>
+</table>
+
+### Placement cell
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/faculty-dashboard.webp" alt="Placement cell dashboard"/><br/><b>Placement cell dashboard</b> — students, readiness, active jobs and placements</td>
+    <td width="50%"><img src="docs/screenshots/faculty-jobs.webp" alt="Job postings"/><br/><b>Job postings</b> — drives, CSV import from other placement portals, and applications</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/faculty-analytics.webp" alt="Cohort analytics"/><br/><b>Cohort analytics</b> — the college's readiness and skill gaps</td>
+  </tr>
+</table>
 
 ---
 

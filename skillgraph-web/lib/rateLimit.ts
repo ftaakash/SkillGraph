@@ -187,6 +187,7 @@ export const RATE_LIMIT_RULES: RateLimitRule[] = [
       p.startsWith('/api/openclaw/negotiate') ||
       p.startsWith('/api/openclaw/stories') ||
       p.startsWith('/api/openclaw/pipeline') ||
+      (p.startsWith('/api/openclaw/applications/') && p.endsWith('/tailor')) ||
       p.startsWith('/api/extension/prepare'),
   },
   {
