@@ -21,6 +21,16 @@ export const NO_DEADLINE = Number.POSITIVE_INFINITY
 
 const timeLeft = (deadline: number) => deadline - Date.now()
 
+/** Unbiased (Fisher–Yates) shuffle; sort(() => Math.random() - 0.5) favours some positions. */
+export function shuffle<T>(items: T[]): T[] {
+  const out = [...items]
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
+}
+
 async function notify(to: string, subject: string, html: string, text: string) {
   if (!emailConfigured()) return false
   await sendEmail(to, subject, html, text)
@@ -38,12 +48,19 @@ export async function runBillingMaintenance() {
     where: { status: 'pending', createdAt: { lt: new Date(now.getTime() - 7 * DAY) } },
   })
 
-  // Remind the purchaser once, about 7 days before a period ends (only if no later period is already paid)
+  // Remind the purchaser once in the last 7 days of a period (only if no later period is already paid).
+  // "Once" is recorded in WebhookEvent rather than inferred from an exact time window, because
+  // Vercel Hobby cron can start anywhere within its hour.
   const ending = await prisma.subscription.findMany({
-    where: { status: 'active', periodEnd: { gt: new Date(now.getTime() + 6 * DAY), lte: new Date(now.getTime() + 7 * DAY) } },
+    where: { status: 'active', periodEnd: { gt: now, lte: new Date(now.getTime() + 7 * DAY) } },
   })
+  const reminderId = (subscriptionId: string) => `renewal-reminder:${subscriptionId}`
+  const alreadySent = new Set(
+    (await prisma.webhookEvent.findMany({ where: { id: { in: ending.map(s => reminderId(s.id)) } }, select: { id: true } })).map(e => e.id),
+  )
   let reminded = 0
   for (const sub of ending) {
+    if (alreadySent.has(reminderId(sub.id))) continue
     const renewed = await prisma.subscription.findFirst({
       where: { ownerType: sub.ownerType, ownerId: sub.ownerId, plan: sub.plan, status: 'active', periodStart: { gte: sub.periodEnd! } },
       select: { id: true },
@@ -60,7 +77,10 @@ export async function runBillingMaintenance() {
         `<p>Hi ${escapeHtml(buyer.name)},</p><p>Your <strong>${escapeHtml(planName)}</strong> plan ends on ${ends}. Renew to keep your benefits without interruption.</p><p><a href="${appUrl('/billing')}">Renew now →</a></p>`,
         `Hi ${buyer.name}, your ${planName} plan ends on ${ends}. Renew at ${appUrl('/billing')}`,
       )
-      if (sent) reminded++
+      if (sent) {
+        reminded++
+        await prisma.webhookEvent.create({ data: { id: reminderId(sub.id), provider: 'internal', type: 'renewal_reminder' } })
+      }
     } catch (err) {
       console.error(`[billing] reminder failed for subscription ${sub.id}:`, (err as Error).message)
     }
@@ -122,7 +142,7 @@ export async function runSprintGenerator(deadline: number) {
 export async function runOpenClawNightly(deadline: number) {
   const configs = await prisma.openClawConfig.findMany({ where: { isActive: true }, select: { userId: true } })
   // Random order, so a run that hits the deadline doesn't always leave out the same students
-  const order = configs.map(c => c.userId).sort(() => Math.random() - 0.5)
+  const order = shuffle(configs.map(c => c.userId))
   const outcome = { active: order.length, ran: 0, prepared: 0, submitted: 0, notReached: 0 }
   for (const userId of order) {
     // An agent run can take ~2 minutes; don't start one that can't finish
@@ -240,15 +260,21 @@ async function extractSkills(description: string): Promise<string[]> {
 }
 
 /**
- * Loads this week's postings role by role, skipping roles already loaded this week, so a run
+ * Loads this week's postings role by role, skipping roles loaded in the last 7 days, so a run
  * that stops at the deadline is completed by the next one. Each role is written in one
  * transaction, so a role is either fully loaded or not at all.
  */
 export async function runMarketRefresh(deadline: number) {
   if (!process.env.RAPIDAPI_KEY) return { skipped: 'RAPIDAPI_KEY is not set' }
   const week = currentDemandWeek()
+  // A role counts as loaded if it was loaded in the last 7 days. (The stored week number has no
+  // year, so matching on it would treat last year's rows for the same week as this week's.)
   const done = new Set(
-    (await prisma.jobPosting.findMany({ where: { demandWeek: week, source: 'jsearch' }, distinct: ['role'], select: { role: true } })).map(r => r.role),
+    (await prisma.jobPosting.findMany({
+      where: { source: 'jsearch', scrapedAt: { gte: new Date(Date.now() - 7 * DAY) } },
+      distinct: ['role'],
+      select: { role: true },
+    })).map(r => r.role),
   )
   const outcome = { week, loaded: [] as string[], alreadyLoaded: done.size, remaining: 0, failed: [] as string[] }
   for (const role of MARKET_ROLES) {

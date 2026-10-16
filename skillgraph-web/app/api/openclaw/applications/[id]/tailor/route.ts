@@ -5,6 +5,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { ok, unauthorized, badRequest, serverError, aiFailure } from '@/lib/api'
 import { createTailoredResume, NoResumeSource } from '@/lib/resume/tailor'
+import { tailoringLimitReached } from '@/lib/openclaw/limits'
 
 // POST /api/openclaw/applications/:id/tailor — build a résumé tailored to this job (for jobs the
 // student evaluated themselves; the agent and the extension tailor automatically)
@@ -18,6 +19,9 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       include: { listing: true },
     })
     if (!app) return NextResponse.json({ error: 'Application not found' }, { status: 404 })
+
+    const limited = await tailoringLimitReached(session.user.id)
+    if (limited) return limited
 
     const { listing } = app
     const resume = await createTailoredResume(

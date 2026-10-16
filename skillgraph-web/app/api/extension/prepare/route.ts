@@ -9,6 +9,7 @@ import { checkFilters, filtersFromConfig } from '@/lib/openclaw/filters'
 import { OPEN_STATUSES } from '@/lib/openclaw/status'
 import { createTailoredResume, resumeFileName, NoResumeSource } from '@/lib/resume/tailor'
 import { readPrivateFile } from '@/lib/storage'
+import { tailoringLimitReached } from '@/lib/openclaw/limits'
 
 const bodySchema = z.object({
   platform: z.enum(EXTENSION_PLATFORMS),
@@ -64,6 +65,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const limited = await tailoringLimitReached(userId)
+    if (limited) return limited
     const resume = await createTailoredResume(userId, { company: job.company, role: job.role, jdText: job.jdText, sourceUrl: job.url })
 
     const applicationId = existing

@@ -68,6 +68,14 @@ test('bulk AI runs and paid job-search lookups are rate limited', async () => {
   assert.equal((await checkRateLimit('GET', '/api/market/india', 'user:market')).limited, false)
 })
 
+test('made-up extension tokens share one per-IP ceiling', async () => {
+  let last
+  for (let i = 0; i < 601; i++) last = await checkRateLimit('GET', '/api/extension/me', `ext:forged-${i}`, '9.9.9.9')
+  assert.equal(last?.limited, true)
+  assert.equal(last?.limited && last.rule.name, 'extension_ip')
+  assert.equal((await checkRateLimit('GET', '/api/extension/me', 'ext:real', '8.8.8.8')).limited, false)
+})
+
 // ─── Consent-based identity reveal ───────────────────────────────────────────
 
 const student = {
