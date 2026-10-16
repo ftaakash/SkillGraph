@@ -48,11 +48,11 @@ export default function AgentStatusCard({
                 <span className={`text-xs font-semibold ${
                   isActive ? "text-green-500" : "text-muted-foreground"
                 }`}>
-                  {running ? "RUNNING — Evaluating matches" : isActive ? "ACTIVE — Prepares matches nightly" : "PAUSED"}
+                  {running ? "RUNNING — Evaluating matches" : isActive ? "ACTIVE — Runs every morning" : "PAUSED"}
                 </span>
               </div>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Finds roles, scores fit and tailors your résumé. You review and submit every application yourself.
+                Finds roles inside your filters, scores fit and tailors your résumé to each. You submit, unless auto-submit is on and the employer is connected to SkillGraph.
               </p>
             </div>
           </div>
