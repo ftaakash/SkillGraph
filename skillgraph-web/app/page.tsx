@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SkillGraphLogo from "@/components/SkillGraphLogo";
-import WallStreetVideo from "@/components/WallStreetVideo";
+import GridGlowBackground from "@/components/GridGlowBackground";
 import PageTransition from "@/components/PageTransition";
 
 // Live counts from /api/stats (cached at the CDN); nothing is shown until real numbers arrive
@@ -113,7 +113,7 @@ const LandingPage = () => {
   <PageTransition>
     <div className="min-h-screen bg-background relative overflow-hidden">
       <div className="absolute inset-x-0 top-0 h-screen">
-        <WallStreetVideo />
+        <GridGlowBackground />
       </div>
 
       {/* Ticker tape */}
