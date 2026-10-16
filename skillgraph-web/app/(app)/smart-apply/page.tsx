@@ -39,7 +39,7 @@ interface AppStats {
   avgMatchScore: number;
 }
 
-export default function OpenClawPage() {
+export default function SmartApplyPage() {
   const [config, setConfig] = useState<OpenClawConfig | null>(null);
   const [applications, setApplications] = useState<any[]>([]);
   const [stats, setStats] = useState<AppStats>({ total: 0, preparedToday: 0, readyToApply: 0, avgMatchScore: 0 });
@@ -164,7 +164,7 @@ export default function OpenClawPage() {
 
   if (loading) {
     return (
-      <DashboardLayout title="OpenClaw Agent">
+      <DashboardLayout title="Smart Apply">
         <div className="flex h-64 items-center justify-center">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
@@ -174,7 +174,7 @@ export default function OpenClawPage() {
 
   return (
     <PageTransition>
-      <DashboardLayout title="OpenClaw Agent">
+      <DashboardLayout title="Smart Apply">
         {/* Agent Status */}
         <div className="mb-6">
           <AgentStatusCard
@@ -197,7 +197,7 @@ export default function OpenClawPage() {
           <div className="lg:col-span-2 space-y-4">
             <div className="bg-card border border-border rounded-lg p-5 shadow-sm">
               <h3 className="font-heading text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-                <Settings2 size={16} className="text-primary" /> Agent Configuration
+                <Settings2 size={16} className="text-primary" /> Settings
               </h3>
 
               <div className="space-y-3.5">
@@ -320,7 +320,7 @@ export default function OpenClawPage() {
                   <span className="text-xs leading-relaxed">
                     <span className="font-semibold text-foreground flex items-center gap-1"><Send size={12} /> Submit for me where the employer allows it</span>
                     <span className="text-muted-foreground">
-                      For employers that have connected their hiring system to SkillGraph, OpenClaw submits your tailored résumé and profile for jobs that pass your filters.
+                      For employers that have connected their hiring system to SkillGraph, Smart Apply submits your tailored résumé and profile for jobs that pass your filters.
                       Everything else waits for you to submit, with the browser extension or by hand. If a form asks a question only you can answer, it waits for you.
                     </span>
                   </span>

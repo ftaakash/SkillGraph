@@ -14,7 +14,7 @@ export default function PrivacyPage() {
       <h2>What we collect</h2>
       <ul>
         <li><strong>Account data</strong>: name, email, password (stored only as a salted hash), role, and the date and version of the terms you accepted.</li>
-        <li><strong>Profile data you provide</strong>: college, branch, year, CGPA, target role, LinkedIn/GitHub links, and OpenClaw preferences such as target roles, cities, application email and phone number.</li>
+        <li><strong>Profile data you provide</strong>: college, branch, year, CGPA, target role, LinkedIn/GitHub links, and Smart Apply preferences such as target roles, cities, application email and phone number.</li>
         <li><strong>Résumé data</strong>: the PDF you upload and the skills, projects and education extracted from it; tailored résumés generated for job applications.</li>
         <li><strong>Academic data</strong> (only if you or your college provide it): attendance, marks, timetable, academic calendar and your register number, from your university once you connect it, or imported by your college&apos;s placement cell. If you connect by signing in to your university portal, your university password is used once to sign in and is never stored; we keep only the encrypted portal session, which you can remove by disconnecting.</li>
         <li><strong>Activity data</strong>: skill gaps, learning sprints, job evaluations, applications you track, interview stories, notifications, and AI usage counts used to enforce fair-use limits.</li>
@@ -41,13 +41,13 @@ export default function PrivacyPage() {
         joined. Placement drives your college imports may link to its placement portal; you apply there yourself.
       </p>
 
-      <h2>OpenClaw and job sites</h2>
+      <h2>Smart Apply and job sites</h2>
       <p>
-        OpenClaw never logs into job boards on your behalf and never stores your credentials or cookies for third-party sites. It reads
+        Smart Apply never logs into job boards on your behalf and never stores your credentials or cookies for third-party sites. It reads
         public job listings from official APIs and licensed job-data providers, and prepares a résumé tailored to each job from your own résumé.
       </p>
       <p>
-        If you turn on <em>Submit for me where the employer allows it</em>, OpenClaw sends your name, contact details, LinkedIn/GitHub links,
+        If you turn on <em>Submit for me where the employer allows it</em>, Smart Apply sends your name, contact details, LinkedIn/GitHub links,
         college and tailored résumé to the hiring system of an employer that has connected it to SkillGraph, for jobs that pass your filters.
         It is off by default and you can turn it off at any time. Every other application is submitted by you.
       </p>
@@ -78,7 +78,7 @@ export default function PrivacyPage() {
         <li><strong>Access and portability</strong>: download all your data as JSON from <em>Profile → Privacy &amp; data</em>.</li>
         <li><strong>Correction</strong>: edit your profile at any time.</li>
         <li><strong>Erasure</strong>: delete your account from <em>Profile → Privacy &amp; data</em>.</li>
-        <li><strong>Withdraw consent</strong>: turn off recruiter visibility, revoke identity reveals, or pause OpenClaw.</li>
+        <li><strong>Withdraw consent</strong>: turn off recruiter visibility, revoke identity reveals, or pause Smart Apply.</li>
       </ul>
       <p>
         For any privacy request or grievance, contact <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. We aim to respond within 30 days.

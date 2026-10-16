@@ -26,7 +26,7 @@ and apply with a résumé tailored to every job.
 
 | For students | For placement cells | For recruiters |
 |---|---|---|
-| Skill-gap analysis, 7-day sprints, résumé builder, OpenClaw auto-apply with a browser extension, academics and attendance planning, campus drives with round-by-round tracking | An isolated college workspace: drives and hiring rounds, check-in, notices, drive chats, CSV imports, cohort analytics and placement reports | Anonymous skill-based talent discovery, a shortlist, and contact details shared only after the student accepts |
+| Skill-gap analysis, 7-day sprints, résumé builder, Smart Apply (auto-apply) with a browser extension, academics and attendance planning, campus drives with round-by-round tracking | An isolated college workspace: drives and hiring rounds, check-in, notices, drive chats, CSV imports, cohort analytics and placement reports | Anonymous skill-based talent discovery, a shortlist, and contact details shared only after the student accepts |
 
 ---
 
@@ -39,7 +39,9 @@ and apply with a résumé tailored to every job.
 - **Benchmark.** See where your readiness sits against students targeting the same role, nationally and in your college.
 - **Project ideas, LinkedIn optimiser and India career advisor.** AI suggestions grounded in your own skills and gaps.
 
-### 🤖 OpenClaw — auto-apply ([ADR-004](docs/adr/ADR-004-openclaw-auto-apply.md))
+### 🤖 Smart Apply — auto-apply ([ADR-004](docs/adr/ADR-004-openclaw-auto-apply.md))
+<sub>Formerly called OpenClaw; the code, API routes and database still use `openclaw` names.</sub>
+
 - **Your filters decide.** Target roles, cities or remote, minimum CTC (reads "8-12 LPA", "6.5 Lacs P.A.", monthly pay), blocked companies, must-mention and skip keywords. Nothing outside them is prepared or submitted automatically.
 - **A full résumé tailored to each job,** rebuilt from your uploaded résumé. It never invents employers, projects, numbers or skills.
 - **Auto-submit (opt-in)** through the employer's own Greenhouse or Lever API, for employers who connect their hiring system to SkillGraph. If a form asks something only you can answer, it waits for you.
@@ -141,7 +143,7 @@ flowchart LR
     LIB --> MAIL
 ```
 
-### How an OpenClaw application flows
+### How a Smart Apply application flows
 
 ```mermaid
 sequenceDiagram
@@ -190,7 +192,7 @@ SkillGraph/
 │   ├── tests/                 unit tests + Postgres integration tests
 │   ├── workers/               optional long-running worker (alternative to Vercel Cron)
 │   └── vercel.json            cron schedules
-├── extension/                 OpenClaw browser extension (Chrome MV3)
+├── extension/                 Smart Apply browser extension (Chrome MV3)
 └── docs/adr/                  architecture decision records
 ```
 
@@ -230,7 +232,7 @@ npm run dev
 ```
 Open `http://localhost:3000`.
 
-**4. Browser extension (optional).** In `chrome://extensions`, turn on Developer mode, then **Load unpacked** → `extension/`. Connect it from **OpenClaw → Browser extension**. See [`extension/README.md`](extension/README.md).
+**4. Browser extension (optional).** In `chrome://extensions`, turn on Developer mode, then **Load unpacked** → `extension/`. Connect it from **Smart Apply → Browser extension**. See [`extension/README.md`](extension/README.md).
 
 ### ⏰ Scheduled jobs
 In production these run on **Vercel Cron** (`skillgraph-web/vercel.json` → `GET /api/cron/<job>`, authenticated with `CRON_SECRET`). Times are IST; on the Hobby plan each job starts within its scheduled hour.
@@ -239,9 +241,9 @@ In production these run on **Vercel Cron** (`skillgraph-web/vercel.json` → `GE
 |-----|------|--------------|
 | `market` | daily 01:30 | Loads this week's job postings and their skills, a few roles per run until all are done |
 | `billing` | daily 06:00 | Expires lapsed plans, removes abandoned checkouts, sends renewal reminders |
-| `openclaw` | daily 06:30 | OpenClaw run for students with the agent switched on |
+| `openclaw` | daily 06:30 | Smart Apply run for students who switched it on |
 | `sprints` | daily 07:00 | Creates a sprint for students with new high-urgency gaps |
-| `openclaw-dedupe` | daily 08:30 | Marks duplicate OpenClaw applications |
+| `openclaw-dedupe` | daily 08:30 | Marks duplicate Smart Apply applications |
 | `reports` | 1st of month 08:00 | Monthly readiness emails (needs SendGrid) |
 
 Each run stops starting new work after 4½ minutes, and the next run continues. To run one by hand: `curl -H "Authorization: Bearer $CRON_SECRET" https://<host>/api/cron/<job>`. Alternatively, host the same jobs as a long-running worker (`npm run worker` or `Dockerfile.worker`, needs `REDIS_URL`). Use one or the other, never both.
@@ -262,12 +264,12 @@ CI runs the typecheck, lint, unit tests and Postgres integration tests on every 
 |-------|-------|--------|
 | **0 — Launch blockers** | Private résumé storage, fail-closed cron auth, security headers, rate limiting, validation, health check, CI | ✅ Done (git history purge pending) |
 | **1 — Data & storage** | Prisma migrations, indexes and constraints, private object storage, validated AI layer with quotas | ✅ Done |
-| **2 — OpenClaw compliance** | Remove the stealth automation and stored third-party cookies; official job sources only | ✅ Done |
+| **2 — Auto-apply compliance** | Remove the stealth automation and stored third-party cookies; official job sources only | ✅ Done |
 | **3 — Trust & operations** | Email verification, password reset, consent-based recruiter reveal, data rights, observability, tests | ✅ Done |
 | **4 — Commercial** | Razorpay billing and plan limits, college workspaces with tenant isolation, caching, load testing | ✅ Done (live Razorpay keys pending) |
 | **5 — Academics & drives** | Attendance, Smart Adjust, marks, timetable, campus drives, CSV imports, university sync providers | 🟡 SRM API key and Academia connector pending |
 | **6 — Placement workflow** | Hiring rounds, tracker, confirmation and check-in, calendar, notices, drive chats | ✅ Done |
-| **7 — OpenClaw auto-apply** | Filters, per-job résumés, partner ATS submission, browser extension | 🟡 Partner ATS keys, signed-in LinkedIn and Superset checks, Chrome Web Store listing pending |
+| **7 — Smart Apply** | Filters, per-job résumés, partner ATS submission, browser extension | 🟡 Partner ATS keys, signed-in LinkedIn and Superset checks, Chrome Web Store listing pending |
 | **8 — Scheduling** | Vercel Cron replaces the Redis worker | ✅ Done |
 
 ---
@@ -276,10 +278,10 @@ CI runs the typecheck, lint, unit tests and Postgres integration tests on every 
 
 | ADR | Decision |
 |-----|----------|
-| [ADR-001](docs/adr/ADR-001-production-architecture.md) | Production architecture and launch-readiness plan: modular monolith, compliant OpenClaw |
+| [ADR-001](docs/adr/ADR-001-production-architecture.md) | Production architecture and launch-readiness plan: modular monolith, compliant auto-apply |
 | [ADR-002](docs/adr/ADR-002-academics-and-placement-drives.md) | Academics and placement drives: provider interface, CSV imports, attendance maths |
 | [ADR-003](docs/adr/ADR-003-placement-workflow.md) | Placement workflow: rounds, participation, calendar, notices, drive chat |
-| [ADR-004](docs/adr/ADR-004-openclaw-auto-apply.md) | OpenClaw auto-apply: filters, tailored résumés, partner ATS submission, browser extension |
+| [ADR-004](docs/adr/ADR-004-openclaw-auto-apply.md) | Smart Apply (formerly OpenClaw): filters, tailored résumés, partner ATS submission, browser extension |
 
 ---
 
@@ -304,11 +306,11 @@ CI runs the typecheck, lint, unit tests and Postgres integration tests on every 
   </tr>
 </table>
 
-### OpenClaw
+### Smart Apply
 
 <table>
   <tr>
-    <td width="100%"><img src="docs/screenshots/openclaw.webp" alt="OpenClaw agent"/><br/><b>OpenClaw</b> — filters, opt-in auto-submit and the pipeline: graded matches, tailored résumés, and how each application was submitted (for you, via the extension, or by you)</td>
+    <td width="100%"><img src="docs/screenshots/smart-apply.webp" alt="Smart Apply"/><br/><b>Smart Apply</b> — filters, opt-in auto-submit and the pipeline: graded matches, tailored résumés, and how each application was submitted (for you, via the extension, or by you)</td>
   </tr>
 </table>
 

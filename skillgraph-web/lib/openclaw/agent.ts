@@ -158,9 +158,9 @@ export async function processOpenClawAgent(userId: string, opts: { deadline?: nu
       data: {
         userId,
         type: 'system',
-        title: `OpenClaw: ${parts.join(', ')}`,
-        body: 'Each one has a résumé tailored to the job. Review them in OpenClaw.',
-        link: '/openclaw',
+        title: `Smart Apply: ${parts.join(', ')}`,
+        body: 'Each one has a résumé tailored to the job. Review them in Smart Apply.',
+        link: '/smart-apply',
       },
     }).catch(err => console.warn('[OpenClaw] notification failed:', err.message))
   }

@@ -164,7 +164,7 @@ export default function BillingPage() {
           </div>
           <div className="space-y-4">
             <Meter label="AI usage (last 24 h, tokens)" used={data.usage.aiTokens24h} limit={limits.aiTokensPerDay} />
-            {data.role === "STUDENT" && <Meter label="OpenClaw applications prepared today" used={data.usage.openclawPreparedToday} limit={limits.openclawPerDay} />}
+            {data.role === "STUDENT" && <Meter label="Smart Apply applications prepared today" used={data.usage.openclawPreparedToday} limit={limits.openclawPerDay} />}
             {data.role === "RECRUITER" && <Meter label="Contact requests this month" used={data.usage.revealRequestsThisMonth} limit={limits.revealRequestsPerMonth} />}
           </div>
         </section>

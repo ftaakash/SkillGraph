@@ -39,7 +39,7 @@ const studentNav = [
   { label: 'Academics',       path: '/academics',       icon: GraduationCap },
   { label: 'My Sprint',       path: '/sprint',          icon: Zap },
   { label: 'Skill Gap',       path: '/market',          icon: Target },
-  { label: 'OpenClaw Agent',  path: '/openclaw',        icon: Bot },       
+  { label: 'Smart Apply',     path: '/smart-apply',        icon: Bot },       
   { label: 'Resume Builder',  path: '/resume-builder',  icon: FileText },  
   { label: 'Campus Jobs',     path: '/jobs',            icon: Briefcase },
   { label: 'Job Tracker',     path: '/tracker',         icon: ListChecks },

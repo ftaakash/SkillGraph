@@ -334,12 +334,12 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-3">
               {myApplications.slice(0, 6).map((a) => (
-                <Link key={a.id} href={a.source === 'OpenClaw' ? '/openclaw' : a.jobPosting ? `/jobs/${a.jobPosting.id}` : '/tracker'}
+                <Link key={a.id} href={a.source === 'OpenClaw' ? '/smart-apply' : a.jobPosting ? `/jobs/${a.jobPosting.id}` : '/tracker'}
                   className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-border hover:border-primary/30 transition-colors">
                   <div>
                     <p className="text-sm font-medium text-foreground">{a.jobPosting?.title ?? 'Job'}</p>
                     <p className="text-xs text-muted-foreground">
-                      {a.jobPosting?.company} · {a.source === 'OpenClaw' ? 'OpenClaw' : 'Applied'} {shortDate.format(new Date(a.appliedAt))}
+                      {a.jobPosting?.company} · {a.source === 'OpenClaw' ? 'Smart Apply' : 'Applied'} {shortDate.format(new Date(a.appliedAt))}
                     </p>
                   </div>
                   <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColors[a.status] ?? 'bg-muted text-muted-foreground'}`}>

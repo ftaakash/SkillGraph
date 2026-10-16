@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "SkillGraph OpenClaw",
+  "name": "SkillGraph Smart Apply",
   "version": "1.0.0",
-  "description": "Checks jobs against your OpenClaw filters, tailors your résumé to each one, and fills the application form for you to review and submit.",
+  "description": "Checks jobs against your Smart Apply filters, tailors your résumé to each one, and fills the application form for you to review and submit.",
   "permissions": ["storage"],
   "host_permissions": [
     "https://skillgraphai.vercel.app/*",
@@ -11,7 +11,7 @@
     "http://localhost:3125/*"
   ],
   "background": { "service_worker": "background.js" },
-  "action": { "default_popup": "popup.html", "default_title": "SkillGraph OpenClaw" },
+  "action": { "default_popup": "popup.html", "default_title": "SkillGraph Smart Apply" },
   "content_scripts": [
     {
       "matches": [
