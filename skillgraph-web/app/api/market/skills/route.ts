@@ -17,87 +17,56 @@ export async function GET(req: NextRequest) {
   }
 }
 
-async function computeSkillDemand(role: string | null) {
-  // Get current ISO week number
-  const now = new Date()
-  const start = new Date(now.getFullYear(), 0, 1)
-  const currentWeek = Math.ceil(((now.getTime() - start.getTime()) / 86400000 + start.getDay() + 1) / 7)
+const DAY = 24 * 60 * 60 * 1000
 
-  const whereClause = {
-    demandWeek: currentWeek,
-    ...(role ? { role: { contains: role, mode: 'insensitive' as const } } : {}),
-  }
-
-  // Try to get data for current week
-  let jobs = await prisma.jobPosting.findMany({ where: whereClause, take: 500 })
-
-  let weekToReport = currentWeek;
-
-  // FALLBACK: If current week is empty, find the most recent week with data
-  if (jobs.length === 0) {
-    const mostRecent = await prisma.jobPosting.findFirst({
-      orderBy: { demandWeek: 'desc' },
-      select: { demandWeek: true }
-    });
-    if (mostRecent) {
-      weekToReport = mostRecent.demandWeek;
-      jobs = await prisma.jobPosting.findMany({
-        where: {
-          demandWeek: weekToReport,
-          ...(role ? { role: { contains: role, mode: 'insensitive' as const } } : {}),
-        },
-        take: 500
-      });
-    }
-  }
-
-  // Aggregate skill frequency
-  const skillFreq: Record<string, number> = {}
+/** Skills asked for by role, counted per job posting. */
+function skillCounts(jobs: { requiredSkills: unknown }[]) {
+  const freq: Record<string, number> = {}
   for (const job of jobs) {
-    const skills = (job.requiredSkills as string[]) || []
-    for (const skill of skills) {
-      if (skill && skill.length > 1) {
-        skillFreq[skill] = (skillFreq[skill] || 0) + 1
-      }
-    }
+    const skills = Array.isArray(job.requiredSkills) ? (job.requiredSkills as string[]) : []
+    for (const skill of skills) if (skill && skill.length > 1) freq[skill] = (freq[skill] || 0) + 1
   }
+  return freq
+}
 
-  // Change = shift in the share of postings that ask for the skill, versus the previous week with data
+/**
+ * Demand from the most recent week of loaded postings, compared with the week before it.
+ * Weeks are taken from when postings were loaded (scrapedAt), not the stored week number,
+ * which has no year and would mix this year's data with last year's.
+ */
+async function computeSkillDemand(role: string | null) {
   const roleFilter = role ? { role: { contains: role, mode: 'insensitive' as const } } : {}
-  const prev = await prisma.jobPosting.findFirst({
-    where: { demandWeek: { lt: weekToReport }, ...roleFilter },
-    orderBy: { demandWeek: 'desc' },
-    select: { demandWeek: true },
-  })
-  const prevJobs = prev
-    ? await prisma.jobPosting.findMany({ where: { demandWeek: prev.demandWeek, ...roleFilter }, select: { requiredSkills: true }, take: 500 })
-    : []
-  const prevFreq: Record<string, number> = {}
-  for (const job of prevJobs) {
-    for (const skill of (job.requiredSkills as string[]) || []) prevFreq[skill] = (prevFreq[skill] || 0) + 1
-  }
+  const latest = await prisma.jobPosting.findFirst({ where: roleFilter, orderBy: { scrapedAt: 'desc' }, select: { scrapedAt: true, demandWeek: true } })
+  if (!latest) return { week: null, role: role ?? 'All Roles', topSkills: [], totalJobsAnalyzed: 0, lastUpdated: null }
+
+  const end = latest.scrapedAt.getTime()
+  const window = (from: number, to: number) =>
+    prisma.jobPosting.findMany({
+      where: { ...roleFilter, scrapedAt: { gt: new Date(from), lte: new Date(to) } },
+      select: { requiredSkills: true },
+      take: 500,
+    })
+  const [jobs, prevJobs] = await Promise.all([window(end - 7 * DAY, end), window(end - 14 * DAY, end - 7 * DAY)])
+
+  const freq = skillCounts(jobs)
+  const prevFreq = skillCounts(prevJobs)
   const share = (count: number, total: number) => (total > 0 ? (count / total) * 100 : 0)
 
-  const topSkills = Object.entries(skillFreq)
+  const topSkills = Object.entries(freq)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 20)
     .map(([skill, count]) => ({
       skill,
       count,
-      // Percentage points; null when there is no earlier week to compare with
+      // Percentage-point shift in the share of postings asking for the skill; null without an earlier week
       change: prevJobs.length > 0 ? Math.round(share(count, jobs.length) - share(prevFreq[skill] ?? 0, prevJobs.length)) : null,
     }))
 
-  const lastScraped = await prisma.jobPosting.findFirst({
-    orderBy: { scrapedAt: 'desc' },
-    select: { scrapedAt: true },
-  })
-
   return {
-    week: weekToReport,
+    week: latest.demandWeek,
     role: role ?? 'All Roles',
     topSkills,
     totalJobsAnalyzed: jobs.length,
-    lastUpdated: lastScraped?.scrapedAt ?? null,
+    lastUpdated: latest.scrapedAt,
   }
 }

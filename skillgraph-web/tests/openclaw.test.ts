@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { checkFilters, maxCtcLpa, filtersFromConfig, type JobFilters } from '@/lib/openclaw/filters'
+import { checkFilters, maxCtcLpa, filtersFromConfig, containsTerm, type JobFilters } from '@/lib/openclaw/filters'
+import { shuffle } from '@/lib/scheduled'
 import { submissionTarget, knownAnswer, splitName, type Applicant } from '@/lib/openclaw/submit'
 import { resumeFileName } from '@/lib/resume/tailor'
 import { parseTailoringNotes, submittedViaLabel, statusLabel, recommendationLabel } from '@/components/openclaw/labels'
@@ -78,6 +79,31 @@ test('pay bands are read in lakhs per annum', () => {
   assert.equal(maxCtcLpa('₹7,195.34 - ₹14,390.68 Per hour (Employer provided)'), null)
   assert.equal(maxCtcLpa('₹40,000 - ₹50,000 per month'), 6)
   assert.equal(maxCtcLpa('₹500,000.00/yr - ₹1,000,000.00/yr'), 10)
+  // Thousands written as "k", and "a month"
+  assert.equal(maxCtcLpa('₹25K - ₹30K per month'), 3.6)
+  assert.equal(maxCtcLpa('50,000 - 60,000 a month'), 7.2)
+  assert.equal(maxCtcLpa('₹500 an hour'), null)
+})
+
+test('filters match whole words, not parts of other words', () => {
+  assert.equal(containsTerm('JavaScript Developer', 'Java'), false)
+  assert.equal(containsTerm('Senior Java Developer', 'java'), true)
+  assert.equal(containsTerm('You will maintain services', 'AI'), false)
+  assert.equal(containsTerm('Work on AI agents', 'AI'), true)
+  assert.equal(containsTerm('Strong C++ and Node.js', 'C++'), true)
+  assert.equal(containsTerm('Strong C++ and Node.js', 'node.js'), true)
+  assert.equal(containsTerm('Requires 5+ years of experience', '5+ years'), true)
+  assert.equal(containsTerm('Team bonding events', 'bond'), false)
+  const java = { ...filters, targetRoles: ['Java Developer'], includeKeywords: [], excludeKeywords: ['bond'] }
+  assert.equal(checkFilters({ ...job, role: 'JavaScript Developer' }, java).ok, false)
+  assert.equal(checkFilters({ ...job, role: 'Java Developer', jdText: 'Monthly team bonding' }, java).ok, true)
+})
+
+test('nightly order shuffle keeps every student exactly once', () => {
+  const ids = Array.from({ length: 50 }, (_, i) => `u${i}`)
+  const out = shuffle(ids)
+  assert.equal(out.length, 50)
+  assert.deepEqual([...out].sort(), [...ids].sort())
   assert.equal(maxCtcLpa(null), null)
 })
 

@@ -179,7 +179,7 @@ export default function OpenClawPage() {
         <div className="mb-6">
           <AgentStatusCard
             isActive={config?.isActive ?? false}
-            preparedToday={stats.handledToday ?? stats.preparedToday}
+            handledToday={stats.handledToday ?? stats.preparedToday}
             readyToApply={stats.readyToApply}
             dailyLimit={config?.dailyLimit ?? 10}
             totalApplications={stats.total}

@@ -116,6 +116,8 @@ export type RateLimitRule = {
   windowMs: number
   methods?: string[]
   match: (pathname: string) => boolean
+  /** Count per client IP even for signed-in or token callers (a ceiling that forged tokens can't escape). */
+  keyBy?: 'ip'
 }
 
 const MINUTE = 60_000
@@ -209,6 +211,15 @@ export const RATE_LIMIT_RULES: RateLimitRule[] = [
       p.startsWith('/api/market/job-details') ||
       p.startsWith('/api/market/company-salary'),
   },
+  {
+    // Extension calls are limited per token (rules above) plus this per-IP ceiling: generous enough for a
+    // campus behind one IP, and a stream of made-up tokens can't each get a fresh bucket
+    name: 'extension_ip',
+    limit: 600,
+    windowMs: 15 * MINUTE,
+    keyBy: 'ip',
+    match: (p) => p.startsWith('/api/extension/'),
+  },
 ]
 
 export type RateLimitResult =
@@ -222,13 +233,15 @@ export type RateLimitResult =
 export async function checkRateLimit(
   method: string,
   pathname: string,
-  clientKey: string
+  clientKey: string,
+  ip = 'unknown'
 ): Promise<RateLimitResult> {
   for (const rule of RATE_LIMIT_RULES) {
     if (rule.methods && !rule.methods.includes(method)) continue
     if (!rule.match(pathname)) continue
 
-    const { count, resetAt } = await store.increment(`${rule.name}:${clientKey}`, rule.windowMs)
+    const key = rule.keyBy === 'ip' ? `ip:${ip}` : clientKey
+    const { count, resetAt } = await store.increment(`${rule.name}:${key}`, rule.windowMs)
     if (count > rule.limit) {
       return { limited: true, rule, retryAfterSec: Math.max(1, Math.ceil((resetAt - Date.now()) / 1000)) }
     }

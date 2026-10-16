@@ -7,7 +7,7 @@ import PageTransition from "@/components/PageTransition";
 import { Button } from "@/components/ui/button";
 
 interface SkillItem { skill: string; count: number; change: number | null }
-interface MarketData { topSkills: SkillItem[]; role: string; totalJobsAnalyzed: number; week: number; lastUpdated: string }
+interface MarketData { topSkills: SkillItem[]; role: string; totalJobsAnalyzed: number; week: number | null; lastUpdated: string | null }
 
 const roles = ['All Roles', 'Industrial AI Engineer', 'Data Analyst', 'ML Engineer', 'DevOps Engineer', 'Full Stack Dev'];
 const tabs = ['Skill Demand', 'Live Job Search', 'Salary Explorer'];

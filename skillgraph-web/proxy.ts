@@ -47,8 +47,9 @@ export default async function proxy(req: NextRequest) {
   const isApi = pathname.startsWith('/api/')
 
   if (isApi) {
-    const clientKey = session?.user?.id ?? (await extensionClientKey(req)) ?? `ip:${clientIp(req.headers)}`
-    const limit = await checkRateLimit(req.method, pathname, clientKey)
+    const ip = clientIp(req.headers)
+    const clientKey = session?.user?.id ?? (await extensionClientKey(req)) ?? `ip:${ip}`
+    const limit = await checkRateLimit(req.method, pathname, clientKey, ip)
     if (limit.limited) {
       return tag(NextResponse.json(
         { error: 'Too many requests. Please try again later.' },

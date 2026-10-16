@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 
 interface AgentStatusCardProps {
   isActive: boolean;
-  preparedToday: number;
+  handledToday: number;
   readyToApply: number;
   dailyLimit: number;
   totalApplications: number;
@@ -16,7 +16,7 @@ interface AgentStatusCardProps {
 
 export default function AgentStatusCard({
   isActive,
-  preparedToday,
+  handledToday,
   readyToApply,
   dailyLimit,
   totalApplications,
@@ -73,11 +73,11 @@ export default function AgentStatusCard({
           <div className="bg-background/50 rounded-lg p-3 text-center border border-border">
             <div className="text-2xl font-heading font-black text-foreground">{readyToApply}</div>
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">Ready to apply</div>
-            <div className="text-[10px] text-muted-foreground mt-1">{preparedToday} / {dailyLimit} prepared or submitted today</div>
+            <div className="text-[10px] text-muted-foreground mt-1">{handledToday} / {dailyLimit} prepared or submitted today</div>
             <div className="w-full bg-muted rounded-full h-1.5 mt-1">
               <div
                 className="gradient-primary h-1.5 rounded-full transition-all"
-                style={{ width: `${Math.min((preparedToday / Math.max(dailyLimit, 1)) * 100, 100)}%` }}
+                style={{ width: `${Math.min((handledToday / Math.max(dailyLimit, 1)) * 100, 100)}%` }}
               />
             </div>
           </div>
