@@ -1,55 +1,43 @@
-import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { ok, unauthorized, serverError } from '@/lib/api'
 
-// GET — list user's OpenClaw auto-applications with listing details
+// GET /api/openclaw/applications — the student's OpenClaw pipeline with listings, evaluations and stats
 export async function GET() {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const session = await auth()
+    if (!session?.user?.id) return unauthorized()
 
-  const applications = await prisma.openClawApplication.findMany({
-    where: { userId: session.user.id },
-    orderBy: { appliedAt: 'desc' },
-    take: 50,
-  })
+    const rows = await prisma.openClawApplication.findMany({
+      where: { userId: session.user.id },
+      orderBy: { appliedAt: 'desc' },
+      take: 50,
+      include: { listing: true },
+    })
+    const evals = await prisma.evaluationResult.findMany({ where: { applicationId: { in: rows.map(a => a.id) } } })
+    const evalMap = new Map(evals.map(e => [e.applicationId, e]))
+    const applications = rows.map(({ listing, ...app }) => ({ ...app, Listing: listing, EvaluationResult: evalMap.get(app.id) ?? null }))
 
-  // Fetch listing details for each application
-  const listingIds = applications.map(a => a.listingId)
-  const listings = await prisma.openClawListing.findMany({
-    where: { id: { in: listingIds } },
-  })
-  const listingMap = new Map(listings.map(l => [l.id, l]))
+    // Matches the agent's daily limit (lib/openclaw/agent.ts): prepared, or submitted for the student, today
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+    const today = rows.filter(a => a.appliedAt >= todayStart)
+    const preparedToday = today.filter(a => a.status === 'ReadyToApply').length
+    const submittedToday = today.filter(a => a.status === 'Applied' && a.submittedVia === 'ats_api').length
 
-  // Fetch EvaluationResults for each application
-  const appIds = applications.map(a => a.id)
-  const evals = await prisma.evaluationResult.findMany({
-    where: { applicationId: { in: appIds } },
-  })
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const evalMap = new Map(evals.map((e: any) => [e.applicationId, e]))
-
-  const enriched = applications.map(app => ({
-    ...app,
-    Listing: listingMap.get(app.listingId) ?? null,
-    EvaluationResult: evalMap.get(app.id) ?? null,
-  }))
-
-  // Summary stats
-  const todayStart = new Date()
-  todayStart.setHours(0, 0, 0, 0)
-  // The agent's daily limit counts applications it prepared today
-  const preparedToday = applications.filter(a => a.status === 'ReadyToApply' && new Date(a.appliedAt) >= todayStart).length
-  const readyToApply = applications.filter(a => a.status === 'ReadyToApply').length
-
-  return NextResponse.json({
-    applications: enriched,
-    stats: {
-      total: applications.length,
-      preparedToday,
-      readyToApply,
-      avgMatchScore: applications.length > 0
-        ? Math.round(applications.reduce((s, a) => s + (a.matchScore ?? 0), 0) / applications.length)
-        : 0,
-    },
-  })
+    return ok({
+      applications,
+      stats: {
+        total: rows.length,
+        preparedToday,
+        submittedToday,
+        handledToday: preparedToday + submittedToday,
+        readyToApply: rows.filter(a => a.status === 'ReadyToApply').length,
+        avgMatchScore: rows.length > 0 ? Math.round(rows.reduce((s, a) => s + (a.matchScore ?? 0), 0) / rows.length) : 0,
+      },
+    })
+  } catch (err) {
+    console.error('[openclaw/applications GET]', err)
+    return serverError()
+  }
 }

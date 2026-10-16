@@ -3,6 +3,24 @@ import assert from 'node:assert/strict'
 import { checkFilters, maxCtcLpa, filtersFromConfig, type JobFilters } from '@/lib/openclaw/filters'
 import { submissionTarget, knownAnswer, splitName, type Applicant } from '@/lib/openclaw/submit'
 import { resumeFileName } from '@/lib/resume/tailor'
+import { parseTailoringNotes, submittedViaLabel, statusLabel, recommendationLabel } from '@/components/openclaw/labels'
+
+test('pipeline notes: JSON evaluations, the agent\'s advice, and why a job was not auto-submitted', () => {
+  assert.equal(parseTailoringNotes('{"grade":"B","recommendation":"ReviewAndApply"}').evaluation?.grade, 'B')
+  assert.deepEqual(parseTailoringNotes('Lead with your React project.\n\nNot auto-submitted: The form asks “Expected CTC”, which needs your answer'), {
+    evaluation: null,
+    advice: 'Lead with your React project.',
+    notSubmittedReason: 'The form asks “Expected CTC”, which needs your answer',
+  })
+  assert.deepEqual(parseTailoringNotes('Not auto-submitted: Greenhouse rejected the application: HTTP 422'), {
+    evaluation: null, advice: null, notSubmittedReason: 'Greenhouse rejected the application: HTTP 422',
+  })
+  assert.deepEqual(parseTailoringNotes(null), { evaluation: null, advice: null, notSubmittedReason: null })
+  assert.equal(submittedViaLabel('ats_api'), 'Submitted for you')
+  assert.equal(submittedViaLabel(null), null)
+  assert.equal(statusLabel('ReadyToApply'), 'Ready to apply')
+  assert.equal(recommendationLabel('AutoApply'), 'Strong match: apply')
+})
 
 const filters: JobFilters = {
   targetRoles: ['Full Stack Developer', 'SDE'],

@@ -6,7 +6,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import PageTransition from "@/components/PageTransition";
 import { Button } from "@/components/ui/button";
 
-interface SkillItem { skill: string; count: number }
+interface SkillItem { skill: string; count: number; change: number | null }
 interface MarketData { topSkills: SkillItem[]; role: string; totalJobsAnalyzed: number; week: number; lastUpdated: string }
 
 const roles = ['All Roles', 'Industrial AI Engineer', 'Data Analyst', 'ML Engineer', 'DevOps Engineer', 'Full Stack Dev'];
@@ -89,7 +89,7 @@ export default function MarketPage() {
   return (
     <PageTransition>
       <DashboardLayout title="Market Intelligence">
-        <p className="text-muted-foreground mb-6 font-body">Real-time skill demand index and job market insights.</p>
+        <p className="text-muted-foreground mb-6 font-body">Skill demand from this week&apos;s job postings, live job search and salary estimates.</p>
         
         {lookupError && activeTab !== 'Skill Demand' && (
           <p className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm" role="alert">{lookupError}</p>
@@ -124,19 +124,19 @@ export default function MarketPage() {
 
             <div className="bg-card border border-border rounded-lg overflow-hidden">
               <div className="grid grid-cols-[60px_1fr_120px_100px_80px] gap-4 px-6 py-3 border-b border-border text-xs uppercase tracking-wider text-muted-foreground font-semibold bg-muted/20">
-                <span>Rank</span><span>Ticker</span><span>Demand</span><span>Δ Change</span><span>Trend</span>
+                <span>Rank</span><span>Ticker</span><span>Demand</span><span title="Change in the share of postings asking for this skill, versus the previous week">Δ vs last week</span><span>Trend</span>
               </div>
               
               {loading ? (
-                <div className="p-12 text-center text-muted-foreground font-bold tracking-widest text-sm animate-pulse">Loading job details…</div>
+                <div className="p-12 text-center text-muted-foreground font-bold tracking-widest text-sm animate-pulse">Loading skill demand…</div>
               ) : data?.topSkills?.length === 0 ? (
                 <div className="p-12 text-center text-muted-foreground font-medium">No demand data for this role yet.</div>
               ) : (
                 data?.topSkills?.map(({ skill, count }, i) => {
                   const demandPct = Math.min(100, Math.round((count / maxCount) * 100));
-                  // Mock change and trend for UI continuity since real API doesn't have it
-                  const mockChange = i % 3 === 0 ? -2 : i % 2 === 0 ? 0 : 5 + i;
-                  const mockTrend = mockChange > 0 ? "up" : mockChange < 0 ? "down" : "flat";
+                  // Percentage-point change in the share of postings; null until there are two weeks of data
+                  const change = typeof data.topSkills[i].change === "number" ? data.topSkills[i].change : null;
+                  const trend = change === null || change === 0 ? "flat" : change > 0 ? "up" : "down";
 
                   return (
                     <div key={skill} className="grid grid-cols-[60px_1fr_120px_100px_80px] gap-4 px-6 py-4 border-b border-border/50 hover:bg-muted/30 transition-colors items-center">
@@ -149,11 +149,11 @@ export default function MarketPage() {
                         <span className="text-xs text-muted-foreground w-8">{count}</span>
                       </div>
                       <span className={`text-sm font-medium ${
-                        mockChange > 0 ? "text-success" : mockChange < 0 ? "text-destructive" : "text-muted-foreground"
+                        change !== null && change > 0 ? "text-success" : change !== null && change < 0 ? "text-destructive" : "text-muted-foreground"
                       }`}>
-                        {mockChange > 0 ? "+" : ""}{mockChange}%
+                        {change === null ? "—" : `${change > 0 ? "+" : ""}${change} pts`}
                       </span>
-                      <TrendIcon trend={mockTrend} />
+                      <TrendIcon trend={trend} />
                     </div>
                   );
                 })
