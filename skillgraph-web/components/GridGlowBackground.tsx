@@ -6,8 +6,9 @@ import { useEffect, useRef } from "react";
  * Landing-page background: a rising market chart and a small skill network, rendered as a
  * glowing grid of gold cells with shimmer and occasional glitches (a "grid glow" effect).
  *
- * It follows the pointer: nearby cells brighten and the grid bends away from it, the skill nodes
- * drift out of its way, and a click sends a ripple through the grid (all off for reduced motion).
+ * It follows the pointer: the chart line bends up or down towards the pointer around its column,
+ * the skill nodes drift out of its way, and a click sends a ripple through the grid
+ * (all off for reduced motion).
  *
  * Everything is drawn on a canvas in the page, so there is no video player, no controls and no
  * footage to license. The scene is drawn at one pixel per cell into a small offscreen canvas;
@@ -39,9 +40,9 @@ export default function GridGlowBackground() {
     let nodes: Node[] = [];
     let glitchRows: { row: number; shift: number; until: number }[] = [];
 
-    // Pointer, in cell units. The position eases towards the pointer and the effect fades in on
-    // movement and out when the pointer rests or leaves, so nothing jumps.
-    const pointer = { x: 0, y: 0, tx: 0, ty: 0, strength: 0, target: 0, lastMove: 0 };
+    // Pointer, in cell units. The position eases towards the pointer and the effect fades in when
+    // the pointer is over the background and out when it leaves, so nothing jumps.
+    const pointer = { x: 0, y: 0, tx: 0, ty: 0, strength: 0, target: 0 };
     let ripples: { x: number; y: number; start: number }[] = [];
     const POINTER_RADIUS = 16;    // cells
     const RIPPLE_MS = 1400;
@@ -55,7 +56,7 @@ export default function GridGlowBackground() {
       const p = toCells(e);
       if (!p) { pointer.target = 0; return; }
       if (pointer.strength < 0.05) { pointer.x = p.x; pointer.y = p.y; }
-      pointer.tx = p.x; pointer.ty = p.y; pointer.target = 1; pointer.lastMove = performance.now();
+      pointer.tx = p.x; pointer.ty = p.y; pointer.target = 1;
     };
     const onPointerDown = (e: PointerEvent) => {
       const p = toCells(e);
@@ -93,7 +94,10 @@ export default function GridGlowBackground() {
         const p = x / cols;
         const trend = rows * (0.78 - 0.5 * p);
         const wave = Math.sin(p * 9 + t * 0.6) * rows * 0.035 + Math.sin(p * 23 - t * 1.1) * rows * 0.015;
-        points.push([x, trend + wave]);
+        // The wave follows the pointer: around the pointer's column the line bends towards its height,
+        // falling off smoothly to either side
+        const pull = pointer.strength * Math.exp(-(((x - pointer.x) / (cols * 0.16)) ** 2));
+        points.push([x, trend + wave + (pointer.y - (trend + wave)) * pull * 0.85]);
       }
       const area = sctx.createLinearGradient(0, rows * 0.25, 0, rows);
       area.addColorStop(0, "rgba(255,255,255,0.32)");
@@ -152,6 +156,10 @@ export default function GridGlowBackground() {
 
     const render = (now: number) => {
       const t = now / 1000;
+      // Ease the pointer so the chart glides after it; it lets go when the pointer leaves the page
+      pointer.x += (pointer.tx - pointer.x) * 0.12;
+      pointer.y += (pointer.ty - pointer.y) * 0.12;
+      pointer.strength += (pointer.target - pointer.strength) * 0.06;
       drawScene(t);
       const data = sctx.getImageData(0, 0, cols, rows).data;
 
@@ -167,13 +175,7 @@ export default function GridGlowBackground() {
       ctx.fillStyle = "#050505";
       ctx.fillRect(0, 0, cols * CELL, rows * CELL);
 
-      // Ease the pointer position and strength; rest for a while and the effect fades away
-      if (now - pointer.lastMove > 1500) pointer.target = 0;
-      pointer.x += (pointer.tx - pointer.x) * 0.18;
-      pointer.y += (pointer.ty - pointer.y) * 0.18;
-      pointer.strength += (pointer.target - pointer.strength) * 0.08;
       ripples = ripples.filter(rp => now - rp.start < RIPPLE_MS);
-      const R2 = POINTER_RADIUS * POINTER_RADIUS;
 
       for (let r = 0; r < rows; r++) {
         const shift = shiftFor(r);
@@ -182,20 +184,10 @@ export default function GridGlowBackground() {
           // Faint grid everywhere, so the field reads as a dot matrix even where it's dark
           const shimmer = reduceMotion ? 0 : (Math.sin(c * 0.9 + r * 1.3 + t * 3) + 1) * 0.5;
           let level = b > 0.04 ? b : 0.025 + 0.02 * shimmer;
-          let x = (c + shift) * CELL, y = r * CELL;
+          const x = (c + shift) * CELL, y = r * CELL;
 
-          // Pointer: a spotlight that brightens cells and pushes the grid outwards
-          let boost = 0;
-          if (pointer.strength > 0.01) {
-            const dx = c - pointer.x, dy = r - pointer.y, d2 = dx * dx + dy * dy;
-            if (d2 < R2) {
-              const d = Math.sqrt(d2) || 1, k = (1 - d / POINTER_RADIUS) ** 2 * pointer.strength;
-              boost += k;
-              x += (dx / d) * k * CELL * 0.9;
-              y += (dy / d) * k * CELL * 0.9;
-            }
-          }
           // Click ripples: a bright ring that expands and fades
+          let boost = 0;
           for (const rp of ripples) {
             const age = (now - rp.start) / RIPPLE_MS;
             const ring = Math.abs(Math.hypot(c - rp.x, r - rp.y) - age * 40);
