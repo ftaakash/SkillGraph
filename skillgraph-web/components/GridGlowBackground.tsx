@@ -6,6 +6,9 @@ import { useEffect, useRef } from "react";
  * Landing-page background: a rising market chart and a small skill network, rendered as a
  * glowing grid of gold cells with shimmer and occasional glitches (a "grid glow" effect).
  *
+ * It follows the pointer: nearby cells brighten and the grid bends away from it, the skill nodes
+ * drift out of its way, and a click sends a ripple through the grid (all off for reduced motion).
+ *
  * Everything is drawn on a canvas in the page, so there is no video player, no controls and no
  * footage to license. The scene is drawn at one pixel per cell into a small offscreen canvas;
  * each cell's brightness then sets the size and glow of its square on screen.
@@ -35,6 +38,30 @@ export default function GridGlowBackground() {
     let cols = 0, rows = 0, dpr = 1, raf = 0, last = 0;
     let nodes: Node[] = [];
     let glitchRows: { row: number; shift: number; until: number }[] = [];
+
+    // Pointer, in cell units. The position eases towards the pointer and the effect fades in on
+    // movement and out when the pointer rests or leaves, so nothing jumps.
+    const pointer = { x: 0, y: 0, tx: 0, ty: 0, strength: 0, target: 0, lastMove: 0 };
+    let ripples: { x: number; y: number; start: number }[] = [];
+    const POINTER_RADIUS = 16;    // cells
+    const RIPPLE_MS = 1400;
+
+    const toCells = (e: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / CELL, y = (e.clientY - rect.top) / CELL;
+      return x >= 0 && y >= 0 && x <= cols && y <= rows ? { x, y } : null;
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      const p = toCells(e);
+      if (!p) { pointer.target = 0; return; }
+      if (pointer.strength < 0.05) { pointer.x = p.x; pointer.y = p.y; }
+      pointer.tx = p.x; pointer.ty = p.y; pointer.target = 1; pointer.lastMove = performance.now();
+    };
+    const onPointerDown = (e: PointerEvent) => {
+      const p = toCells(e);
+      if (p) ripples = [...ripples.slice(-4), { x: p.x, y: p.y, start: performance.now() }];
+    };
+    const onPointerLeave = () => { pointer.target = 0; };
 
     const resize = () => {
       const { clientWidth: w, clientHeight: h } = canvas;
@@ -95,8 +122,16 @@ export default function GridGlowBackground() {
       // Skill network: drifting nodes with links between nearby ones
       for (const n of nodes) {
         n.x += n.vx; n.y += n.vy;
-        if (n.x < cols * 0.5 || n.x > cols * 0.98) n.vx *= -1;
-        if (n.y < rows * 0.06 || n.y > rows * 0.75) n.vy *= -1;
+        // Nodes near the pointer drift away from it
+        if (pointer.strength > 0.01) {
+          const dx = n.x - pointer.x, dy = n.y - pointer.y, d = Math.hypot(dx, dy) || 1;
+          if (d < POINTER_RADIUS) {
+            const push = (1 - d / POINTER_RADIUS) * 0.35 * pointer.strength;
+            n.x += (dx / d) * push; n.y += (dy / d) * push;
+          }
+        }
+        if (n.x < cols * 0.5 || n.x > cols * 0.98) n.vx = Math.abs(n.vx) * (n.x < cols * 0.5 ? 1 : -1);
+        if (n.y < rows * 0.06 || n.y > rows * 0.75) n.vy = Math.abs(n.vy) * (n.y < rows * 0.06 ? 1 : -1);
       }
       sctx.lineWidth = 0.8;
       for (let i = 0; i < nodes.length; i++) {
@@ -132,14 +167,42 @@ export default function GridGlowBackground() {
       ctx.fillStyle = "#050505";
       ctx.fillRect(0, 0, cols * CELL, rows * CELL);
 
+      // Ease the pointer position and strength; rest for a while and the effect fades away
+      if (now - pointer.lastMove > 1500) pointer.target = 0;
+      pointer.x += (pointer.tx - pointer.x) * 0.18;
+      pointer.y += (pointer.ty - pointer.y) * 0.18;
+      pointer.strength += (pointer.target - pointer.strength) * 0.08;
+      ripples = ripples.filter(rp => now - rp.start < RIPPLE_MS);
+      const R2 = POINTER_RADIUS * POINTER_RADIUS;
+
       for (let r = 0; r < rows; r++) {
         const shift = shiftFor(r);
         for (let c = 0; c < cols; c++) {
           const b = data[(r * cols + c) * 4] / 255;
           // Faint grid everywhere, so the field reads as a dot matrix even where it's dark
           const shimmer = reduceMotion ? 0 : (Math.sin(c * 0.9 + r * 1.3 + t * 3) + 1) * 0.5;
-          const level = b > 0.04 ? b : 0.025 + 0.02 * shimmer;
-          const x = (c + shift) * CELL, y = r * CELL;
+          let level = b > 0.04 ? b : 0.025 + 0.02 * shimmer;
+          let x = (c + shift) * CELL, y = r * CELL;
+
+          // Pointer: a spotlight that brightens cells and pushes the grid outwards
+          let boost = 0;
+          if (pointer.strength > 0.01) {
+            const dx = c - pointer.x, dy = r - pointer.y, d2 = dx * dx + dy * dy;
+            if (d2 < R2) {
+              const d = Math.sqrt(d2) || 1, k = (1 - d / POINTER_RADIUS) ** 2 * pointer.strength;
+              boost += k;
+              x += (dx / d) * k * CELL * 0.9;
+              y += (dy / d) * k * CELL * 0.9;
+            }
+          }
+          // Click ripples: a bright ring that expands and fades
+          for (const rp of ripples) {
+            const age = (now - rp.start) / RIPPLE_MS;
+            const ring = Math.abs(Math.hypot(c - rp.x, r - rp.y) - age * 40);
+            if (ring < 2.5) boost += (1 - ring / 2.5) * (1 - age) * 0.9;
+          }
+          if (boost > 0) level = Math.min(1, level + boost * 0.6);
+
           const size = Math.max(1, CELL * (0.18 + 0.62 * Math.min(1, level * 1.4)));
           const off = (CELL - size) / 2;
           const flicker = !reduceMotion && b > 0.2 && Math.random() < 0.015;
@@ -171,9 +234,20 @@ export default function GridGlowBackground() {
     }
     const onResize = () => { resize(); if (reduceMotion) render(4000); };
     window.addEventListener("resize", onResize);
+    // The page content sits on top of the canvas, so listen on the window
+    if (!reduceMotion) {
+      window.addEventListener("pointermove", onPointerMove, { passive: true });
+      window.addEventListener("pointerdown", onPointerDown, { passive: true });
+      document.documentElement.addEventListener("pointerleave", onPointerLeave);
+      window.addEventListener("blur", onPointerLeave);
+    }
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerdown", onPointerDown);
+      document.documentElement.removeEventListener("pointerleave", onPointerLeave);
+      window.removeEventListener("blur", onPointerLeave);
     };
   }, []);
 
